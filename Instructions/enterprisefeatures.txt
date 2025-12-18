@@ -1,0 +1,26 @@
+Goal Visibility Scoping	
+Current State: The Goal Creation Flow allows goals to be created, but there is no feature ensuring Manager A only sees and can edit goals they created or are assigned to. Required: Managers should only see goals relevant to their assigned employees or teams.
+
+Employee Data Scoping	
+Current State: The Employees Page seems to show a list of "all employees". Required: Managers should only be able to view, search, and calculate average scores for the employees and teams directly reporting to them. Senior Managers need filtered oversight of their direct reports (junior managers) and their skip-level reports (employees managed by junior managers).
+
+Report Override Locking	
+Current State: The Report model includes a managerOverallScore for manager overrides. Required: The ability to apply this override must be restricted only to the direct manager of the employee who submitted the report.
+
+Tiered Manager Roles	
+Current State: The Employee model only has a single managerId. Required: Explicit roles (e.g., Team Lead, Manager, Senior Manager, VP) are needed to govern dashboard visibility and setting permissions, such as who can set a global frequency
+
+Hierarchical Dashboard Filtering	
+Current State: The Dashboard filters only by Date Range. Required: A manager should have a dropdown to view performance data (charts, averages, insights ) for: 1) Their direct reports, 2) Teams they oversee, or 3) The entire organization (if they are a top-level admin).
+
+Team Membership Auditing	
+Current State: Teams are created via a form , but no flow exists for a senior manager to audit which employees are in which team, or which team owns a goal.
+
+Manager-Specific Report Fields	
+Current State: The Report model only accounts for the employee's reportText and the manager's optional managerOverallScore. Required: A flow and field for the manager to provide private, non-shared qualitative feedback or action items that only they and the next-level manager can see.
+
+Goal Setting Delegation	
+Current State: Goal creation appears to be universal for managers. Required: A feature to allow Senior Managers to delegate goal-setting authority to Junior Managers, or approve goals before they become "Available for report assignment".
+
+Mandatory Override Justification	
+Current State: Manager justification for score override is implied as necessary , but not enforced in the current data model. Required: A dedicated, required text input for managerOverrideReasoning that must be logged to complete the override action (MS-3 user story ).

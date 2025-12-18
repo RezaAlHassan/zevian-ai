@@ -1,0 +1,18 @@
+1. The Core Principle: Manager ScopeWe define the Manager's scope using three simple, intuitive tiers:
+ScopeDefinition (How the System Filters)Manager Type/RoleDirectReports only from employees whose manager_id is the current user.
+Default Manager (or a Limited Manager 2)Full ChainReports from all employees who report to the current manager, 
+or to any manager below them in the hierarchy.Senior Manager / Account Owner (Anyone with canViewOrganizationWide access 3333)
+OrganizationAll employees in the system, regardless of reporting line.Account Owner (Always 4)2. 
+Implementation Flow (Manager Assignment)The Account Owner implements the hierarchy and delegates oversight in a single, 
+simple action: reassigning a manager to report to a superior manager.StepAction by Account Owner/Superior ManagerImplementation
+ Detail1. Create the ManagerInvite the user as a Manager (Role). 5555Uses the Invite User Modal flow. 
+ 62. Establish HierarchyOn the Employee Detail Page 7 of the new Manager (e.g., 'Junior Manager'), 
+ set their manager_id to the superior manager (e.g., 'Senior Manager').This is a simple update to the Employees 
+ data model manager_id field. 8888888883. Manager Experience: Dashboard & ReportsThis is where the simplicity pays off.
+  We modify the existing Frequency Scope Toggle 9999on the Settings Page and the Search Scope 10on the Dashboard 
+  11111111 to implicitly handle the new hierarchy.A. Central Scope SelectorOn the Dashboard and All Reports Page, we 
+  introduce a single, high-level selector (if the user has the necessary organizational permissions 12):Scope: 
+  [My Teams] | [My Reporting Chain] | [All Organization]If the Manager is delegated as a "Senior Manager" 
+  (i.e., they have subordinate managers):Clicking "My Reporting Chain" 13 automatically includes all reports from their direct team AND all reports from teams managed by the junior managers below them, using a recursive query on the manager_id data.B. Delegating Account ControlThe ability to "give account control to managers they want" 14is best handled in the Settings Module 15 by the Account Owner only.Permission Tiers: The Account Owner (or a delegated Manager with the canManageSettings permission 161616) uses the Permission Management feature on the Settings Page171717.Toggle Permissions: The Owner simply toggles a Manager's role between Manager (Limited) and Manager (Full)18.Manager (Full): Has the delegated "account control" (e.g., can override AI scores 191919, manage all settings 20).
+Manager (Limited): Can only view their team and submit reports21.This simplified approach is easier to build, easier to use, and aligns perfectly with standard enterprise software architecture.
+Suboprdniate selection and reporting chain can be establshed in the employee detail page or in a seperate tab in teh setings (move user oermissions section in seyyings tegre as well)

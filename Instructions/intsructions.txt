@@ -1,0 +1,15 @@
+To be followed throughoput the entire applciation
+Links will have the primary color. Avoid non clickable links/icon/components with this color or shades of primary
+Table action columns will be clickable and have the base primary color, for table rows with multiple actions use a dropdown
+Maintain fixed sizes for buttons for consistency sm,md,lg
+Use consistent color and traidic, complemnetary colors for secondary and primary buttons 
+Ensure components thar show summarized list has a link that will redirect to the main page where they can see the full list or table
+Follow consistent input styles and states 
+All Action texts in tables must be dar
+
+For ____ table all table data will have class="capitalize text-on-surface-secondary this style. Regular text. primary-Blue text and icon
+View details will show underline on hover. eye icon should be 16px 
+
+
+
+

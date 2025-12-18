@@ -1,0 +1,664 @@
+import { supabase } from './supabaseClient';
+import type { Project, Goal, Report, Employee, Organization } from '../types';
+
+// ============================================================================
+// ORGANIZATIONS SERVICE (Multi-Tenancy)
+// ============================================================================
+export const organizationService = {
+    async getById(id: string) {
+        const { data, error } = await supabase
+            .from('organizations')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return data as Organization;
+    },
+
+    async create(organization: Omit<Organization, 'createdAt'>) {
+        const { error } = await supabase
+            .from('organizations')
+            .insert({
+                id: organization.id,
+                name: organization.name,
+                plan_tier: organization.planTier,
+            });
+        // Do NOT select() here because the user cannot "view" the organization 
+        // until their employee record is created (which happens next).
+        // RLS "View own organization" depends on get_my_org_id() -> employee table.
+
+        if (error) throw error;
+        return { ...organization, createdAt: new Date().toISOString() } as Organization;
+    },
+
+    async update(id: string, updates: Partial<Organization>) {
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.planTier !== undefined) dbUpdates.plan_tier = updates.planTier;
+
+        const { data, error } = await supabase
+            .from('organizations')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data as Organization;
+    },
+};
+
+// ============================================================================
+// PROJECTS SERVICE
+// ============================================================================
+
+// Helper function to convert database project to TypeScript Project
+function dbProjectToProject(dbProject: any): Project {
+    return {
+        id: dbProject.id,
+        organizationId: dbProject.organization_id,
+        name: dbProject.name,
+        description: dbProject.description,
+        category: dbProject.category,
+        reportFrequency: dbProject.report_frequency,
+        knowledgeBaseLink: dbProject.knowledge_base_link,
+        aiContext: dbProject.ai_context,
+        createdBy: dbProject.created_by,
+        assignees: [], // Assignees are loaded separately
+    };
+}
+
+export const projectService = {
+    async getAll() {
+        const { data, error } = await supabase
+            .from('projects')
+            .select('*, project_assignees(assignee_id, assignee_type)')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? data.map(dbProject => ({
+            ...dbProjectToProject(dbProject),
+            assignees: dbProject.project_assignees?.map((pa: any) => ({
+                id: pa.assignee_id,
+                type: pa.assignee_type
+            })) || []
+        })) : [];
+    },
+
+    async getById(id: string) {
+        const { data, error } = await supabase
+            .from('projects')
+            .select('*, project_assignees(assignee_id, assignee_type)')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return {
+            ...dbProjectToProject(data),
+            assignees: data.project_assignees?.map((pa: any) => ({
+                id: pa.assignee_id,
+                type: pa.assignee_type
+            })) || []
+        };
+    },
+
+    async create(project: Omit<Project, 'createdAt' | 'updatedAt'>) {
+        console.log("projectService.create called with:", project);
+        const { error } = await supabase
+            .from('projects')
+            .insert({
+                id: project.id,
+                organization_id: project.organizationId,
+                name: project.name,
+                description: project.description,
+                category: project.category,
+                report_frequency: project.reportFrequency,
+                knowledge_base_link: project.knowledgeBaseLink,
+                ai_context: project.aiContext,
+                created_by: project.createdBy,
+            });
+        // Removed .select() to avoid RLS 403 race condition
+
+        if (error) {
+            console.error("Supabase Project Insert Error:", error);
+            throw error;
+        }
+
+        // Insert assignees
+        if (project.assignees && project.assignees.length > 0) {
+            const assigneesToInsert = project.assignees.map(a => ({
+                project_id: project.id,
+                assignee_id: a.id,
+                assignee_type: a.type
+            }));
+            const { error: assigneesError } = await supabase
+                .from('project_assignees')
+                .insert(assigneesToInsert);
+
+            if (assigneesError) throw assigneesError;
+        }
+
+        return {
+            ...project,
+            assignees: project.assignees || []
+        } as Project;
+    },
+
+    async update(id: string, updates: Partial<Project>) {
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.category !== undefined) dbUpdates.category = updates.category;
+        if (updates.reportFrequency !== undefined) dbUpdates.report_frequency = updates.reportFrequency;
+        if (updates.knowledgeBaseLink !== undefined) dbUpdates.knowledge_base_link = updates.knowledgeBaseLink;
+        if (updates.aiContext !== undefined) dbUpdates.ai_context = updates.aiContext;
+
+        const { data, error } = await supabase
+            .from('projects')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+
+        // Update assignees if provided
+        if (updates.assignees) {
+            // Delete existing assignees
+            const { error: deleteError } = await supabase
+                .from('project_assignees')
+                .delete()
+                .eq('project_id', id);
+            if (deleteError) throw deleteError;
+
+            // Insert new assignees
+            if (updates.assignees.length > 0) {
+                const assigneesToInsert = updates.assignees.map(a => ({
+                    project_id: id,
+                    assignee_id: a.id,
+                    assignee_type: a.type
+                }));
+                const { error: insertError } = await supabase
+                    .from('project_assignees')
+                    .insert(assigneesToInsert);
+                if (insertError) throw insertError;
+            }
+        }
+
+        // Return updated project with assignees
+        return this.getById(id);
+    },
+
+    async delete(id: string) {
+        const { error } = await supabase
+            .from('projects')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    async getAssignees(projectId: string) {
+        const { data, error } = await supabase
+            .from('project_assignees')
+            .select('assignee_id, assignee_type, employees(*)')
+            .eq('project_id', projectId);
+        if (error) throw error;
+        return data;
+    },
+
+    async assignEmployee(projectId: string, employeeId: string, assigneeType: 'employee' | 'manager') {
+        const { data, error } = await supabase
+            .from('project_assignees')
+            .insert({
+                project_id: projectId,
+                assignee_id: employeeId,
+                assignee_type: assigneeType,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    async unassignEmployee(projectId: string, employeeId: string) {
+        const { error } = await supabase
+            .from('project_assignees')
+            .delete()
+            .eq('project_id', projectId)
+            .eq('assignee_id', employeeId);
+        if (error) throw error;
+    },
+};
+
+// ============================================================================
+// GOALS SERVICE
+// ============================================================================
+
+// Helper function to convert database goal to TypeScript Goal
+function dbGoalToGoal(dbGoal: any): Goal {
+    return {
+        id: dbGoal.id,
+        name: dbGoal.name,
+        projectId: dbGoal.project_id,
+        criteria: dbGoal.criteria ? dbGoal.criteria.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            weight: c.weight
+        })) : [],
+        instructions: dbGoal.instructions,
+        deadline: dbGoal.deadline,
+        managerId: dbGoal.manager_id,
+        createdBy: dbGoal.created_by,
+    };
+}
+
+export const goalService = {
+    async getAll() {
+        const { data, error } = await supabase
+            .from('goals')
+            .select('*, projects(*), criteria(*)')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? data.map(dbGoalToGoal) : [];
+    },
+
+    async getById(id: string) {
+        const { data, error } = await supabase
+            .from('goals')
+            .select('*, projects(*), criteria(*)')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return dbGoalToGoal(data);
+    },
+
+    async getByProjectId(projectId: string) {
+        const { data, error } = await supabase
+            .from('goals')
+            .select('*, criteria(*)')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? data.map(dbGoalToGoal) : [];
+    },
+
+    async create(goal: Omit<Goal, 'createdAt' | 'updatedAt'>) {
+        // Insert goal
+        const { error: goalError } = await supabase
+            .from('goals')
+            .insert({
+                id: goal.id,
+                name: goal.name,
+                project_id: goal.projectId,
+                instructions: goal.instructions,
+                deadline: goal.deadline,
+                manager_id: goal.managerId,
+                created_by: goal.createdBy,
+            });
+        // Removed .select() to avoid RLS 403 race condition
+
+        if (goalError) throw goalError;
+
+        // Insert criteria
+        if (goal.criteria && goal.criteria.length > 0) {
+            const criteriaToInsert = goal.criteria.map((criterion, index) => ({
+                id: criterion.id,
+                goal_id: goal.id,
+                name: criterion.name,
+                weight: criterion.weight,
+                display_order: index,
+            }));
+
+            const { error: criteriaError } = await supabase
+                .from('criteria')
+                .insert(criteriaToInsert);
+            if (criteriaError) throw criteriaError;
+        }
+
+        return {
+            ...goal,
+            criteria: goal.criteria || []
+        } as Goal;
+    },
+
+    async update(id: string, updates: Partial<Goal>) {
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.instructions !== undefined) dbUpdates.instructions = updates.instructions;
+        if (updates.deadline !== undefined) dbUpdates.deadline = updates.deadline;
+        if (updates.managerId !== undefined) dbUpdates.manager_id = updates.managerId;
+
+        const { data, error } = await supabase
+            .from('goals')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+
+        // Update criteria if provided
+        if (updates.criteria) {
+            // Delete existing criteria
+            await supabase.from('criteria').delete().eq('goal_id', id);
+
+            // Insert new criteria
+            if (updates.criteria.length > 0) {
+                const criteriaToInsert = updates.criteria.map((criterion, index) => ({
+                    id: criterion.id,
+                    goal_id: id,
+                    name: criterion.name,
+                    weight: criterion.weight,
+                    display_order: index,
+                }));
+
+                const { error: criteriaError } = await supabase
+                    .from('criteria')
+                    .insert(criteriaToInsert);
+                if (criteriaError) throw criteriaError;
+            }
+        }
+
+        return this.getById(id);
+    },
+
+    async delete(id: string) {
+        const { error } = await supabase
+            .from('goals')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+};
+
+// ============================================================================
+// REPORTS SERVICE
+// ============================================================================
+export const reportService = {
+    async getAll() {
+        const { data, error } = await supabase
+            .from('reports')
+            .select('*, goals(*), employees(*), report_criterion_scores(*)')
+            .order('submission_date', { ascending: false });
+        if (error) throw error;
+        return data as Report[];
+    },
+
+    async getById(id: string) {
+        const { data, error } = await supabase
+            .from('reports')
+            .select('*, goals(*), employees(*), report_criterion_scores(*)')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return data as Report;
+    },
+
+    async getByEmployeeId(employeeId: string) {
+        const { data, error } = await supabase
+            .from('reports')
+            .select('*, goals(*), report_criterion_scores(*)')
+            .eq('employee_id', employeeId)
+            .order('submission_date', { ascending: false });
+        if (error) throw error;
+        return data as Report[];
+    },
+
+    async getByGoalId(goalId: string) {
+        const { data, error } = await supabase
+            .from('reports')
+            .select('*, employees(*), report_criterion_scores(*)')
+            .eq('goal_id', goalId)
+            .order('submission_date', { ascending: false });
+        if (error) throw error;
+        return data as Report[];
+    },
+
+    async create(report: Omit<Report, 'createdAt' | 'updatedAt'>) {
+        // Insert report
+        const { data: reportData, error: reportError } = await supabase
+            .from('reports')
+            .insert({
+                id: report.id,
+                goal_id: report.goalId,
+                employee_id: report.employeeId,
+                report_text: report.reportText,
+                submission_date: report.submissionDate,
+                evaluation_score: report.evaluationScore,
+                manager_overall_score: report.managerOverallScore,
+                manager_override_reasoning: report.managerOverrideReasoning,
+                evaluation_reasoning: report.evaluationReasoning,
+            })
+            .select()
+            .single();
+        if (reportError) throw reportError;
+
+        // Insert criterion scores
+        if (report.criterionScores && report.criterionScores.length > 0) {
+            const scoresToInsert = report.criterionScores.map(score => ({
+                report_id: report.id,
+                criterion_name: score.criterionName,
+                score: score.score,
+            }));
+
+            const { error: scoresError } = await supabase
+                .from('report_criterion_scores')
+                .insert(scoresToInsert);
+            if (scoresError) throw scoresError;
+        }
+
+        return reportData as Report;
+    },
+
+    async update(id: string, updates: Partial<Report>) {
+        const dbUpdates: any = {};
+        if (updates.reportText !== undefined) dbUpdates.report_text = updates.reportText;
+        if (updates.evaluationScore !== undefined) dbUpdates.evaluation_score = updates.evaluationScore;
+        if (updates.managerOverallScore !== undefined) dbUpdates.manager_overall_score = updates.managerOverallScore;
+        if (updates.managerOverrideReasoning !== undefined) dbUpdates.manager_override_reasoning = updates.managerOverrideReasoning;
+        if (updates.evaluationReasoning !== undefined) dbUpdates.evaluation_reasoning = updates.evaluationReasoning;
+
+        const { data, error } = await supabase
+            .from('reports')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data as Report;
+    },
+
+    async delete(id: string) {
+        const { error } = await supabase
+            .from('reports')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+};
+
+// ============================================================================
+// EMPLOYEES SERVICE
+// ============================================================================
+
+// Helper function to convert database employee to TypeScript Employee
+function dbEmployeeToEmployee(dbEmployee: any): Employee {
+    return {
+        id: dbEmployee.id,
+        organizationId: dbEmployee.organization_id,
+        name: dbEmployee.name,
+        email: dbEmployee.email,
+        title: dbEmployee.title,
+        role: dbEmployee.role,
+        managerId: dbEmployee.manager_id,
+        isAccountOwner: dbEmployee.is_account_owner,
+        joinDate: dbEmployee.join_date,
+        authUserId: dbEmployee.auth_user_id,
+    };
+}
+
+export const employeeService = {
+    async getAll() {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? data.map(dbEmployeeToEmployee) : [];
+    },
+
+    async getById(id: string) {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return dbEmployeeToEmployee(data);
+    },
+
+    async getByEmail(email: string) {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('email', email)
+            .single();
+        if (error) throw error;
+        return dbEmployeeToEmployee(data);
+    },
+
+    async getByAuthId(authUserId: string) {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('auth_user_id', authUserId)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? dbEmployeeToEmployee(data) : null;
+    },
+
+    async getManagers() {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('role', 'manager')
+            .order('name', { ascending: true });
+        if (error) throw error;
+        return data ? data.map(dbEmployeeToEmployee) : [];
+    },
+
+    async getTeamMembers(managerId: string) {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('manager_id', managerId)
+            .order('name', { ascending: true });
+        if (error) throw error;
+        return data ? data.map(dbEmployeeToEmployee) : [];
+    },
+
+    async create(employee: Omit<Employee, 'createdAt' | 'updatedAt'>) {
+        const { data, error } = await supabase
+            .from('employees')
+            .insert({
+                id: employee.id,
+                organization_id: employee.organizationId,
+                name: employee.name,
+                email: employee.email,
+                title: employee.title,
+                role: employee.role,
+                manager_id: employee.managerId,
+                is_account_owner: employee.isAccountOwner,
+                join_date: employee.joinDate,
+                auth_user_id: employee.authUserId,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+
+        // Insert permissions if provided
+        if (employee.permissions) {
+            const { error: permError } = await supabase
+                .from('employee_permissions')
+                .insert({
+                    employee_id: employee.id,
+                    can_set_global_frequency: employee.permissions.canSetGlobalFrequency,
+                    can_view_organization_wide: employee.permissions.canViewOrganizationWide,
+                    can_manage_settings: employee.permissions.canManageSettings,
+                });
+            if (permError) throw permError;
+        }
+
+        return dbEmployeeToEmployee(data);
+    },
+
+    async update(id: string, updates: Partial<Employee>) {
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.email !== undefined) dbUpdates.email = updates.email;
+        if (updates.organizationId !== undefined) dbUpdates.organization_id = updates.organizationId; // Critical fix: allow updating org ID
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.role !== undefined) dbUpdates.role = updates.role;
+        if (updates.managerId !== undefined) dbUpdates.manager_id = updates.managerId;
+        if (updates.isAccountOwner !== undefined) dbUpdates.is_account_owner = updates.isAccountOwner;
+        if (updates.joinDate !== undefined) dbUpdates.join_date = updates.joinDate;
+        if (updates.authUserId !== undefined) dbUpdates.auth_user_id = updates.authUserId;
+
+        const { data, error } = await supabase
+            .from('employees')
+            .update(dbUpdates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+
+        // Update permissions if provided
+        if (updates.permissions) {
+            const { error: permError } = await supabase
+                .from('employee_permissions')
+                .upsert({
+                    employee_id: id,
+                    can_set_global_frequency: updates.permissions.canSetGlobalFrequency,
+                    can_view_organization_wide: updates.permissions.canViewOrganizationWide,
+                    can_manage_settings: updates.permissions.canManageSettings,
+                });
+            if (permError) throw permError;
+        }
+
+        return dbEmployeeToEmployee(data);
+    },
+
+    async delete(id: string) {
+        const { error } = await supabase
+            .from('employees')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+    },
+};
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+export const dbUtils = {
+    async testConnection() {
+        try {
+            const { data, error } = await supabase.from('employees').select('count');
+            if (error) throw error;
+            return { success: true, message: 'Connected to Supabase successfully!' };
+        } catch (error) {
+            return { success: false, message: `Connection failed: ${error}` };
+        }
+    },
+
+    async getStats() {
+        const [projects, goals, reports, employees] = await Promise.all([
+            supabase.from('projects').select('count'),
+            supabase.from('goals').select('count'),
+            supabase.from('reports').select('count'),
+            supabase.from('employees').select('count'),
+        ]);
+
+        return {
+            projectsCount: projects.data?.[0]?.count || 0,
+            goalsCount: goals.data?.[0]?.count || 0,
+            reportsCount: reports.data?.[0]?.count || 0,
+            employeesCount: employees.data?.[0]?.count || 0,
+        };
+    },
+};

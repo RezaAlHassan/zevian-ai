@@ -1,0 +1,202 @@
+Zevian v2 Onboarding Flow: Manager-First, Goal-Centric Setup
+
+Target User: New Manager/Admin User (Core Target Audience)
+Goal: Achieve the first AI-Scored Report within 10 minutes to demonstrate the core value proposition (AI objectivity, bias reduction, and administrative overhead reduction).
+
+Step 1: Welcome & Value Proposition
+
+(Initial landing page or first modal upon sign-up)
+
+Element
+
+Content & Action
+
+Rationale
+
+Headline
+
+Welcome to Zevian: Objective Performance, Zero Bias.
+
+Reinforces the core VC narrative and problem solved.
+
+Body
+
+"Zevian uses AI to evaluate text-based reports, removing recency and managerial bias, and cutting review time by 50%. Let's set up your first accountability loop."
+
+Direct link to Key Product Goals (Doc0.pdf) and VC Narrative (Traditional Models.pdf).
+
+Input
+
+Enter Your Organization Name: (Text Field)
+
+Basic required setup.
+
+Action
+
+Start Setup (Primary)
+
+
+
+Step 2: Define Employees & Teams (The Who)
+
+(Corresponds to Employee and Team models)
+
+Element
+
+Content & Action
+
+Rationale
+
+Headline
+
+Step 2/5: Import Your Team
+
+Focus on efficiency.
+
+Option A
+
+Upload CSV: (Button)
+
+Highest velocity for large teams. Template download link provided.
+
+Option B
+
+Add Employees Manually: (Form - Name, Email, Role)
+
+For small teams or quick setup.
+
+Action
+
+Next: Set Reporting Frequency
+
+Encourages immediate configuration of the Submission Reliability Rate basis.
+
+Step 3: Configure Accountability (The When)
+
+(Corresponds to ManagerSettings and Employee.frequencyDays)
+
+Element
+
+Content & Action
+
+Rationale
+
+Headline
+
+Step 3/5: Set Accountability & Cadence
+
+Directly sets up the "Submission Reliability Rate" metric.
+
+Control
+
+Global Report Frequency: (Dropdown: Daily, Weekly, Bi-weekly, Monthly)
+
+Defaults to Weekly (the "Sweet Spot" - Traditional Models.pdf).
+
+Detail
+
+Exception List: (Accordion/Table)
+
+Allows managers to override the global setting for specific high-velocity teams (e.g., Sales team needs Daily) based on your documented Per-Employee Frequencies flow.
+
+Action
+
+Next: Create Your First Goal
+
+
+
+Step 4: Create the First Goal & Criteria (The What & How)
+
+(Corresponds to Goal and Criterion models - MS-1/MS-2)
+
+Element
+
+Content & Action
+
+Rationale
+
+Headline
+
+Step 4/5: Define Your First AI-Scored Goal
+
+This is the core 'value' step.
+
+Form
+
+Goal Name: (Text Field, e.g., "Q4 Content Production")
+
+
+
+Assignment
+
+Assign To: (Dropdown, e.g., "Content & Marketing Team")
+
+Targets the Content & Marketing ideal user group (Traditional Models.pdf).
+
+Criteria Setup
+
+Criterion 1: "Clarity & Detail" (Weight 60%)
+
+Guided setup to ensure weights total 100%.
+
+Criteria Setup
+
+Criterion 2: "Adherence to Brand Guidelines" (Weight 40%)
+
+Guided setup, pre-populated with examples relevant to text-based reports.
+
+Action
+
+Next: Invite Team & Finish
+
+
+
+Step 5: Finalize & Go Live
+
+(The transition from setup to active use)
+
+Element
+
+Content & Action
+
+Rationale
+
+Headline
+
+Step 5/5: You're Ready to Go Live!
+
+Positive reinforcement.
+
+Summary
+
+Recap: 5 Employees, 1 Team, Weekly Reporting, Goal: Q4 Content Production.
+
+Confirms setup.
+
+Action 1
+
+Send Team Invitation Emails (Primary Button)
+
+Triggers the email flow for employees (FS-1: Submit work report easily).
+
+Action 2
+
+Go to Manager Dashboard (Secondary Button)
+
+Takes them directly to the main view designed in the previous step, showing the 0% Reliability and encouraging the first report submission.
+
+Employee Onboarding (Post-Manager Setup)
+
+The employee flow is much simpler, starting after the manager sends the invite.
+
+Email Invitation: Employee receives a Zevian link, automatically signs in via SSO/Auth Token (__initial_auth_token), and is directed to their Employee View.
+
+Guided Tour: A brief, non-dismissible tour highlights:
+
+Submit Report Page: Focus on the Rich Text Editor and the "Preview Evaluation" button.
+
+Dashboard: Where they will see their objective scores and AI-generated coaching.
+
+First Action: The employee is immediately prompted to submit their first report based on the newly created goal. This fulfills the FS-1 User Story.
+
+re_BqzkfgrA_PjHdPgkuYRVbBAsUvLCrMPWV
