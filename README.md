@@ -6,7 +6,7 @@
 
 **AI-Powered Performance Management System for Modern Teams**
 
-An intelligent performance tracking platform that leverages Google Gemini AI to provide objective employee evaluations, comprehensive analytics, and data-driven insights.
+An intelligent performance tracking platform that leverages AI to provide objective employee evaluations, comprehensive analytics, and data-driven insights.
 
 ---
 
