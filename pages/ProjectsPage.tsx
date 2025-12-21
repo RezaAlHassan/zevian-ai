@@ -34,10 +34,6 @@ interface ProjectsPageProps {
 const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updateProject, deleteProject, employees, goals = [], reports = [], onSelectProject, currentEmployeeId, currentManagerId, viewMode = 'employee', scopeFilter = 'direct-reports', searchQuery }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [contextEditModal, setContextEditModal] = useState<{ project: Project | null; isOpen: boolean }>({ project: null, isOpen: false });
-  const [editedContext, setEditedContext] = useState('');
-
-  // Form state
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectCategory, setProjectCategory] = useState('');
@@ -228,24 +224,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
     setShowCreateModal(true);
   };
 
-  const handleOpenContextEdit = (project: Project) => {
-    setEditedContext(project.aiContext || '');
-    setContextEditModal({ project, isOpen: true });
-  };
-
-  const handleSaveContext = () => {
-    if (contextEditModal.project) {
-      updateProject({ ...contextEditModal.project, aiContext: editedContext });
-      setContextEditModal({ project: null, isOpen: false });
-      setEditedContext('');
-    }
-  };
-
-  const handleCloseContextModal = () => {
-    setContextEditModal({ project: null, isOpen: false });
-    setEditedContext('');
-  };
-
   const projectTableHeaders = ['Project Name', 'Category', 'Assignees', 'Creator', 'Has Direct Reports', 'Frequency', 'Actions'];
   const projectTableRows = filteredProjects.map(project => {
     const assigneeNames = getAssigneeNames(project.assignees);
@@ -297,14 +275,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             <div className="flex items-center gap-2">
               <Edit2 size={16} className="text-on-surface-secondary" />
               <span>Edit Project</span>
-            </div>
-          </DropdownItem>
-          <DropdownItem
-            onClick={() => handleOpenContextEdit(project)}
-          >
-            <div className="flex items-center gap-2">
-              <Edit2 size={16} className="text-on-surface-secondary" />
-              <span>{project.aiContext ? 'Edit Context' : 'Add Context'}</span>
             </div>
           </DropdownItem>
           {deleteProject && (
@@ -530,42 +500,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         </div>
       </Modal>
 
-      {/* Context Edit Modal */}
-      <Modal
-        isOpen={contextEditModal.isOpen}
-        onClose={handleCloseContextModal}
-        title={contextEditModal.project ? `Edit AI Context - ${contextEditModal.project.name}` : 'Edit AI Context'}
-      >
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Bot size={18} className="text-primary" />
-            <p className="text-sm text-on-surface-secondary">
-              This context will be used by AI to better understand and evaluate reports for this project
-            </p>
-          </div>
-          <Textarea
-            value={editedContext}
-            onChange={(e) => setEditedContext(e.target.value)}
-            placeholder="Add context for AI to keep track of project reports, updates, and important information..."
-            rows={10}
-            className="w-full"
-          />
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button
-              onClick={handleCloseContextModal}
-              variant="outline"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveContext}
-              variant="primary"
-            >
-              Save Context
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Report, Goal, Employee, Project, Team } from '../types';
+import { Report, Goal, Employee, Project } from '../types';
 import Modal from '../components/Modal';
 import Table from '../components/Table';
 import Input from '../components/Input';
@@ -72,10 +72,10 @@ const ReportPreviewModal: React.FC<{
         <div>
           <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
           <div className="space-y-2">
-            {report.evaluationCriteriaScores.map((score, index) => (
+            {report.criterionScores.map((score, index) => (
               <div key={index} className="bg-surface p-3 rounded-lg border border-border">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium text-on-surface">{score.name}</span>
+                  <span className="font-medium text-on-surface">{score.criterionName}</span>
                   <span className="text-sm font-semibold text-primary">{score.score.toFixed(1)}</span>
                 </div>
               </div>
@@ -87,10 +87,10 @@ const ReportPreviewModal: React.FC<{
   );
 };
 
-const AllReportsPage: React.FC<AllReportsPageProps> = ({ 
-  reports, 
-  goals, 
-  employees, 
+const AllReportsPage: React.FC<AllReportsPageProps> = ({
+  reports,
+  goals,
+  employees,
   projects,
   currentManagerId,
   viewMode = 'manager',
@@ -141,10 +141,13 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
     return employees.filter(emp => scopedEmployeeIds.has(emp.id));
   }, [employees, scopedEmployeeIds]);
 
-  // Filter reports to only include scoped employees
+  // Filter reports to only include scoped employees (and self if manager)
   const scopedReports = useMemo(() => {
-    return reports.filter(report => scopedEmployeeIds.has(report.employeeId));
-  }, [reports, scopedEmployeeIds]);
+    return reports.filter(report =>
+      scopedEmployeeIds.has(report.employeeId) ||
+      (currentManagerId && report.employeeId === currentManagerId)
+    );
+  }, [reports, scopedEmployeeIds, currentManagerId]);
 
   // Get all goal IDs for selected projects
   const goalIdsForSelectedProjects = useMemo(() => {
@@ -217,7 +220,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
     if (sortColumn && sortDirection) {
       filtered.sort((a, b) => {
         let comparison = 0;
-        
+
         switch (sortColumn) {
           case 'date':
             comparison = new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime();
@@ -245,7 +248,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
           default:
             return 0;
         }
-        
+
         return sortDirection === 'asc' ? comparison : -comparison;
       });
     }
@@ -500,8 +503,8 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
         </div>
       ) : (
         <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-          <Table 
-            headers={reportTableHeaders} 
+          <Table
+            headers={reportTableHeaders}
             rows={reportTableRows}
             sortable
             sortColumn={sortColumn}

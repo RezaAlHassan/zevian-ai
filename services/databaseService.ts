@@ -245,6 +245,7 @@ function dbGoalToGoal(dbGoal: any): Goal {
         deadline: dbGoal.deadline,
         managerId: dbGoal.manager_id,
         createdBy: dbGoal.created_by,
+        createdAt: dbGoal.created_at,
     };
 }
 
@@ -369,14 +370,43 @@ export const goalService = {
 // ============================================================================
 // REPORTS SERVICE
 // ============================================================================
+
+// Helper function to convert database report to TypeScript Report
+function dbReportToReport(dbReport: any): Report {
+    return {
+        id: dbReport.id,
+        goalId: dbReport.goal_id,
+        employeeId: dbReport.employee_id,
+        reportText: dbReport.report_text,
+        submissionDate: dbReport.submission_date,
+        evaluationScore: dbReport.evaluation_score,
+        managerOverallScore: dbReport.manager_overall_score,
+        managerOverrideReasoning: dbReport.manager_override_reasoning,
+        evaluationReasoning: dbReport.evaluation_reasoning,
+        criterionScores: dbReport.report_criterion_scores ? dbReport.report_criterion_scores.map((s: any) => ({
+            criterionName: s.criterion_name,
+            score: s.score
+        })) : [],
+    };
+}
+
 export const reportService = {
     async getAll() {
+        console.log('[Database] Fetching all reports...');
         const { data, error } = await supabase
             .from('reports')
             .select('*, goals(*), employees(*), report_criterion_scores(*)')
             .order('submission_date', { ascending: false });
-        if (error) throw error;
-        return data as Report[];
+
+        if (error) {
+            console.error('[Database] Error fetching reports:', error);
+            throw error;
+        }
+
+        console.log(`[Database] Fetched ${data?.length || 0} reports.`);
+        // console.log('[Database] Sample report:', data?.[0]); // Debugging
+
+        return data ? data.map(dbReportToReport) : [];
     },
 
     async getById(id: string) {
@@ -386,7 +416,7 @@ export const reportService = {
             .eq('id', id)
             .single();
         if (error) throw error;
-        return data as Report;
+        return dbReportToReport(data);
     },
 
     async getByEmployeeId(employeeId: string) {
@@ -396,7 +426,7 @@ export const reportService = {
             .eq('employee_id', employeeId)
             .order('submission_date', { ascending: false });
         if (error) throw error;
-        return data as Report[];
+        return data ? data.map(dbReportToReport) : [];
     },
 
     async getByGoalId(goalId: string) {
@@ -406,7 +436,7 @@ export const reportService = {
             .eq('goal_id', goalId)
             .order('submission_date', { ascending: false });
         if (error) throw error;
-        return data as Report[];
+        return data ? data.map(dbReportToReport) : [];
     },
 
     async create(report: Omit<Report, 'createdAt' | 'updatedAt'>) {
@@ -442,7 +472,13 @@ export const reportService = {
             if (scoresError) throw scoresError;
         }
 
-        return reportData as Report;
+
+        // Return fully reconstructed report with scores
+        // Note: reportData only has report fields. We attach the scores we just inserted.
+        const fullReport = dbReportToReport(reportData);
+        fullReport.criterionScores = report.criterionScores || [];
+
+        return fullReport;
     },
 
     async update(id: string, updates: Partial<Report>) {
@@ -460,7 +496,7 @@ export const reportService = {
             .select()
             .single();
         if (error) throw error;
-        return data as Report;
+        return dbReportToReport(data);
     },
 
     async delete(id: string) {
@@ -489,6 +525,11 @@ function dbEmployeeToEmployee(dbEmployee: any): Employee {
         isAccountOwner: dbEmployee.is_account_owner,
         joinDate: dbEmployee.join_date,
         authUserId: dbEmployee.auth_user_id,
+        permissions: dbEmployee.employee_permissions ? {
+            canSetGlobalFrequency: dbEmployee.employee_permissions.can_set_global_frequency,
+            canViewOrganizationWide: dbEmployee.employee_permissions.can_view_organization_wide,
+            canManageSettings: dbEmployee.employee_permissions.can_manage_settings,
+        } : undefined,
     };
 }
 
@@ -496,7 +537,7 @@ export const employeeService = {
     async getAll() {
         const { data, error } = await supabase
             .from('employees')
-            .select('*')
+            .select('*, employee_permissions(*)')
             .order('created_at', { ascending: false });
         if (error) throw error;
         return data ? data.map(dbEmployeeToEmployee) : [];
@@ -505,7 +546,7 @@ export const employeeService = {
     async getById(id: string) {
         const { data, error } = await supabase
             .from('employees')
-            .select('*')
+            .select('*, employee_permissions(*)')
             .eq('id', id)
             .single();
         if (error) throw error;
@@ -515,7 +556,7 @@ export const employeeService = {
     async getByEmail(email: string) {
         const { data, error } = await supabase
             .from('employees')
-            .select('*')
+            .select('*, employee_permissions(*)')
             .eq('email', email)
             .single();
         if (error) throw error;
@@ -525,7 +566,7 @@ export const employeeService = {
     async getByAuthId(authUserId: string) {
         const { data, error } = await supabase
             .from('employees')
-            .select('*')
+            .select('*, employee_permissions(*)')
             .eq('auth_user_id', authUserId)
             .maybeSingle();
         if (error) throw error;
@@ -535,7 +576,7 @@ export const employeeService = {
     async getManagers() {
         const { data, error } = await supabase
             .from('employees')
-            .select('*')
+            .select('*, employee_permissions(*)')
             .eq('role', 'manager')
             .order('name', { ascending: true });
         if (error) throw error;
@@ -545,7 +586,7 @@ export const employeeService = {
     async getTeamMembers(managerId: string) {
         const { data, error } = await supabase
             .from('employees')
-            .select('*')
+            .select('*, employee_permissions(*)')
             .eq('manager_id', managerId)
             .order('name', { ascending: true });
         if (error) throw error;

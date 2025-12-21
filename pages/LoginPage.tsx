@@ -33,6 +33,9 @@ const LoginPage: React.FC = () => {
             <div className="max-w-md w-full bg-surface-elevated rounded-xl shadow-lg border border-border overflow-hidden">
                 <div className="px-8 py-10">
                     <div className="text-center mb-8">
+                        <div className="flex justify-center mb-6">
+                            <img src="/logo.png" alt="Performance Tracker Logo" className="h-16 object-contain" />
+                        </div>
                         <h1 className="text-3xl font-bold text-on-surface mb-2">Welcome Back</h1>
                         <p className="text-on-surface-secondary">Sign in to your performance tracker account</p>
                     </div>

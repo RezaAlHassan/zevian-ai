@@ -8,6 +8,7 @@ import Header from './components/Header';
 
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import KnowledgeBasePage from './pages/KnowledgeBasePage';
 import GoalsPage from './pages/GoalsPage';
 import SubmitReportPage from './pages/SubmitReportPage';
 import DashboardPage from './pages/DashboardPage';
@@ -552,7 +553,7 @@ const AppContent: React.FC = () => {
   }
 
   // Determine if we are on an auth page (Login, Register, Invite)
-  const isAuthPage = ['/login', '/register'].includes(location.pathname) || location.pathname.startsWith('/invite');
+  const isAuthPage = ['/login', '/register'].includes(location.pathname) || location.pathname.startsWith('/invite') || location.pathname.startsWith('/set-password');
 
   // Fallback: If logged in but no employee record (and not onboarding), show Setup screen
   if (!authLoading && user && !employee && !showOnboarding) {
@@ -682,6 +683,18 @@ const AppContent: React.FC = () => {
                   employees={memoizedEmployees}
                   updateProject={updateProject}
                   onBack={backToProjectsList}
+                  viewMode={viewMode}
+                />
+              } />
+              <Route path="/projects/:projectId/knowledge-base" element={
+                <KnowledgeBaseWrapper
+                  projects={memoizedProjects}
+                  reports={memoizedReports}
+                  goals={memoizedGoals}
+                  employees={memoizedEmployees}
+                  updateProject={updateProject}
+                  onBack={(projectId) => navigate(`/projects/${projectId}`)}
+                  viewMode={viewMode}
                 />
               } />
               <Route path="/goals" element={
@@ -805,7 +818,8 @@ const ProjectDetailWrapper: React.FC<{
   employees: Employee[];
   updateProject: (project: Project) => void;
   onBack: () => void;
-}> = ({ projects, reports, goals, employees, updateProject, onBack }) => {
+  viewMode: 'manager' | 'employee';
+}> = ({ projects, reports, goals, employees, updateProject, onBack, viewMode }) => {
   const { projectId } = useParams<{ projectId: string }>();
   const project = projects.find(p => p.id === projectId);
 
@@ -821,6 +835,36 @@ const ProjectDetailWrapper: React.FC<{
       employees={employees}
       updateProject={updateProject}
       onBack={onBack}
+      viewMode={viewMode}
+    />
+  );
+};
+
+const KnowledgeBaseWrapper: React.FC<{
+  projects: Project[];
+  reports: Report[];
+  goals: Goal[];
+  employees: Employee[];
+  updateProject: (project: Project) => void;
+  onBack: (projectId: string) => void;
+  viewMode: 'manager' | 'employee';
+}> = ({ projects, reports, goals, employees, updateProject, onBack, viewMode }) => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const project = projects.find(p => p.id === projectId);
+
+  if (!project) {
+    return <div className="p-6">Project not found</div>;
+  }
+
+  return (
+    <KnowledgeBasePage
+      project={project}
+      reports={reports}
+      goals={goals}
+      employees={employees}
+      updateProject={updateProject}
+      onBack={() => onBack(project.id)}
+      viewMode={viewMode}
     />
   );
 };

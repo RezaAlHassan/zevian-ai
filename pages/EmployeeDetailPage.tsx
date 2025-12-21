@@ -107,9 +107,9 @@ const ReportDetailModal: React.FC<{
                 <div>
                     <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score Breakdown</h3>
                     <ul className="space-y-1">
-                        {report.evaluationCriteriaScores.map(score => (
-                            <li key={score.name} className="flex justify-between text-on-surface-secondary">
-                                <span>{score.name}</span>
+                        {report.criterionScores.map(score => (
+                            <li key={score.criterionName} className="flex justify-between text-on-surface-secondary">
+                                <span>{score.criterionName}</span>
                                 <span className="font-bold text-on-surface">{score.score.toFixed(1)} / 10</span>
                             </li>
                         ))}
@@ -370,11 +370,11 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         filteredReports.forEach(report => {
             const goal = relevantGoals.find(g => g.id === report.goalId);
             if (goal) {
-                report.evaluationCriteriaScores.forEach(score => {
-                    const existing = criteriaMap.get(score.name) || { count: 0, totalScore: 0 };
+                report.criterionScores.forEach(score => {
+                    const existing = criteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
                     existing.count += 1;
                     existing.totalScore += score.score;
-                    criteriaMap.set(score.name, existing);
+                    criteriaMap.set(score.criterionName, existing);
                 });
             }
         });
@@ -452,11 +452,11 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         previousPeriodReports.forEach(report => {
             const goal = relevantGoals.find(g => g.id === report.goalId);
             if (goal) {
-                report.evaluationCriteriaScores.forEach(score => {
-                    const existing = criteriaMap.get(score.name) || { count: 0, totalScore: 0 };
+                report.criterionScores.forEach(score => {
+                    const existing = criteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
                     existing.count += 1;
                     existing.totalScore += score.score;
-                    criteriaMap.set(score.name, existing);
+                    criteriaMap.set(score.criterionName, existing);
                 });
             }
         });
@@ -511,11 +511,11 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         teamReports.forEach(report => {
             const goal = goals.find(g => g.id === report.goalId);
             if (goal) {
-                report.evaluationCriteriaScores.forEach(score => {
-                    const existing = teamCriteriaMap.get(score.name) || { count: 0, totalScore: 0 };
+                report.criterionScores.forEach(score => {
+                    const existing = teamCriteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
                     existing.count += 1;
                     existing.totalScore += score.score;
-                    teamCriteriaMap.set(score.name, existing);
+                    teamCriteriaMap.set(score.criterionName, existing);
                 });
             }
         });

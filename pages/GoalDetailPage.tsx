@@ -247,6 +247,27 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 </div>
               )}
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+                <div>
+                  <label className="text-sm font-medium text-on-surface-secondary">Created By</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <User size={16} className="text-on-surface-secondary" />
+                    <span className="text-on-surface">
+                      {employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-on-surface-secondary">Created Date</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Calendar size={16} className="text-on-surface-secondary" />
+                    <span className="text-on-surface">
+                      {goal.createdAt ? formatTableDate(goal.createdAt) : 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Knowledge Base */}
               {goal.knowledgeBase && goal.knowledgeBase.length > 0 && (
                 <div>
@@ -448,8 +469,8 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                   <div
                     key={contributor.employeeId}
                     className={`p-3 rounded-lg border ${index === 0
-                        ? 'bg-primary/10 border-primary/30'
-                        : 'bg-surface border-border'
+                      ? 'bg-primary/10 border-primary/30'
+                      : 'bg-surface border-border'
                       }`}
                   >
                     <div className="flex items-center justify-between mb-1">

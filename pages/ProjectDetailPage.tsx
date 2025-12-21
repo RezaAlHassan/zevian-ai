@@ -1,7 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { Project, Report, Employee, Goal } from '../types';
-import { ArrowLeft, Edit2, Save, X, Calendar, User, Users, FolderKanban, FileText, Bot, Target, RefreshCw, Link as LinkIcon, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Edit2, Save, X, Calendar, User, Users, FolderKanban, FileText, Bot, Target, RefreshCw, Link as LinkIcon, Eye, ChevronDown, ChevronUp, ExternalLink, Bookmark } from 'lucide-react';
 import Button from '../components/Button';
 import Textarea from '../components/Textarea';
 import Table from '../components/Table';
@@ -89,6 +89,7 @@ interface ProjectDetailPageProps {
   employees: Employee[];
   updateProject: (project: Project) => void;
   onBack: () => void;
+  viewMode: 'manager' | 'employee';
 }
 
 const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
@@ -97,23 +98,16 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   goals,
   employees,
   updateProject,
-  onBack
+  onBack,
+  viewMode
 }) => {
-  const [isEditingContext, setIsEditingContext] = useState(false);
-  const [editedContext, setEditedContext] = useState(project.aiContext || '');
+  const navigate = useNavigate();
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>('desc');
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
   const [showObjectivePoints, setShowObjectivePoints] = useState<Set<string>>(new Set());
-  const [showAIContextModal, setShowAIContextModal] = useState(false);
   const [showAssigneesModal, setShowAssigneesModal] = useState(false);
-
-  // Parse knowledge base links (support comma or newline separated)
-  const knowledgeBaseLinks = useMemo(() => {
-    if (!project.knowledgeBaseLink) return [];
-    return project.knowledgeBaseLink.split(/[,\n]/).map(link => link.trim()).filter(link => link.length > 0);
-  }, [project.knowledgeBaseLink]);
 
   // Get all goals for this project
   const projectGoals = useMemo(() => {
@@ -125,51 +119,6 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     const goalIds = projectGoals.map(g => g.id);
     return reports.filter(r => goalIds.includes(r.goalId));
   }, [reports, projectGoals]);
-
-  // Auto-generate context from reports + description + manager's addition
-  const generatedContext = useMemo(() => {
-    const parts: string[] = [];
-
-    // Add project description
-    if (project.description) {
-      parts.push(`## Project Description\n${project.description}`);
-    }
-
-    // Add summary from reports
-    if (projectReports.length > 0) {
-      parts.push(`\n## Recent Reports Summary\nTotal Reports: ${projectReports.length}`);
-
-      // Group reports by employee
-      const reportsByEmployee = projectReports.reduce((acc, report) => {
-        const employee = employees.find(e => e.id === report.employeeId);
-        const employeeName = employee?.name || 'Unknown';
-        if (!acc[employeeName]) {
-          acc[employeeName] = [];
-        }
-        acc[employeeName].push(report);
-        return acc;
-      }, {} as Record<string, Report[]>);
-
-      Object.entries(reportsByEmployee).forEach(([employeeName, empReports]: [string, Report[]]) => {
-        parts.push(`\n### ${employeeName} (${empReports.length} report${empReports.length > 1 ? 's' : ''})`);
-        empReports.slice(0, 3).forEach((report, idx) => {
-          const goal = goals.find(g => g.id === report.goalId);
-          const reportText = report.reportText.replace(/<[^>]*>/g, '').substring(0, 200);
-          parts.push(`- ${goal?.name || 'Unknown Goal'}: ${reportText}... (Score: ${report.evaluationScore.toFixed(1)}/10)`);
-        });
-        if (empReports.length > 3) {
-          parts.push(`- ... and ${empReports.length - 3} more report${empReports.length - 3 > 1 ? 's' : ''}`);
-        }
-      });
-    }
-
-    // Add manager's additional context
-    if (project.aiContext) {
-      parts.push(`\n## Manager's Additional Context\n${project.aiContext}`);
-    }
-
-    return parts.join('\n\n');
-  }, [project.description, project.aiContext, projectReports, employees, goals]);
 
   // Get assignee employees
   const assigneeEmployees = useMemo(() => {
@@ -187,17 +136,6 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       return employee ? `${employee.name} (${assignee.type})` : `Unknown (${assignee.type})`;
     }).join(', ');
   }, [project.assignees, employees]);
-
-  const handleSaveContext = () => {
-    updateProject({ ...project, aiContext: editedContext });
-    setIsEditingContext(false);
-    // Don't close modal automatically - let user close it manually
-  };
-
-  const handleCancelEdit = () => {
-    setEditedContext(project.aiContext || '');
-    setIsEditingContext(false);
-  };
 
   // Handle table sorting
   const handleSort = (column: string) => {
@@ -340,57 +278,26 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           </div>
         </div>
 
-        {/* AI Context and Knowledge Base */}
+        {/* Complete Knowledge Base Section */}
         <div className="border-t border-border pt-6 space-y-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bot size={20} className="text-on-surface-secondary" />
-              <h3 className="text-lg font-semibold text-on-surface">AI Context & Knowledge Base</h3>
+              <Bot size={20} className="text-primary" />
+              <h3 className="text-lg font-semibold text-on-surface">Complete Knowledge Base</h3>
             </div>
+            <Button
+              onClick={() => navigate(`/projects/${project.id}/knowledge-base`)}
+              variant="outline"
+              size="sm"
+              icon={ExternalLink}
+            >
+              View Knowledge Base
+            </Button>
           </div>
-
-          <div className="space-y-4">
-            {/* AI Context Button */}
-            <div className="bg-surface rounded-lg p-4 border border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <RefreshCw size={16} className="text-on-surface-secondary" />
-                  <span className="text-sm font-medium text-on-surface-secondary">AI Context</span>
-                  <span className="text-xs text-on-surface-tertiary">(auto-generated from reports + description + manager's addition)</span>
-                </div>
-                <Button
-                  onClick={() => setShowAIContextModal(true)}
-                  variant="outline"
-                  size="sm"
-                >
-                  View Context
-                </Button>
-              </div>
-            </div>
-
-            {/* Knowledge Base Links */}
-            {knowledgeBaseLinks.length > 0 && (
-              <div className="bg-surface rounded-lg p-4 border border-border">
-                <div className="flex items-center gap-2 mb-3">
-                  <LinkIcon size={16} className="text-on-surface-secondary" />
-                  <h4 className="text-sm font-medium text-on-surface">Knowledge Base</h4>
-                </div>
-                <div className="space-y-2">
-                  {knowledgeBaseLinks.map((link, index) => (
-                    <a
-                      key={index}
-                      href={link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-sm text-primary hover:text-primary-hover hover:underline truncate"
-                    >
-                      {link}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <p className="text-sm text-on-surface-secondary max-w-2xl">
+            Access the full project context, including project documentation, recent report summaries,
+            technical nuances, and external resources used by AI for evaluation.
+          </p>
         </div>
       </div>
 
@@ -726,91 +633,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </Modal>
       )}
 
-      {/* AI Context Modal */}
-      <Modal
-        isOpen={showAIContextModal}
-        onClose={() => {
-          setShowAIContextModal(false);
-          setIsEditingContext(false);
-          setEditedContext(project.aiContext || '');
-        }}
-        title="AI Context"
-      >
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <RefreshCw size={16} className="text-on-surface-secondary" />
-                <h3 className="text-lg font-semibold text-on-surface">Auto-Generated Context</h3>
-              </div>
-            </div>
-            <div className="bg-surface rounded-lg p-4 border border-border">
-              <pre className="text-sm text-on-surface whitespace-pre-wrap font-sans">{generatedContext || 'No context available yet. Add reports or description to generate context.'}</pre>
-            </div>
-          </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-on-surface">Manager's Additional Context</h3>
-              <div className="flex gap-2">
-                {!isEditingContext && (
-                  <Button
-                    onClick={() => setIsEditingContext(true)}
-                    variant="outline"
-                    size="sm"
-                    icon={Edit2}
-                  >
-                    {project.aiContext ? 'Edit' : 'Add Context'}
-                  </Button>
-                )}
-                {isEditingContext && (
-                  <>
-                    <Button
-                      onClick={() => {
-                        handleCancelEdit();
-                      }}
-                      variant="outline"
-                      size="sm"
-                      icon={X}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        handleSaveContext();
-                      }}
-                      variant="primary"
-                      size="sm"
-                      icon={Save}
-                    >
-                      Save
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {isEditingContext ? (
-              <Textarea
-                value={editedContext}
-                onChange={(e) => setEditedContext(e.target.value)}
-                placeholder="Add additional context, notes, or important information for AI evaluation..."
-                rows={8}
-                className="w-full"
-                helperText="This will be included in the auto-generated context above"
-              />
-            ) : project.aiContext ? (
-              <div className="bg-surface rounded-lg p-4 border border-border">
-                <p className="text-sm text-on-surface whitespace-pre-wrap">{project.aiContext}</p>
-              </div>
-            ) : (
-              <div className="bg-surface rounded-lg p-4 border border-border">
-                <p className="text-sm text-on-surface-secondary italic">No additional context added yet.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </Modal>
 
       {/* Assignees Modal */}
       <Modal

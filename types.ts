@@ -67,6 +67,7 @@ export interface Goal {
   deadline?: string; // ISO 8601 format date string
   managerId?: string; // ID of the manager who created this goal
   createdBy?: string; // ID of the employee/manager who created this goal (same as managerId for manager-created goals)
+  createdAt?: string;
 }
 
 export interface ReportCriterionScore {

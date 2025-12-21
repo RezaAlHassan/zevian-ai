@@ -52,11 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, viewMode
   return (
     <aside className="w-64 bg-white border-r border-border flex flex-col fixed top-0 left-0 h-full text-on-surface z-20">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-white font-bold text-sm">PT</span>
-        </div>
-        <h1 className="text-lg font-semibold text-on-surface">Performance Tracker</h1>
+      <div className="px-6 py-6 border-b border-border">
+        <img src="/logo-full.png" alt="Performance Tracker Logo" className="h-9 object-contain" />
       </div>
 
       {/* Search */}

@@ -84,7 +84,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             return reports;
         }
         if (currentManagerId) {
-            return reports.filter(report => scopedEmployeeIds.has(report.employeeId));
+            return reports.filter(report =>
+                scopedEmployeeIds.has(report.employeeId) ||
+                report.employeeId === currentManagerId // Always include self
+            );
         }
         return reports;
     }, [reports, scopedEmployeeIds, currentManagerId, isEmployeeView]);
@@ -135,9 +138,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         start.setHours(0, 0, 0, 0);
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
+
         return scopedReports.filter(r => {
             const reportDate = new Date(r.submissionDate);
             const inDateRange = reportDate >= start && reportDate <= end;
+
             // In employee view, only show their own reports
             if (isEmployeeView && currentEmployeeId) {
                 return inDateRange && r.employeeId === currentEmployeeId;
@@ -503,11 +508,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         filteredReports.forEach(report => {
             const goal = relevantGoals.find(g => g.id === report.goalId);
             if (goal) {
-                report.evaluationCriteriaScores.forEach(score => {
-                    const existing = criteriaMap.get(score.name) || { count: 0, totalScore: 0 };
+                report.criterionScores.forEach(score => {
+                    const existing = criteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
                     existing.count += 1;
                     existing.totalScore += score.score;
-                    criteriaMap.set(score.name, existing);
+                    criteriaMap.set(score.criterionName, existing);
                 });
             }
         });
@@ -587,11 +592,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         previousPeriodReports.forEach(report => {
             const goal = relevantGoals.find(g => g.id === report.goalId);
             if (goal) {
-                report.evaluationCriteriaScores.forEach(score => {
-                    const existing = criteriaMap.get(score.name) || { count: 0, totalScore: 0 };
+                report.criterionScores.forEach(score => {
+                    const existing = criteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
                     existing.count += 1;
                     existing.totalScore += score.score;
-                    criteriaMap.set(score.name, existing);
+                    criteriaMap.set(score.criterionName, existing);
                 });
             }
         });
@@ -697,14 +702,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 const relevantGoals = filteredGoals.filter(g => relevantGoalIds.has(g.id));
                 const criteriaMap = new Map<string, number>();
                 filteredReports.forEach(report => {
-                    report.evaluationCriteriaScores.forEach(score => {
-                        const existing = criteriaMap.get(score.name) || 0;
-                        criteriaMap.set(score.name, existing + score.score);
+                    report.criterionScores.forEach(score => {
+                        const existing = criteriaMap.get(score.criterionName) || 0;
+                        criteriaMap.set(score.criterionName, existing + score.score);
                     });
                 });
                 criteriaAverages = Array.from(criteriaMap.entries()).map(([name, total]) => {
                     const count = filteredReports.filter(r =>
-                        r.evaluationCriteriaScores.some(s => s.name === name)
+                        r.criterionScores.some(s => s.criterionName === name)
                     ).length;
                     return { name, score: total / count };
                 });

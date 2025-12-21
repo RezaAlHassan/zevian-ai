@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Goal, Criterion, Project, Employee } from '../types';
-import { Plus, Trash2, AlertTriangle, CheckCircle, Search, Eye, Target, MoreHorizontal, Edit2, Info } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, CheckCircle, Search, Eye, Target, MoreHorizontal, Edit2, Info, Calendar, User } from 'lucide-react';
 import Table from '../components/Table';
 import Input from '../components/Input';
 import Textarea from '../components/Textarea';
@@ -10,6 +10,7 @@ import Modal from '../components/Modal';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
 import { filterGoalsByManager } from '../utils/goalFilter';
 import { isAccountOwner } from '../utils/managerPermissions';
+import { formatTableDate } from '../utils/dateFormat';
 
 interface GoalsPageProps {
   goals: Goal[];
@@ -119,6 +120,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           deadline: deadlineISO,
           managerId: currentManagerId,
           createdBy: currentManagerId,
+          createdAt: new Date().toISOString(),
         } as any);
       }
 
@@ -193,13 +195,13 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
 
 
-  const goalTableHeaders = ['Goal Name', 'Parent Project', '# Criteria', 'Instructions', 'Actions'];
+  const goalTableHeaders = ['Goal Name', 'Parent Project', 'Created By', 'Created', 'Actions'];
   const goalTableRows = filteredGoals.map(goal => [
     <span className="capitalize text-on-surface-secondary">{goal.name}</span>,
     <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
-    <span className="capitalize text-on-surface-secondary">{goal.criteria.length}</span>,
-    <span className="capitalize text-on-surface-secondary truncate max-w-[200px] block" title={goal.instructions}>
-      {goal.instructions ? goal.instructions.substring(0, 30) + (goal.instructions.length > 30 ? '...' : '') : '—'}
+    <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
+    <span className="text-on-surface-secondary text-sm">
+      {goal.createdAt ? formatTableDate(goal.createdAt) : '—'}
     </span>,
     <div className="flex items-center justify-start">
       <Dropdown

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { ManagerSettings, Employee, Project } from '../types';
-import { Settings, Save, Calendar, Users, Globe, Building2, FolderKanban, RotateCcw, AlertTriangle, Shield, Rocket } from 'lucide-react';
+import { Settings, Save, Calendar, Users, Globe, Building2, FolderKanban, RotateCcw, AlertTriangle } from 'lucide-react';
 import Select from '../components/Select';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -37,44 +37,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   }, [employees, currentManagerId]);
 
 
-  // Testing mode: Toggle between account owner and senior manager for testing
-  const [testMode, setTestMode] = useState<'owner' | 'senior-manager'>('owner');
-  const [testManager, setTestManager] = useState<Employee | null>(null);
-
-  // Create a test manager object based on test mode
-  useEffect(() => {
-    if (currentManager) {
-      if (testMode === 'owner') {
-        setTestManager({
-          ...currentManager,
-          isAccountOwner: true,
-          permissions: {
-            canSetGlobalFrequency: true,
-            canViewOrganizationWide: true,
-            canManageSettings: true,
-          }
-        });
-      } else {
-        // Senior manager: has canSetGlobalFrequency but not all permissions
-        setTestManager({
-          ...currentManager,
-          isAccountOwner: false,
-          permissions: {
-            canSetGlobalFrequency: true,
-            canViewOrganizationWide: false,
-            canManageSettings: true,
-          }
-        });
-      }
-    }
-  }, [currentManager, testMode]);
-
-  // Use test manager for permission checks if in test mode
-  const effectiveManager = testManager || currentManager;
-  const effectiveIsOwner = effectiveManager ? isAccountOwner(effectiveManager) : false;
-  const effectiveCanSetGlobal = effectiveManager ? canSetGlobalFrequency(effectiveManager) : false;
-  const effectiveCanViewOrgWide = effectiveManager ? canViewOrganizationWide(effectiveManager) : false;
-  const effectiveCanManage = effectiveManager ? canManageSettings(effectiveManager) : false;
+  // Permissions checks
+  const isOwnerFlag = currentManager ? isAccountOwner(currentManager) : false;
+  const canSetGlobal = currentManager ? canSetGlobalFrequency(currentManager) : false;
+  const canViewOrgWide = currentManager ? canViewOrganizationWide(currentManager) : false;
+  const canManage = currentManager ? canManageSettings(currentManager) : false;
 
   // Ensure settings have all required fields with defaults
   const [localSettings, setLocalSettings] = useState<ManagerSettings>({
@@ -268,7 +235,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               <label className="block text-sm font-medium text-on-surface">
                 Frequency Scope
               </label>
-              {!effectiveCanSetGlobal && (
+              {!canSetGlobal && (
                 <div className="flex items-center gap-2 text-warning text-sm">
                   <AlertTriangle size={16} />
                   <span>Permission required</span>
@@ -278,11 +245,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="flex gap-4">
               <button
                 onClick={() => handleGlobalToggle(true)}
-                disabled={!effectiveCanSetGlobal}
+                disabled={!canSetGlobal}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg border transition-all ${localSettings.globalFrequency
                   ? 'bg-on-surface-secondary text-white border-on-surface-secondary'
                   : 'bg-surface border-border text-on-surface-secondary hover:bg-surface-hover'
-                  } ${!effectiveCanSetGlobal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${!canSetGlobal ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Globe size={18} />
                 <span className="font-medium">Global</span>
@@ -298,7 +265,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 <span className="font-medium">Team/Employee</span>
               </button>
             </div>
-            {!effectiveCanSetGlobal && (
+            {!canSetGlobal && (
               <p className="mt-2 text-sm text-on-surface-secondary">
                 You need the "Set global frequency settings" permission to configure global frequency.
                 Contact your account owner to request this permission.
@@ -519,56 +486,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </div>
 
-      {/* Testing Mode Toggle */}
-      <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-        <div className="flex items-center gap-2 mb-4">
-          <Shield size={20} className="text-on-surface-secondary" />
-          <h3 className="text-xl font-semibold text-on-surface">Testing Mode</h3>
-        </div>
-        <p className="text-on-surface-secondary text-sm mb-4">
-          Toggle between Account Owner and Senior Manager permissions for testing purposes.
-        </p>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="testMode"
-              value="owner"
-              checked={testMode === 'owner'}
-              onChange={(e) => setTestMode(e.target.value as 'owner' | 'senior-manager')}
-              className="w-4 h-4 text-primary focus:ring-primary focus:ring-2"
-            />
-            <span className="text-on-surface font-medium">Account Owner</span>
-            <span className="text-xs text-on-surface-secondary">(All permissions)</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="testMode"
-              value="senior-manager"
-              checked={testMode === 'senior-manager'}
-              onChange={(e) => setTestMode(e.target.value as 'owner' | 'senior-manager')}
-              className="w-4 h-4 text-primary focus:ring-primary focus:ring-2"
-            />
-            <span className="text-on-surface font-medium">Senior Manager</span>
-            <span className="text-xs text-on-surface-secondary">(Can set global frequency, manage settings)</span>
-          </label>
-        </div>
-        <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-          <p className="text-sm text-on-surface">
-            <strong>Current Permissions:</strong>
-          </p>
-          <ul className="text-sm text-on-surface-secondary mt-2 space-y-1">
-            <li>• Set Global Frequency: {effectiveCanSetGlobal ? '✓ Yes' : '✗ No'}</li>
-            <li>• View Org-Wide Data: {effectiveCanViewOrgWide ? '✓ Yes' : '✗ No'}</li>
-            <li>• Manage Settings: {effectiveCanManage ? '✓ Yes' : '✗ No'}</li>
-            <li>• Account Owner: {effectiveIsOwner ? '✓ Yes' : '✗ No'}</li>
-          </ul>
-        </div>
-      </div>
-
       {/* Permissions Management Section - Only for Account Owners */}
-      {effectiveIsOwner && (
+      {isOwnerFlag && (
         <div className="bg-surface-elevated rounded-lg p-6 border border-border">
           <div className="flex items-center gap-2 mb-4">
             <Users size={20} className="text-on-surface-secondary" />
@@ -610,17 +529,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               icon={RotateCcw}
             >
               Restart Onboarding
-            </Button>
-            <Button
-              onClick={() => {
-                // Clear onboarding completion flag and show onboarding
-                localStorage.removeItem('onboardingCompleted');
-                onRestartOnboarding();
-              }}
-              variant="primary"
-              icon={Rocket}
-            >
-              Test Onboarding
             </Button>
           </div>
         </div>

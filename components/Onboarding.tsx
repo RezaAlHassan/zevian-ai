@@ -209,11 +209,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           <div className="space-y-6">
             <div className="text-center space-y-4">
               <div className="flex justify-center">
-                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-                  <Rocket className="w-8 h-8 text-primary" />
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-2 shadow-sm border border-border">
+                  <img src="/logo.png" alt="Performance Tracker Logo" className="w-10 h-10 object-contain" />
                 </div>
               </div>
-              <h3 className="text-2xl font-semibold text-on-surface">Welcome to Performance Tracker</h3>
+              <h3 className="text-2xl font-semibold text-on-surface">Zevian</h3>
               <p className="text-on-surface-secondary max-w-md mx-auto">
                 Track performance with AI-powered evaluations. Create projects, set goals with criteria, and generate objective reports that reduce bias and save time.
               </p>
@@ -597,7 +597,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
       >
         <div className="sticky top-0 bg-surface-elevated px-6 py-4 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-on-surface">Setup Your Performance Tracker</h2>
+            <h2 className="text-xl font-semibold text-on-surface">Setup your Organization</h2>
             <span className="text-sm text-on-surface-secondary">
               Step {currentStep} of {totalSteps}
             </span>

@@ -30,7 +30,7 @@ const ReportPreviewModal: React.FC<{
         </div>
         <div>
           <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
-          <div 
+          <div
             className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: report.reportText }}
           />
@@ -47,10 +47,10 @@ const ReportPreviewModal: React.FC<{
         <div>
           <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
           <div className="space-y-2">
-            {report.evaluationCriteriaScores.map((score, index) => (
+            {report.criterionScores.map((score, index) => (
               <div key={index} className="bg-surface p-3 rounded-lg border border-border">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium text-on-surface">{score.name}</span>
+                  <span className="font-medium text-on-surface">{score.criterionName}</span>
                   <span className="text-sm text-on-surface-secondary">Analyzed</span>
                 </div>
               </div>
@@ -69,11 +69,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
 
   const employeeReports = useMemo(() => {
     let filtered = reports.filter(r => r.employeeId === currentEmployeeId);
-    
+
     if (sortColumn && sortDirection) {
       filtered.sort((a, b) => {
         let comparison = 0;
-        
+
         switch (sortColumn) {
           case 'date':
             comparison = new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime();
@@ -86,11 +86,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
           default:
             return 0;
         }
-        
+
         return sortDirection === 'asc' ? comparison : -comparison;
       });
     }
-    
+
     return filtered;
   }, [reports, currentEmployeeId, sortColumn, sortDirection, goals]);
 
@@ -147,8 +147,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
         </div>
       ) : (
         <div className="bg-surface-elevated rounded-lg p-6  border border-border">
-          <Table 
-            headers={reportTableHeaders} 
+          <Table
+            headers={reportTableHeaders}
             rows={reportTableRows}
             sortable
             sortColumn={sortColumn}
