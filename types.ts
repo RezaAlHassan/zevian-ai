@@ -6,6 +6,7 @@ export interface Organization {
   id: string;
   name: string;
   planTier: 'free' | 'business' | 'enterprise';
+  selectedMetrics?: string[];
   createdAt?: string;
 }
 
@@ -102,6 +103,8 @@ export interface Invitation {
   expiresAt?: string; // ISO 8601 format date string (optional expiration)
   acceptedAt?: string; // ISO 8601 format date string (when invitation was accepted)
   status: 'pending' | 'accepted' | 'expired';
+  initialProjectId?: string;
+  initialManagerId?: string;
 }
 
 export interface ManagerSettings {
@@ -119,4 +122,15 @@ export interface ManagerSettings {
   }; // Per-project frequencies (takes precedence over global)
   // Precedence: Global < Project < Per-Employee
   allowLateSubmissions?: boolean; // If false, reports cannot be submitted after goal deadline
+}
+
+export interface ProjectDocument {
+  id: string;
+  projectId: string;
+  fileName: string;
+  filePath: string;
+  fileUrl: string;
+  fileSize: number;
+  uploadedBy?: string;
+  uploadedAt?: string;
 }

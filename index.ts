@@ -30,7 +30,16 @@ serve(async (req) => {
 
     try {
         const payload: InviteRequest = await req.json();
-        const { email, role, organizationName, organizationId, invitedBy, invitedByText, initialProjectId, initialManagerId } = payload;
+        const {
+            email,
+            role,
+            organizationName,
+            organizationId,
+            invitedBy,
+            invitedByText,
+            initialProjectId,
+            initialManagerId
+        } = payload;
 
         let token = payload.token;
         if (!token) {
@@ -72,11 +81,6 @@ serve(async (req) => {
         const origin = req.headers.get("origin") || "http://localhost:5173";
         const inviteLink = `${origin}/invite/${token}`;
 
-        console.log(`Attempting to send email via Resend...`);
-        console.log(`From: Performance Tracker <onboarding@resend.dev>`);
-        console.log(`To: ${email}`);
-        console.log(`Resend API Key present: ${!!Deno.env.get("RESEND_API_KEY")}`);
-
         const { data: emailData, error: emailError } = await resend.emails.send({
             from: "Performance Tracker <onboarding@resend.dev>", // Change this if you have a verified domain
             to: [email],
@@ -94,20 +98,13 @@ serve(async (req) => {
       `,
         });
 
-        console.log(`Resend API Response - Data:`, emailData);
-        console.log(`Resend API Response - Error:`, emailError);
-
         if (emailError) {
             console.error("Resend Error Details:", JSON.stringify(emailError, null, 2));
-            // We successfully created the DB record but failed emails. Return DB record but warning?
-            // Or rollback? For now, just report error.
             return new Response(JSON.stringify({ error: "Invitation created but email failed", details: emailError, invitation: dbData }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
                 status: 206, // Partial Content
             });
         }
-
-        console.log(`Email sent successfully! Email ID: ${emailData?.id}`);
 
         return new Response(JSON.stringify({ success: true, invitation: dbData, emailId: emailData?.id }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

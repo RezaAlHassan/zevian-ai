@@ -9,6 +9,7 @@ interface AuthContextType {
     session: Session | null;
     user: User | null;
     employee: Employee | null;
+    organizationName: string | null;
     loading: boolean;
     signOut: () => Promise<void>;
     refreshEmployee: () => Promise<void>;
@@ -20,6 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [employee, setEmployee] = useState<Employee | null>(null);
+    const [organizationName, setOrganizationName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 fetchEmployeeProfile(session.user.id, session.user.email);
             } else {
                 setEmployee(null);
+                setOrganizationName(null);
                 setLoading(false);
             }
         });
@@ -79,6 +82,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             setEmployee(emp);
+
+            // 3. Fetch Organization Name
+            if (emp?.organizationId) {
+                try {
+                    const { organizationService } = await import('../services/databaseService');
+                    const org = await organizationService.getById(emp.organizationId);
+                    if (org) {
+                        setOrganizationName(org.name);
+                        // Cache it for quick UI feedback if needed, but primary is DB
+                        localStorage.setItem('organizationName', org.name);
+                    }
+                } catch (orgError) {
+                    console.error('[AuthContext] Failed to fetch organization name:', orgError);
+                }
+            } else {
+                setOrganizationName(null);
+            }
         } catch (error) {
             console.error('Error fetching employee profile:', error);
         } finally {
@@ -97,10 +117,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(null);
         setUser(null);
         setEmployee(null);
+        setOrganizationName(null);
     };
 
     return (
-        <AuthContext.Provider value={{ session, user, employee, loading, signOut, refreshEmployee }}>
+        <AuthContext.Provider value={{ session, user, employee, organizationName, loading, signOut, refreshEmployee }}>
             {children}
         </AuthContext.Provider>
     );

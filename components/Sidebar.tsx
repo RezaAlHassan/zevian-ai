@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Page, ViewMode, EmployeeRole, Invitation } from '../types';
+import { Page, ViewMode, EmployeeRole, Invitation, Project, Employee } from '../types';
 import { Target, FileText, Users, User, LayoutDashboard, List, Search, FolderKanban, UserPlus } from 'lucide-react';
 import InviteUserModal from './InviteUserModal';
 
@@ -11,6 +11,8 @@ interface SidebarProps {
   viewMode: ViewMode;
   onInvite?: (email: string, role: EmployeeRole) => Promise<Invitation | null | void>;
   organizationName?: string;
+  projects?: Project[];
+  employees?: Employee[];
 }
 
 const NavButton: React.FC<{
@@ -46,8 +48,21 @@ const NavButton: React.FC<{
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, viewMode, onInvite, organizationName }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  currentPage,
+  setCurrentPage,
+  viewMode,
+  onInvite,
+  organizationName,
+  projects = [],
+  employees = []
+}) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
+
+  // Calculate managers for the invite modal dropdown
+  const managers = React.useMemo(() => {
+    return employees.filter(emp => emp.role === 'manager');
+  }, [employees]);
 
   return (
     <aside className="w-64 bg-white border-r border-border flex flex-col fixed top-0 left-0 h-full text-on-surface z-20">
@@ -133,6 +148,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, viewMode
           onClose={() => setShowInviteModal(false)}
           onInvite={onInvite}
           organizationName={organizationName}
+          projects={projects}
+          managers={managers}
         />
       )}
     </aside>

@@ -324,11 +324,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-2">Knowledge Base *</label>
+                <label className="block text-sm font-medium text-on-surface mb-2">Project Description *</label>
                 <RichTextEditor
                   value={projectDescription}
                   onChange={setProjectDescription}
-                  placeholder="Provide details about the project's goals, scope, and key information. You can format text and add information from other sources."
+                  placeholder="Describe the project objectives, scope, technical requirements, and expected outcomes..."
                   minLength={10}
                   onAttach={handleAttachClick}
                 />
@@ -359,9 +359,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
                   onChange={handleFileSelect}
                 />
 
-                <p className="mt-1 text-xs text-on-surface-secondary">
-                  Acts as AI context when reports are not available.
-                </p>
+                <div className="mt-3 flex gap-2 items-start bg-primary/5 border border-primary/20 rounded-lg p-3">
+                  <Info size={16} className="text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-on-surface-secondary">
+                    This description, along with goal instructions and criteria, will be used by the AI to generate a comprehensive Knowledge Base for evaluating employee reports.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

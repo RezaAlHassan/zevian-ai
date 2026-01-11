@@ -51,7 +51,7 @@ const ReportPreviewModal: React.FC<{
               <div key={index} className="bg-surface p-3 rounded-lg border border-border">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-on-surface">{score.criterionName}</span>
-                  <span className="text-sm text-on-surface-secondary">Analyzed</span>
+                  <span className="text-sm font-semibold text-primary">{score.score.toFixed(1)}</span>
                 </div>
               </div>
             ))}
@@ -118,7 +118,9 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
       <span className="capitalize text-on-surface-secondary">{previewText}...</span>,
       <div className="flex items-center gap-2">
         <TrendingUp size={16} className="text-on-surface-secondary" />
-        <span className="capitalize text-on-surface-secondary">Available</span>
+        <span className="capitalize text-on-surface-secondary font-semibold">
+          {report.evaluationScore.toFixed(1)}
+        </span>
       </div>,
       <button
         onClick={() => setSelectedReport(report)}

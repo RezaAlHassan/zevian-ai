@@ -5,13 +5,24 @@ import type { Invitation, EmployeeRole } from '../types';
 // INVITATIONS SERVICE
 // ============================================================================
 export const invitationService = {
-    async getAll() {
+    async getAll(organizationId: string) {
         const { data, error } = await supabase
             .from('invitations')
             .select('*')
+            .eq('organization_id', organizationId)
             .order('invited_at', { ascending: false });
         if (error) throw error;
-        return data as Invitation[];
+
+        return data.map((inv: any) => ({
+            ...inv,
+            organizationId: inv.organization_id,
+            invitedBy: inv.invited_by,
+            invitedAt: inv.invited_at,
+            expiresAt: inv.expires_at,
+            acceptedAt: inv.accepted_at,
+            initialProjectId: inv.initial_project_id,
+            initialManagerId: inv.initial_manager_id,
+        })) as Invitation[];
     },
 
     async getByToken(token: string) {
@@ -29,6 +40,8 @@ export const invitationService = {
             invitedAt: data.invited_at,
             expiresAt: data.expires_at,
             acceptedAt: data.accepted_at,
+            initialProjectId: data.initial_project_id,
+            initialManagerId: data.initial_manager_id,
         } as Invitation;
     },
 
@@ -47,6 +60,8 @@ export const invitationService = {
             invitedAt: inv.invited_at,
             expiresAt: inv.expires_at,
             acceptedAt: inv.accepted_at,
+            initialProjectId: inv.initial_project_id,
+            initialManagerId: inv.initial_manager_id,
         })) as Invitation[];
     },
 
@@ -54,7 +69,9 @@ export const invitationService = {
         email: string,
         role: EmployeeRole,
         organizationId: string,
-        invitedBy: string
+        invitedBy: string,
+        initialProjectId?: string,
+        initialManagerId?: string
     ) {
         const token = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         const invitedAt = new Date().toISOString();
@@ -70,6 +87,8 @@ export const invitationService = {
             invited_at: invitedAt,
             expires_at: expiresAt,
             status: 'pending' as const,
+            initial_project_id: initialProjectId,
+            initial_manager_id: initialManagerId,
         };
 
         const { data, error } = await supabase
@@ -86,6 +105,8 @@ export const invitationService = {
             invitedAt: data.invited_at,
             expiresAt: data.expires_at,
             acceptedAt: data.accepted_at,
+            initialProjectId: data.initial_project_id,
+            initialManagerId: data.initial_manager_id,
         } as Invitation;
     },
 
@@ -107,6 +128,8 @@ export const invitationService = {
             invitedAt: invite.invited_at,
             expiresAt: invite.expires_at,
             acceptedAt: invite.accepted_at,
+            initialProjectId: invite.initial_project_id,
+            initialManagerId: invite.initial_manager_id,
         } as Invitation;
     },
 
@@ -176,5 +199,13 @@ export const emailService = {
         // });
 
         return { success: true, inviteLink };
+    },
+
+    async delete(id: string) {
+        const { error } = await supabase
+            .from('invitations')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
     },
 };
