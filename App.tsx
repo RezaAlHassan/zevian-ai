@@ -35,7 +35,7 @@ import { invitationService } from './services/invitationService';
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, employee, loading: authLoading, refreshEmployee, signOut } = useAuth();
+  const { user, employee, organizationName: orgNameFromContext, loading: authLoading, refreshEmployee, signOut } = useAuth();
 
   // Database hooks
   const { projects, loading: projectsLoading, createProject, updateProject: updateProjectDb, deleteProject: deleteProjectDb } = useProjects();
@@ -69,10 +69,10 @@ const AppContent: React.FC = () => {
     return employee?.organizationId;
   }, [employee]);
 
-  // Organization name - in a real app, this would come from org data
+  // Organization name - fetched from DB via AuthContext, with localStorage/static fallback
   const organizationName = useMemo(() => {
-    return localStorage.getItem('organizationName') || 'My Organization';
-  }, []);
+    return orgNameFromContext || localStorage.getItem('organizationName') || 'My Organization';
+  }, [orgNameFromContext]);
 
   // Load invitations from localStorage
   const [invitations, setInvitations] = useState<Invitation[]>(() => {
@@ -108,6 +108,22 @@ const AppContent: React.FC = () => {
     }
     return currentUser?.role === 'manager' ? 'manager' : 'employee';
   }, [currentUser, user]);
+
+  // Fetch invitations on mount or when org changes
+  useEffect(() => {
+    if (organizationId && viewMode === 'manager') {
+      const fetchInvitations = async () => {
+        try {
+          const data = await invitationService.getAll(organizationId);
+          setInvitations(data);
+          localStorage.setItem('invitations', JSON.stringify(data));
+        } catch (error) {
+          console.error('Failed to fetch invitations:', error);
+        }
+      };
+      fetchInvitations();
+    }
+  }, [organizationId, viewMode]);
 
   // Get current page from location
   const currentPage = useMemo(() => {
@@ -174,7 +190,8 @@ const AppContent: React.FC = () => {
   }, [createEmployeeDb]);
 
   // Create and store an invitation
-  const createInvitation = useCallback(async (email: string, role: EmployeeRole) => {
+  const createInvitation = useCallback(async (email: string, role: EmployeeRole, initialProjectId?: string, initialManagerId?: string) => {
+    console.log('[App] createInvitation parameters:', { email, role, initialProjectId, initialManagerId });
     // Validation
     if (!organizationId) {
       alert("Error: Organization ID not found. Please setup your organization first.");
@@ -188,6 +205,7 @@ const AppContent: React.FC = () => {
     }
 
     try {
+      console.log('[App] Sending invite via Edge Function...');
       // Create invitation via Edge Function (handles DB insert + Email)
       const response = await inviteService.sendEmail({
         email,
@@ -196,12 +214,29 @@ const AppContent: React.FC = () => {
         organizationId: organizationId,
         invitedBy: currentEmployeeId,
         invitedByText: currentUser?.name || 'A manager',
+        initialProjectId,
+        initialManagerId,
       });
 
+      console.log('[App] Edge Function raw response:', response);
+
       if (response && response.invitation) {
+        // Map snake_case to camelCase for the UI
+        const mappedInvitation: Invitation = {
+          ...response.invitation,
+          organizationId: response.invitation.organization_id,
+          invitedBy: response.invitation.invited_by,
+          invitedAt: response.invitation.invited_at,
+          expiresAt: response.invitation.expires_at,
+          acceptedAt: response.invitation.accepted_at,
+          initialProjectId: response.invitation.initial_project_id,
+          initialManagerId: response.invitation.initial_manager_id,
+        };
+        console.log('[App] Mapped invitation for UI:', mappedInvitation);
+
         // Update UI state with returned invitation
-        setInvitations(prev => [response.invitation, ...prev]);
-        return response.invitation;
+        setInvitations(prev => [mappedInvitation, ...prev]);
+        return mappedInvitation;
       }
       return response?.invitation;
     } catch (error: any) {
@@ -223,33 +258,17 @@ const AppContent: React.FC = () => {
     }
   }, [organizationId, organizationName, currentEmployeeId, currentUser, employee]);
 
-  // Accept an invitation and create the employee
-  const acceptInvitation = useCallback(async (invitation: Invitation, name: string): Promise<Employee> => {
-    // Mark invitation as accepted
-    const updatedInvitations = invitations.map(inv =>
-      inv.id === invitation.id
-        ? { ...inv, status: 'accepted' as const, acceptedAt: new Date().toISOString() }
-        : inv
-    );
-    setInvitations(updatedInvitations);
-    localStorage.setItem('invitations', JSON.stringify(updatedInvitations));
+  const deleteInvitation = useCallback(async (invitationId: string) => {
+    try {
+      await invitationService.delete(invitationId);
+      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+    } catch (error) {
+      console.error('Failed to delete invitation:', error);
+      alert('Failed to delete invitation. Please try again.');
+    }
+  }, []);
 
-    // Create new employee from invitation
-    const newEmployee: Employee = {
-      id: `emp-${Date.now()}`,
-      organizationId: invitation.organizationId,
-      name,
-      email: invitation.email,
-      role: invitation.role,
-      joinDate: new Date().toISOString(),
-    };
 
-    // Add employee to the list
-    await createEmployeeDb(newEmployee);
-
-    // Note: Auth linking is handled in InviteAcceptPage / Service
-    return newEmployee;
-  }, [invitations, createEmployeeDb]);
 
   const updateEmployee = useCallback(async (updatedEmployee: Employee) => {
     try {
@@ -599,6 +618,8 @@ const AppContent: React.FC = () => {
             viewMode={viewMode}
             onInvite={viewMode === 'manager' ? createInvitation : undefined}
             organizationName={organizationName}
+            projects={memoizedProjects}
+            employees={memoizedEmployees}
           />
         )}
         <div className={`flex-1 flex flex-col ${!isAuthPage ? 'ml-64' : ''}`}>
@@ -764,6 +785,9 @@ const AppContent: React.FC = () => {
                   onAddEmployee={addEmployee}
                   onUpdateEmployee={updateEmployee}
                   onInvite={createInvitation}
+                  onDeleteInvitation={deleteInvitation}
+                  projects={memoizedProjects}
+                  invitations={invitations}
                   searchQuery={searchQuery}
                 />
               } />

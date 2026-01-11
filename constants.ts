@@ -1,10 +1,23 @@
-
 import { Goal, Report, Employee, Project } from './types';
+
+export const STANDARD_METRICS = [
+  { id: 'cycle-time', name: 'Cycle Time', friendlyName: 'Delivery Speed', description: 'How quickly work goes from "started" to "submitted".' },
+  { id: 'mttr', name: 'MTTR', friendlyName: 'Fix-it Rate', description: 'How fast the person resolves bugs or errors mentioned in reports.' },
+  { id: 'scope-completion', name: 'Scope Completion', friendlyName: 'Goal Progress', description: 'The percentage of the assigned goal or task actually finished.' },
+  { id: 'innovation-velocity', name: 'Innovation Velocity', friendlyName: 'New Value', description: 'Frequency of mentions of "new features," "ideas," or "improvements".' },
+  { id: 'business-value', name: 'Business Value', friendlyName: 'Impact Level', description: "The AI's estimate of how much this work helps the company's bottom line." },
+  { id: 'documentation', name: 'Documentation', friendlyName: 'Clarity', description: 'How well the report explains the work (extracted from rich text quality).' },
+  { id: 'collaboration', name: 'Collaboration', friendlyName: 'Teamwork', description: 'Mentions of helping others, code reviews, or cross-department syncs.' },
+  { id: 'compliance', name: 'Compliance', friendlyName: 'Policy Adherence', description: 'Following specific instructions or brand guidelines set in the goal.' },
+  { id: 'quality', name: 'Quality', friendlyName: 'Work Excellence', description: 'The raw AI score based on technical or descriptive accuracy.' },
+  { id: 'reliability', name: 'Reliability', friendlyName: 'Consistency', description: 'How often they submit reports on the required schedule without gaps.' },
+];
 
 export const sampleEmployees: Employee[] = [
   // Account Owner / Top Level Manager
   {
     id: 'emp-1',
+    organizationId: 'org-1',
     name: 'Alice Johnson',
     email: 'alice@example.com',
     title: 'VP of Engineering',
@@ -20,6 +33,7 @@ export const sampleEmployees: Employee[] = [
   // Senior Managers (report to Alice)
   {
     id: 'emp-2',
+    organizationId: 'org-1',
     name: 'Bob Williams',
     email: 'bob@example.com',
     title: 'Senior Engineering Manager',
@@ -32,6 +46,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-4',
+    organizationId: 'org-1',
     name: 'Diana Martinez',
     email: 'diana@example.com',
     title: 'Senior Product Manager',
@@ -45,6 +60,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-5',
+    organizationId: 'org-1',
     name: 'Ethan Chen',
     email: 'ethan@example.com',
     title: 'Senior Design Manager',
@@ -57,6 +73,7 @@ export const sampleEmployees: Employee[] = [
   // Junior Managers (report to Bob)
   {
     id: 'emp-3',
+    organizationId: 'org-1',
     name: 'Charlie Brown',
     email: 'charlie@example.com',
     title: 'Engineering Manager',
@@ -68,6 +85,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-6',
+    organizationId: 'org-1',
     name: 'Fiona O\'Brien',
     email: 'fiona@example.com',
     title: 'Frontend Team Lead',
@@ -77,6 +95,7 @@ export const sampleEmployees: Employee[] = [
   // Junior Manager (reports to Diana)
   {
     id: 'emp-7',
+    organizationId: 'org-1',
     name: 'George Kumar',
     email: 'george@example.com',
     title: 'Product Manager',
@@ -86,6 +105,7 @@ export const sampleEmployees: Employee[] = [
   // Regular Employees (report to managers)
   {
     id: 'emp-8',
+    organizationId: 'org-1',
     name: 'Hannah Lee',
     email: 'hannah@example.com',
     title: 'Software Engineer',
@@ -94,6 +114,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-9',
+    organizationId: 'org-1',
     name: 'Ian Thompson',
     email: 'ian@example.com',
     title: 'Software Engineer',
@@ -102,6 +123,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-10',
+    organizationId: 'org-1',
     name: 'Julia Rodriguez',
     email: 'julia@example.com',
     title: 'Frontend Developer',
@@ -110,6 +132,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-11',
+    organizationId: 'org-1',
     name: 'Kevin Park',
     email: 'kevin@example.com',
     title: 'Frontend Developer',
@@ -118,6 +141,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-12',
+    organizationId: 'org-1',
     name: 'Lisa Anderson',
     email: 'lisa@example.com',
     title: 'UX Designer',
@@ -126,6 +150,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-13',
+    organizationId: 'org-1',
     name: 'Michael Zhang',
     email: 'michael@example.com',
     title: 'Product Analyst',
@@ -134,6 +159,7 @@ export const sampleEmployees: Employee[] = [
   },
   {
     id: 'emp-14',
+    organizationId: 'org-1',
     name: 'Nina Patel',
     email: 'nina@example.com',
     title: 'Product Analyst',
@@ -146,6 +172,7 @@ export const sampleEmployees: Employee[] = [
 export const sampleProjects: Project[] = [
   {
     id: 'project-1',
+    organizationId: 'org-1',
     name: 'Q3 Frontend Development',
     description: 'Complete frontend development for Q3 including authentication, dashboard, and user management features.',
     category: 'Software Dev',
@@ -156,6 +183,7 @@ export const sampleProjects: Project[] = [
   },
   {
     id: 'project-2',
+    organizationId: 'org-1',
     name: 'Q3 UX/UI Design',
     description: 'Design and implement user interface improvements for the main application.',
     category: 'Design',
@@ -204,11 +232,11 @@ export const sampleReports: Report[] = [
     evaluationScore: 8.8,
     managerOverallScore: 9.0,
     evaluationReasoning: 'The report demonstrates strong technical execution and problem-solving skills. The proactive approach to documentation and testing is commendable, indicating high code quality.',
-    evaluationCriteriaScores: [
-      { name: 'Code Quality', score: 9 },
-      { name: 'Communication', score: 8 },
-      { name: 'Timeliness', score: 9 },
-      { name: 'Problem Solving', score: 10 },
+    criterionScores: [
+      { criterionName: 'Code Quality', score: 9 },
+      { criterionName: 'Communication', score: 8 },
+      { criterionName: 'Timeliness', score: 9 },
+      { criterionName: 'Problem Solving', score: 10 },
     ],
   },
   {
@@ -219,7 +247,7 @@ export const sampleReports: Report[] = [
     submissionDate: new Date(new Date().setDate(new Date().getDate() - 8)).toISOString(),
     evaluationScore: 8.2,
     evaluationReasoning: 'The work shows a solid understanding of performance optimization and collaborative skills. The mention of delays slightly impacts the timeliness score, but the overall contribution is positive.',
-    evaluationCriteriaScores: [
+    criterionScores: [
       { name: 'Code Quality', score: 9 },
       { name: 'Communication', score: 9 },
       { name: 'Timeliness', score: 7 },
@@ -234,7 +262,7 @@ export const sampleReports: Report[] = [
     submissionDate: new Date().toISOString(),
     evaluationScore: 9.1,
     evaluationReasoning: 'Excellent work in addressing critical issues promptly and taking initiative on future tasks. This demonstrates strong ownership and proactive communication.',
-    evaluationCriteriaScores: [
+    criterionScores: [
       { name: 'Code Quality', score: 9 },
       { name: 'Communication', score: 10 },
       { name: 'Timeliness', score: 9 },
@@ -249,7 +277,7 @@ export const sampleReports: Report[] = [
     submissionDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
     evaluationScore: 4.5,
     evaluationReasoning: 'The report indicates incomplete work with failing tests and missing documentation. This suggests the work does not meet the expected quality standards and requires significant improvement.',
-    evaluationCriteriaScores: [
+    criterionScores: [
       { name: 'Code Quality', score: 4 },
       { name: 'Communication', score: 5 },
       { name: 'Timeliness', score: 5 },

@@ -8,6 +8,8 @@ interface InviteParams {
     invitedBy: string;
     invitedByText: string;
     token?: string;
+    initialProjectId?: string;
+    initialManagerId?: string;
 }
 
 export const inviteService = {

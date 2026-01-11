@@ -4,8 +4,8 @@
 The invitation system was failing with a database error: `null value in column "id" of relation "invitations" violates not-null constraint`. This has been fixed by updating the Edge Function to automatically generate a UUID for each invitation.
 
 ## What Was Fixed
-- **Edge Function (`send-invite/index.ts`)**: Now generates a unique `id` using `crypto.randomUUID()` for each invitation before inserting into the database
-- **Deployment Status**: ✅ Successfully deployed to Supabase (2025-12-16)
+- **Edge Function (`send-invite/index.ts`)**: Now generates a unique `id` and supports `initial_project_id` and `initial_manager_id` for auto-assignments.
+- **Deployment Status**: Updated locally. Needs redeployment to Supabase to support auto-assignments natively.
 
 ## How to Deploy Updates (If Needed)
 
@@ -29,8 +29,8 @@ npx supabase secrets set RESEND_API_KEY=re_123...
 ```
 
 ## Summary of Changes
-1. **Edge Function (`send-invite`)**: now handles BOTH creating the database record and sending the email. It uses the Service Role to bypass the RLS restriction.
-2. **Frontend**: Now delegates the entire process to the Edge Function.
+1. **Edge Function (`send-invite`)**: now handles creating the database record (including project/team assignments) and sending the email.
+2. **Frontend**: Delegates the process to the Edge Function, with a fallback "patch" mechanism in `App.tsx` if the deployed function is an older version.
 
 ## Troubleshooting
 If you still see "No API Key found", verify that:

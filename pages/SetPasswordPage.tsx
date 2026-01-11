@@ -6,7 +6,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import { authService } from '../services/authService';
 import { invitationService } from '../services/invitationService';
-import { employeeService } from '../services/databaseService';
+import { employeeService, projectService } from '../services/databaseService';
 import { supabase } from '../services/supabaseClient';
 
 const SetPasswordPage: React.FC = () => {
@@ -77,84 +77,59 @@ const SetPasswordPage: React.FC = () => {
         setError(null);
 
         // Validation
-        if (!name.trim()) {
-            setError('Please enter your name');
-            return;
-        }
+        if (!name.trim()) { setError('Please enter your name'); return; }
+        if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+        if (password !== confirmPassword) { setError('Passwords do not match'); return; }
+        if (!invitation) { setError('Invitation data not found'); return; }
 
-        if (password.length < 6) {
-            setError('Password must be at least 6 characters');
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        if (!invitation) {
-            setError('Invitation data not found');
-            return;
-        }
-
-        console.log('[SetPasswordPage] Starting account setup with invitation:', {
-            email: invitation.email,
-            role: invitation.role,
-            organizationId: invitation.organizationId,
-            token
-        });
-
+        console.log('[Setup] Starting streamlined account setup...');
         setSubmitting(true);
 
         try {
-            // 1. Create Auth User (sign up)
-            console.log('[SetPasswordPage] Step 1: Creating auth user...');
-            await authService.acceptInvite(invitation.email, password, name, invitation.role);
+            // 1. Create Auth User (Sign Up)
+            console.log('[Setup] 1. Signing up...');
+            const { data: signUpData, error: signUpError } = await authService.acceptInvite(invitation.email, password, name, invitation.role);
+            if (signUpError) throw signUpError;
 
-            // 2. Get the newly created auth user
-            console.log('[SetPasswordPage] Step 2: Getting authenticated user...');
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-            if (userError || !user) {
-                console.error('[SetPasswordPage] Failed to get user:', userError);
-                throw new Error('Failed to get authenticated user');
+            // 1.5. Ensure Session (Auto-login if needed)
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                console.log('[Setup] Session missing, attempting auto-login...');
+                const { error: signInError } = await authService.signIn(invitation.email, password);
+                if (signInError) {
+                    if (signInError.message.includes("Email not confirmed")) {
+                        throw new Error("Please check your email to confirm your account before continuing.");
+                    }
+                    throw signInError;
+                }
             }
-            console.log('[SetPasswordPage] Auth user created:', { userId: user.id, email: user.email });
 
-            // 3. Create Employee Record with auth_user_id
-            const newEmployee = {
-                id: `emp-${Date.now()}`,
-                organizationId: invitation.organizationId,
-                name,
-                email: invitation.email,
-                role: invitation.role,
-                joinDate: new Date().toISOString(),
-                authUserId: user.id
-            };
+            // 2. Call the "Smart" DB Function (Completes Employee, Project, and Invite in one go)
+            console.log('[Setup] 2. Completing invitation via server-side function...');
+            const { data: rpcData, error: rcpError } = await supabase.rpc('complete_invitation_flow', {
+                token_input: token,
+                user_name: name
+            });
 
-            console.log('[SetPasswordPage] Step 3: Creating employee record:', newEmployee);
-            const createdEmployee = await employeeService.create(newEmployee);
-            console.log('[SetPasswordPage] Employee created successfully:', createdEmployee);
+            if (rcpError) {
+                console.error('[Setup] Server-side setup failed:', rcpError);
+                throw rcpError;
+            }
 
-            // 4. Mark invitation as accepted
-            console.log('[SetPasswordPage] Step 4: Marking invitation as accepted...');
-            await invitationService.accept(token!);
+            console.log('[Setup] Success! Result:', rpcData);
 
-            // 5. Store role in localStorage for immediate redirection
-            console.log('[SetPasswordPage] Step 5: Storing role in localStorage:', invitation.role);
+            // 3. Finalize
             localStorage.setItem('userRole', invitation.role);
-            localStorage.setItem('onboardingCompleted', 'true'); // Skip onboarding for invited users
+            localStorage.setItem('onboardingCompleted', 'true');
 
-            // 6. Redirect to appropriate dashboard based on role
-            console.log('[SetPasswordPage] Step 6: Redirecting to dashboard for role:', invitation.role);
+            // 4. Redirect
             setTimeout(() => {
-                console.log('[SetPasswordPage] Navigating to dashboard now...');
                 navigate('/dashboard');
-            }, 2000); // Increased timeout to ensure employee record is loaded
+            }, 1000);
 
-        } catch (err) {
-            console.error('[SetPasswordPage] Setup failed:', err);
-            setError(err instanceof Error ? err.message : 'Failed to complete account setup');
+        } catch (err: any) {
+            console.error('[Setup] Failure:', err);
+            setError(err.message || 'Failed to complete setup');
             setSubmitting(false);
         }
     };

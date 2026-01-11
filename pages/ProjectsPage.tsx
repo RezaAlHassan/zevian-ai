@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { Project, Employee, Goal, Report } from '../types';
-import { FolderKanban, Plus, Search, Eye, Edit2, Bot, MoreHorizontal, Trash2, File, X } from 'lucide-react';
+import { FolderKanban, Plus, Search, Eye, Edit2, Bot, MoreHorizontal, Trash2, File, X, UserPlus } from 'lucide-react';
 import Table from '../components/Table';
 import Input from '../components/Input';
 import Select from '../components/Select';
@@ -12,8 +12,8 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 import FileInput from '../components/FileInput';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
-import { getDirectReportIds } from '../utils/employeeFilter';
-import { canViewOrganizationWide } from '../utils/managerPermissions';
+import { getDirectReportIds, getScopedEmployeeIds } from '../utils/employeeFilter';
+import { canViewOrganizationWide, canManageSettings, isAccountOwner } from '../utils/managerPermissions';
 
 interface ProjectsPageProps {
   projects: Project[];
@@ -40,7 +40,10 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [reportFrequency, setReportFrequency] = useState<'daily' | 'weekly' | 'bi-weekly' | 'monthly'>('weekly');
   const [projectFiles, setProjectFiles] = useState<File[]>([]);
-  // const [knowledgeBaseLink, setKnowledgeBaseLink] = useState(''); // Removed
+
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assigningProject, setAssigningProject] = useState<Project | null>(null);
+  const [tempAssigneeIds, setTempAssigneeIds] = useState<string[]>([]);
 
   // File input ref for integrated upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +72,14 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
     return currentManager ? canViewOrganizationWide(currentManager) : false;
   }, [currentManager]);
 
+  const canManage = useMemo(() => {
+    return currentManager ? canManageSettings(currentManager) : false;
+  }, [currentManager]);
+
+  const isOwner = useMemo(() => {
+    return currentManager ? isAccountOwner(currentManager) : false;
+  }, [currentManager]);
+
   // Get employee IDs based on selected scope
   const scopedEmployeeIds = useMemo(() => {
     if (viewMode === 'employee' && currentEmployeeId) {
@@ -94,7 +105,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
     }
   }, [employees, currentEmployeeId, currentManagerId, scopeFilter, canViewOrgWide, viewMode]);
 
-  // Filter projects based on view mode - all managers see all projects
+  // Filter projects based on view mode
   const visibleProjects = useMemo(() => {
     if (viewMode === 'employee' && currentEmployeeId) {
       // Employees see only projects assigned to them
@@ -102,9 +113,22 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         project.assignees?.some(assignee => assignee.type === 'employee' && assignee.id === currentEmployeeId) || false
       );
     }
-    // All managers see all projects
+
+    if (viewMode === 'manager' && currentManagerId) {
+      // Senior managers/Owners see everything
+      if (canViewOrgWide || isOwner || canManage) return projects;
+
+      // Other managers see projects they are assigned to, projects they created, 
+      // or projects where their team members are assigned
+      const scopedIds = getScopedEmployeeIds(employees, currentManagerId);
+      return projects.filter(project =>
+        project.createdBy === currentManagerId ||
+        project.assignees?.some(a => a.id === currentManagerId || scopedIds.has(a.id))
+      );
+    }
+
     return projects;
-  }, [projects, currentEmployeeId, viewMode]);
+  }, [projects, currentEmployeeId, currentManagerId, viewMode, canViewOrgWide, isOwner, canManage, employees]);
 
   // Filter projects based on search
   const filteredProjects = useMemo(() => {
@@ -119,15 +143,27 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
 
   const handleAddProject = () => {
     if (projectName && projectCategory && projectDescription) {
+      // Strip HTML tags from rich text editor
+      const stripHtml = (html: string) => {
+        const tmp = document.createElement('DIV');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
+      };
+
+      const cleanDescription = stripHtml(projectDescription);
+
       // Append file names to description as we don't have storage yet
-      let finalDescription = projectDescription;
+      let finalDescription = cleanDescription;
       if (projectFiles.length > 0) {
         finalDescription += '\n\n[Attached Documents]:\n' + projectFiles.map(f => `- ${f.name}`).join('\n');
       }
 
       // Create project with multiple assignees (or none)
       const assignees = selectedEmployeeIds.length > 0
-        ? selectedEmployeeIds.map(id => ({ type: 'employee' as const, id }))
+        ? selectedEmployeeIds.map(id => {
+          const emp = employees.find(e => e.id === id);
+          return { type: (emp?.role || 'employee') as 'employee' | 'manager', id };
+        })
         : undefined;
 
       if (editingProject) {
@@ -224,6 +260,33 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
     setShowCreateModal(true);
   };
 
+  const handleOpenAssignModal = (project: Project) => {
+    setAssigningProject(project);
+    setTempAssigneeIds(project.assignees?.map(a => a.id) || []);
+    setShowAssignModal(true);
+  };
+
+  const handleSaveAssignments = () => {
+    if (!assigningProject) return;
+
+    // Create updated project object
+    const updatedProject: Project = {
+      ...assigningProject,
+      assignees: tempAssigneeIds.map(id => {
+        const emp = employees.find(e => e.id === id);
+        return {
+          id,
+          name: emp?.name || 'Unknown',
+          type: emp?.role === 'manager' ? 'manager' : 'employee'
+        };
+      })
+    };
+
+    updateProject(updatedProject);
+    setShowAssignModal(false);
+    setAssigningProject(null);
+  };
+
   const projectTableHeaders = ['Project Name', 'Category', 'Assignees', 'Creator', 'Has Direct Reports', 'Frequency', 'Actions'];
   const projectTableRows = filteredProjects.map(project => {
     const assigneeNames = getAssigneeNames(project.assignees);
@@ -277,6 +340,14 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
               <span>Edit Project</span>
             </div>
           </DropdownItem>
+          <DropdownItem
+            onClick={() => handleOpenAssignModal(project)}
+          >
+            <div className="flex items-center gap-2">
+              <UserPlus size={16} className="text-on-surface-secondary" />
+              <span>Assign Members</span>
+            </div>
+          </DropdownItem>
           {deleteProject && (
             <>
               <DropdownDivider />
@@ -317,6 +388,26 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             Create New Project
           </Button>
         </div>
+
+        {/* Permission check for editing */}
+        {editingProject && (() => {
+          const isCreator = editingProject.createdBy === currentManagerId;
+          const isAssigned = editingProject.assignees?.some(a => a.type === 'manager' && a.id === currentManagerId);
+          const hasFullEdit = isOwner || canManage || isCreator;
+
+          if (!hasFullEdit && isAssigned) {
+            return (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-on-surface-secondary flex items-start gap-2">
+                <Bot size={18} className="text-primary mt-0.5" />
+                <p>
+                  You are an assigned manager for this project. You can add or remove members from your reporting team,
+                  but other project details can only be modified by the project creator or an administrator.
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Search - Removed local search, now global */}
 
@@ -372,16 +463,18 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             onChange={(e) => setProjectName(e.target.value)}
             placeholder="e.g., Q4 Marketing Campaign"
             required
+            disabled={editingProject ? !(isOwner || canManage || editingProject.createdBy === currentManagerId) : false}
           />
 
           <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">Knowledge Base *</label>
+            <label className="block text-sm font-medium text-on-surface mb-2">Project Description *</label>
             <RichTextEditor
               value={projectDescription}
               onChange={setProjectDescription}
-              placeholder="Provide deeper context and scope for the entire project..."
+              placeholder="Provide an overview of the project: objectives, scope, technical requirements, and expected outcomes..."
               minLength={10}
               onAttach={handleAttachClick}
+              readOnly={editingProject ? !(isOwner || canManage || editingProject.createdBy === currentManagerId) : false}
             />
 
             {/* File List */}
@@ -394,6 +487,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
                     <button
                       onClick={() => handleRemoveFile(index)}
                       className="text-on-surface-tertiary hover:text-destructive transition-colors"
+                      disabled={editingProject ? !(isOwner || canManage || editingProject.createdBy === currentManagerId) : false}
                     >
                       <X size={14} />
                     </button>
@@ -411,7 +505,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             />
 
             <p className="mt-1 text-xs text-on-surface-secondary">
-              Describe the project's objectives, scope, and expected outcomes
+              This description will be used as the foundation for the AI-generated Knowledge Base
             </p>
           </div>
 
@@ -424,16 +518,36 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             placeholder="e.g., Software Dev, HR, Marketing"
             helperText="For organizational filtering"
             required
+            disabled={editingProject ? !(isOwner || canManage || editingProject.createdBy === currentManagerId) : false}
           />
 
           <MultiSelect
-            label="Assign To Employees"
-            options={employees.map(e => ({ value: e.id, label: e.name }))}
+            label="Assign To Members"
+            options={(() => {
+              const isCreator = editingProject?.createdBy === currentManagerId;
+              const hasFullEdit = isOwner || canManage || isCreator || !editingProject;
+
+              if (hasFullEdit) {
+                // Full list: All employees and other managers
+                return employees.map(e => ({ value: e.id, label: `${e.name} (${e.role})` }));
+              }
+
+              // Limited edit for assigned manager
+              const scopedIds = getScopedEmployeeIds(employees, currentManagerId || '');
+              return employees
+                .filter(e =>
+                  scopedIds.has(e.id) || // My team
+                  editingProject?.assignees?.some(a => a.id === e.id) // Currently assigned
+                )
+                .map(e => ({ value: e.id, label: `${e.name} (${e.role})` }));
+            })()}
             selectedValues={selectedEmployeeIds}
             onChange={setSelectedEmployeeIds}
-            placeholder="Search and select employees..."
+            placeholder="Search and select members..."
             searchable
-            helperText="You can select multiple employees to assign this project to"
+            helperText={editingProject && !(isOwner || canManage || editingProject.createdBy === currentManagerId)
+              ? "As an assigned manager, you can only manage assignments for your reporting team."
+              : "Search and select employees or other managers to assign to this project."}
           />
 
           <Select
@@ -446,6 +560,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
               { value: 'custom', label: 'Custom' }
             ]}
             helperText="Sets the cadence for all goals under this project"
+            disabled={editingProject ? !(isOwner || canManage || editingProject.createdBy === currentManagerId) : false}
           />
 
           {reportFrequency === 'custom' && (
@@ -500,6 +615,46 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         </div>
       </Modal>
 
+      {/* Quick Assign Members Modal */}
+      <Modal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        title={`Assign Members to ${assigningProject?.name}`}
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-on-surface-secondary">
+            Select members to assign to this project. Assigned employees will be required to submit reports based on the project frequency.
+          </p>
+
+          <MultiSelect
+            label="Select Members"
+            options={employees.map(emp => ({
+              value: emp.id,
+              label: emp.name,
+              sublabel: emp.role === 'manager' ? 'Manager' : emp.title || 'Employee'
+            }))}
+            selectedValues={tempAssigneeIds}
+            onChange={setTempAssigneeIds}
+            placeholder="Search and select members..."
+            searchable
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setShowAssignModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveAssignments}
+            >
+              Save Assignments
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

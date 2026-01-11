@@ -12,7 +12,13 @@ export const organizationService = {
             .eq('id', id)
             .single();
         if (error) throw error;
-        return data as Organization;
+        return {
+            id: data.id,
+            name: data.name,
+            planTier: data.plan_tier,
+            selectedMetrics: data.selected_metrics,
+            createdAt: data.created_at
+        } as Organization;
     },
 
     async create(organization: Omit<Organization, 'createdAt'>) {
@@ -22,6 +28,7 @@ export const organizationService = {
                 id: organization.id,
                 name: organization.name,
                 plan_tier: organization.planTier,
+                selected_metrics: organization.selectedMetrics,
             });
         // Do NOT select() here because the user cannot "view" the organization 
         // until their employee record is created (which happens next).
@@ -35,6 +42,7 @@ export const organizationService = {
         const dbUpdates: any = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.planTier !== undefined) dbUpdates.plan_tier = updates.planTier;
+        if (updates.selectedMetrics !== undefined) dbUpdates.selected_metrics = updates.selectedMetrics;
 
         const { data, error } = await supabase
             .from('organizations')
@@ -43,7 +51,13 @@ export const organizationService = {
             .select()
             .single();
         if (error) throw error;
-        return data as Organization;
+        return {
+            id: data.id,
+            name: data.name,
+            planTier: data.plan_tier,
+            selectedMetrics: data.selected_metrics,
+            createdAt: data.created_at
+        } as Organization;
     },
 };
 
@@ -440,45 +454,86 @@ export const reportService = {
     },
 
     async create(report: Omit<Report, 'createdAt' | 'updatedAt'>) {
-        // Insert report
-        const { data: reportData, error: reportError } = await supabase
-            .from('reports')
-            .insert({
-                id: report.id,
+        try {
+            // Validation helper (keep for internal use if needed, but not for ID checks)
+
+            // Prepare the report data
+            const insertData: any = {
                 goal_id: report.goalId,
                 employee_id: report.employeeId,
                 report_text: report.reportText,
-                submission_date: report.submissionDate,
-                evaluation_score: report.evaluationScore,
-                manager_overall_score: report.managerOverallScore,
-                manager_override_reasoning: report.managerOverrideReasoning,
-                evaluation_reasoning: report.evaluationReasoning,
-            })
-            .select()
-            .single();
-        if (reportError) throw reportError;
+                submission_date: report.submissionDate || new Date().toISOString(),
+                evaluation_score: isNaN(report.evaluationScore) ? 0 : report.evaluationScore,
+                evaluation_reasoning: report.evaluationReasoning || 'No reasoning provided.',
+            };
 
-        // Insert criterion scores
-        if (report.criterionScores && report.criterionScores.length > 0) {
-            const scoresToInsert = report.criterionScores.map(score => ({
-                report_id: report.id,
-                criterion_name: score.criterionName,
-                score: score.score,
-            }));
+            // Handle optional fields
+            if (report.managerOverallScore !== undefined && report.managerOverallScore !== null) {
+                insertData.manager_overall_score = report.managerOverallScore;
+            }
+            if (report.managerOverrideReasoning !== undefined && report.managerOverrideReasoning !== null) {
+                insertData.manager_override_reasoning = report.managerOverrideReasoning;
+            }
 
-            const { error: scoresError } = await supabase
-                .from('report_criterion_scores')
-                .insert(scoresToInsert);
-            if (scoresError) throw scoresError;
+            // Ensure we have an ID for the report. If not provided, generate one.
+            // Since the system uses custom string IDs (e.g. goal-..., emp-...), we follow that pattern.
+            insertData.id = report.id || `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+            console.log('[Database] Creating report...', insertData);
+
+            // Insert report
+            const { data: reportData, error: reportError } = await supabase
+                .from('reports')
+                .insert(insertData)
+                .select()
+                .single();
+
+            if (reportError) {
+                console.error('[Database] Failed to insert report:', {
+                    error: reportError,
+                    sentData: insertData
+                });
+                throw reportError;
+            }
+
+            if (!reportData) {
+                throw new Error('Report insertion succeeded but no data was returned.');
+            }
+
+            const reportId = reportData.id;
+            console.log('[Database] Report created successfully. ID:', reportId);
+
+            // Insert criterion scores
+            if (report.criterionScores && report.criterionScores.length > 0) {
+                const scoresToInsert = report.criterionScores.map(score => ({
+                    report_id: reportId,
+                    criterion_name: score.criterionName,
+                    score: score.score,
+                }));
+
+                console.log('[Database] Inserting criterion scores...', scoresToInsert);
+
+                const { error: scoresError } = await supabase
+                    .from('report_criterion_scores')
+                    .insert(scoresToInsert);
+
+                if (scoresError) {
+                    console.error('[Database] Failed to insert criterion scores:', {
+                        error: scoresError,
+                        sentData: scoresToInsert
+                    });
+                    throw scoresError;
+                }
+            }
+
+            const fullReport = dbReportToReport(reportData);
+            fullReport.criterionScores = report.criterionScores || [];
+
+            return fullReport;
+        } catch (err) {
+            console.error('[Database] Critical error in reportService.create:', err);
+            throw err;
         }
-
-
-        // Return fully reconstructed report with scores
-        // Note: reportData only has report fields. We attach the scores we just inserted.
-        const fullReport = dbReportToReport(reportData);
-        fullReport.criterionScores = report.criterionScores || [];
-
-        return fullReport;
     },
 
     async update(id: string, updates: Partial<Report>) {

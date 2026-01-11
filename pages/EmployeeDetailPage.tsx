@@ -1,19 +1,23 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Report, Goal, Employee, Project } from '../types';
-import { summarizePerformance } from '../services/geminiService';
+import { summarizePerformance, analyzeSkillMetrics } from '../services/geminiService';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import Input from '../components/Input';
 import Textarea from '../components/Textarea';
 import Button from '../components/Button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
-import { Bot, ArrowLeft, Eye, FileText, Star, Activity, Trophy, Award, Calendar, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, ArrowLeft, Eye, FileText, Star, Activity, Trophy, Award, Calendar, Sparkles, AlertTriangle, ArrowUpDown, List, TrendingUp, TrendingDown } from 'lucide-react';
 import Table from '../components/Table';
 import StatCard from '../components/StatCard';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
 import { isEmployeeInManagerScope } from '../utils/employeeFilter';
 import { isDirectManager } from '../utils/managerPermissions';
+import { useOrganization } from '../hooks/useOrganization';
+import MetricsSelectionModal from '../components/MetricsSelectionModal';
+import { STANDARD_METRICS } from '../constants';
+import { Sliders } from 'lucide-react';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -290,6 +294,13 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
     const [summary, setSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
     const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
+    const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
+    const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>({});
+    const [isAnalyzingSkills, setIsAnalyzingSkills] = useState(false);
+    const [skillSortOrder, setSkillSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
+
+    const { organization, updateOrganizationMetrics } = useOrganization(employee.organizationId);
+    const selectedMetrics = useMemo(() => organization?.selectedMetrics || [], [organization]);
 
     const filteredReports = useMemo(() => {
         const start = new Date(startDate);
@@ -332,6 +343,37 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         setSortColumn(direction ? column : null);
         setSortDirection(direction);
     };
+
+    const performSkillAnalysis = async (metricsToAnalyze: string[]) => {
+        if (filteredReports.length === 0 || metricsToAnalyze.length === 0) return;
+
+        setIsAnalyzingSkills(true);
+        try {
+            const metrics = metricsToAnalyze.map(id => {
+                const def = STANDARD_METRICS.find(m => m.id === id);
+                return { id, name: def?.friendlyName || def?.name || id };
+            });
+
+            // Get the AI context from the first project for now, or synthesize
+            const primaryProjectId = goals.find(g => g.id === filteredReports[0].goalId)?.projectId;
+            const primaryProject = projects.find(p => p.id === primaryProjectId);
+            const knowledgeBase = primaryProject?.aiContext;
+
+            const scores = await analyzeSkillMetrics(filteredReports, metrics, knowledgeBase);
+            setSkillAnalysisScores(scores);
+        } catch (error) {
+            console.error("Failed to perform skill analysis:", error);
+        } finally {
+            setIsAnalyzingSkills(false);
+        }
+    };
+
+    // Trigger analysis when organization changes or initial load
+    useEffect(() => {
+        if (organization?.selectedMetrics && organization.selectedMetrics.length > 0 && Object.keys(skillAnalysisScores).length === 0 && filteredReports.length > 0) {
+            performSkillAnalysis(organization.selectedMetrics);
+        }
+    }, [organization, filteredReports]);
 
 
     // Calculate consistency (coefficient of variation)
@@ -393,36 +435,64 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 }
                 return b.averageScore - a.averageScore;
             })
-            .slice(0, 8); // Top 8 key skills
+            .slice(0, 40); // Top 40 skills
 
-        // Add dummy data to demonstrate low-scoring skills highlighting
-        // Only add if we have fewer than 8 skills or want to show examples
-        const dummySkills = [
-            { name: 'Time Management', frequency: 5, averageScore: 4.2 },
-            { name: 'Communication', frequency: 3, averageScore: 5.8 },
-            { name: 'Code Quality', frequency: 8, averageScore: 7.5 },
-            { name: 'Documentation', frequency: 2, averageScore: 3.9 },
-            { name: 'Problem Solving', frequency: 6, averageScore: 8.1 },
-        ];
+        return skills;
+    }, [filteredReports, goals, startDate, endDate]);
 
-        // Merge real skills with dummy skills, avoiding duplicates
-        const allSkills = [...skills];
-        dummySkills.forEach(dummy => {
-            if (!allSkills.find(s => s.name === dummy.name)) {
-                allSkills.push(dummy);
+    const sortedSkills = useMemo(() => {
+        const combined = [...keySkills];
+
+        // Add organization-selected metrics if they aren't already clearly represented
+        selectedMetrics.forEach(metricId => {
+            const metricDef = STANDARD_METRICS.find(m => m.id === metricId);
+            const metricName = metricDef?.friendlyName || metricDef?.name || metricId;
+
+            // Look for existing entry by name or metric ID
+            const existingIndex = combined.findIndex(s => s.name === metricName || s.name === metricDef?.name || s.name === metricId);
+
+            if (existingIndex === -1) {
+                // Get current score (AI analysis takes precedence)
+                let score = skillAnalysisScores[metricId];
+                let count = 0;
+
+                // Count occurrences in reports regardless of AI score presence
+                filteredReports.forEach(report => {
+                    const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                    if (scoreObj) count++;
+                });
+
+                if (score === undefined) {
+                    // Fallback to manual average if AI hasn't analyzed it yet
+                    let total = 0;
+                    filteredReports.forEach(report => {
+                        const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                        if (scoreObj) total += scoreObj.score;
+                    });
+                    score = count > 0 ? total / count : 0;
+                }
+
+                combined.push({
+                    name: metricName,
+                    frequency: count,
+                    averageScore: score
+                });
+            } else {
+                // If AI has a score for an existing metric, update the ranking score with it
+                if (skillAnalysisScores[metricId] !== undefined) {
+                    combined[existingIndex].averageScore = skillAnalysisScores[metricId];
+                }
             }
         });
 
-        // Sort again and return top 8
-        return allSkills
-            .sort((a, b) => {
-                if (b.frequency !== a.frequency) {
-                    return b.frequency - a.frequency;
-                }
+        return combined.sort((a, b) => {
+            if (skillSortOrder === 'high-to-low') {
                 return b.averageScore - a.averageScore;
-            })
-            .slice(0, 8);
-    }, [filteredReports, goals, startDate, endDate]);
+            } else {
+                return a.averageScore - b.averageScore;
+            }
+        });
+    }, [keySkills, selectedMetrics, skillAnalysisScores, filteredReports, skillSortOrder]);
 
     // Calculate previous period for comparison
     const previousPeriodReports = useMemo(() => {
@@ -525,7 +595,58 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
     // Prepare radar chart data
     const radarChartData = useMemo(() => {
-        // Get top 6 skills for radar chart
+        // If we have organization-selected metrics, use those
+        if (selectedMetrics.length > 0) {
+            return selectedMetrics.map(metricId => {
+                const metricDef = STANDARD_METRICS.find(m => m.id === metricId);
+                const metricName = metricDef?.friendlyName || metricDef?.name || metricId;
+
+                // Use AI-analyzed score if available, otherwise fallback to reports average
+                let score = skillAnalysisScores[metricId];
+
+                if (score === undefined) {
+                    let total = 0;
+                    let count = 0;
+                    filteredReports.forEach(report => {
+                        const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                        if (scoreObj) {
+                            total += scoreObj.score;
+                            count++;
+                        }
+                    });
+                    score = count > 0 ? total / count : 0;
+                }
+
+                // Calculate previous period
+                let prevTotal = 0;
+                let prevCount = 0;
+                previousPeriodReports.forEach(report => {
+                    const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                    if (scoreObj) {
+                        prevTotal += scoreObj.score;
+                        prevCount++;
+                    }
+                });
+
+                // Calculate team average
+                let teamTotal = 0;
+                let teamCount = 0;
+                const teamData = teamAverages.get(metricDef?.name || metricId);
+                if (teamData) {
+                    teamTotal = teamData.totalScore;
+                    teamCount = teamData.count;
+                }
+
+                return {
+                    skill: metricName.length > 15 ? metricName.substring(0, 15) + '...' : metricName,
+                    current: score,
+                    previous: prevCount > 0 ? prevTotal / prevCount : 0,
+                    team: teamCount > 0 ? teamTotal / teamCount : 0
+                };
+            });
+        }
+
+        // Fallback to top goal criteria (current behavior)
         const topSkills = keySkills.slice(0, 6);
 
         const data = topSkills.map(skill => {
@@ -542,7 +663,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         });
 
         return data;
-    }, [keySkills, previousPeriodKeySkills, teamAverages]);
+    }, [selectedMetrics, filteredReports, previousPeriodReports, teamAverages, keySkills, previousPeriodKeySkills]);
 
     // Calculate avg rating on projects (using filtered reports)
     const avgRatingOnProjects = useMemo(() => {
@@ -598,14 +719,20 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
     }, [allReports, employee.id, startDate, endDate]);
 
     const analytics = useMemo(() => {
-        if (filteredReports.length === 0) {
-            return { overallScore: 0 };
+        const reportAverage = filteredReports.length > 0
+            ? filteredReports.reduce((sum, r) => sum + r.evaluationScore, 0) / filteredReports.length
+            : 0;
+
+        // Holistic Score: Average of (Report Average + Organizational Metrics Average)
+        // This ensures both direct report feedback and organizational metrics are weighted equally
+        if (selectedMetrics.length > 0 && radarChartData.length > 0) {
+            const metricsAverage = radarChartData.reduce((sum, d) => sum + d.current, 0) / radarChartData.length;
+            const holisticScore = (reportAverage + metricsAverage) / 2;
+            return { overallScore: holisticScore };
         }
 
-        const overallScore = filteredReports.reduce((sum, r) => sum + r.evaluationScore, 0) / filteredReports.length;
-
-        return { overallScore };
-    }, [filteredReports]);
+        return { overallScore: reportAverage };
+    }, [filteredReports, radarChartData, selectedMetrics]);
 
     const handleGenerateSummary = async () => {
         if (filteredReports.length === 0) return;
@@ -719,157 +846,195 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 />
             </div>
 
-            {/* Key Skills and Skill Spider Section */}
-            {keySkills.length > 0 && (() => {
-                const skillsNeedingCoaching = keySkills.filter(skill => skill.averageScore < 6.0);
-                const regularSkills = keySkills.filter(skill => skill.averageScore >= 6.0);
+            <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden">
+                <div className="p-6 border-b border-border bg-surface/30">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
+                            <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across projects and missions</p>
+                        </div>
+                        {viewMode === 'manager' && (
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => setIsMetricsModalOpen(true)}
+                                className="flex items-center gap-2 shadow-sm"
+                                icon={Sliders}
+                            >
+                                Customize Metrics
+                            </Button>
+                        )}
+                    </div>
+                </div>
 
-                return (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Key Skills Section */}
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                            {/* Skills Needing Coaching */}
-                            {skillsNeedingCoaching.length > 0 && (
-                                <>
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <AlertTriangle size={20} className="text-red-600" />
-                                        <h3 className="text-lg font-semibold text-on-surface">Skills Needing Coaching</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                        {skillsNeedingCoaching.map((skill) => (
-                                            <div
-                                                key={skill.name}
-                                                className="p-4 rounded-lg border bg-red-50/50 border-red-200"
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="font-medium text-on-surface">{skill.name}</span>
-                                                    <AlertTriangle size={16} className="text-red-600" />
-                                                </div>
-                                                <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-on-surface-secondary">
-                                                        {skill.frequency} report{skill.frequency !== 1 ? 's' : ''}
-                                                    </span>
-                                                    <span className="font-semibold text-red-600">
-                                                        {skill.averageScore.toFixed(1)}/10
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Divider */}
-                            {skillsNeedingCoaching.length > 0 && regularSkills.length > 0 && (
-                                <div className="border-t border-border my-6"></div>
-                            )}
-
-                            {/* Regular Key Skills */}
-                            {regularSkills.length > 0 && (
-                                <>
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <Award size={20} className="text-on-surface-secondary" />
-                                        <h3 className="text-lg font-semibold text-on-surface">Key Skills</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {regularSkills.map((skill) => (
-                                            <div
-                                                key={skill.name}
-                                                className="p-4 rounded-lg border bg-surface border-border"
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="font-medium text-on-surface">{skill.name}</span>
-                                                    <Award size={16} className="text-on-surface-tertiary" />
-                                                </div>
-                                                <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-on-surface-secondary">
-                                                        {skill.frequency} report{skill.frequency !== 1 ? 's' : ''}
-                                                    </span>
-                                                    <span className="font-semibold text-on-surface">
-                                                        {skill.averageScore.toFixed(1)}/10
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+                    {/* Skills List Column */}
+                    <div className="lg:col-span-5 p-6 border-r border-border">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2 text-on-surface">
+                                <List size={18} />
+                                <span className="font-semibold">Skill Rankings</span>
+                                <span className="px-2 py-0.5 bg-surface rounded-full text-xs font-medium text-on-surface-tertiary">
+                                    {keySkills.length}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setSkillSortOrder(prev => prev === 'high-to-low' ? 'low-to-high' : 'high-to-low')}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1.5 rounded-lg transition-colors border border-primary/20"
+                            >
+                                <ArrowUpDown size={14} />
+                                {skillSortOrder === 'high-to-low' ? 'High to Low' : 'Low to High'}
+                            </button>
                         </div>
 
-                        {/* Skill Spider Chart */}
-                        {radarChartData.length > 0 && (
-                            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-on-surface">Skill Spider</h3>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={showPreviousPeriod}
-                                            onChange={(e) => setShowPreviousPeriod(e.target.checked)}
-                                            className="w-4 h-4 text-primary focus:ring-primary focus:ring-2 rounded"
-                                        />
-                                        <span className="text-sm text-on-surface-secondary">Compare Previous Period</span>
-                                    </label>
-                                </div>
-                                <ResponsiveContainer width="100%" height={400}>
-                                    <RadarChart data={radarChartData}>
-                                        <PolarGrid stroke="#e5e7eb" />
-                                        <PolarAngleAxis
-                                            dataKey="skill"
-                                            tick={{ fill: '#6b7280', fontSize: 11 }}
-                                        />
-                                        <PolarRadiusAxis
-                                            angle={90}
-                                            domain={[0, 10]}
-                                            tick={{ fill: '#6b7280', fontSize: 10 }}
-                                        />
-                                        <Radar
-                                            name="Your Performance"
-                                            dataKey="current"
-                                            stroke="#2563eb"
-                                            fill="#2563eb"
-                                            fillOpacity={0.6}
-                                            strokeWidth={2}
-                                        />
-                                        <Radar
-                                            name="Team Average"
-                                            dataKey="team"
-                                            stroke="#f59e0b"
-                                            fill="#f59e0b"
-                                            fillOpacity={0.3}
-                                            strokeWidth={2}
-                                            strokeDasharray="5 5"
-                                        />
-                                        {showPreviousPeriod && (
-                                            <Radar
-                                                name="Previous Period"
-                                                dataKey="previous"
-                                                stroke="#10b981"
-                                                fill="#10b981"
-                                                fillOpacity={0.4}
-                                                strokeWidth={2}
-                                                strokeDasharray="3 3"
-                                            />
-                                        )}
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#ffffff',
-                                                border: '1px solid #e5e7eb',
-                                                color: '#111827',
-                                                borderRadius: '0.5rem',
-                                                padding: '0.5rem'
-                                            }}
-                                        />
-                                        <Legend
-                                            wrapperStyle={{ paddingTop: '10px' }}
-                                        />
-                                    </RadarChart>
-                                </ResponsiveContainer>
+                        {sortedSkills.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                {sortedSkills.map((skill) => {
+                                    const isLow = skill.averageScore < 6.0;
+                                    return (
+                                        <div
+                                            key={skill.name}
+                                            className={`
+                                                flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-200 group
+                                                ${isLow
+                                                    ? 'bg-red-50/50 border-red-100 hover:border-red-200'
+                                                    : 'bg-surface border-border hover:border-primary/30'}
+                                            `}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className={`text-sm font-medium leading-none mb-1 ${isLow ? 'text-red-700' : 'text-on-surface'}`}>
+                                                    {skill.name}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-1 bg-surface-elevated rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full ${isLow ? 'bg-red-500' : 'bg-primary'}`}
+                                                            style={{ width: `${skill.averageScore * 10}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className={`text-[10px] font-bold ${isLow ? 'text-red-600' : 'text-on-surface-tertiary'}`}>
+                                                        {skill.averageScore.toFixed(1)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {isLow ? <TrendingDown size={14} className="text-red-400" /> : <TrendingUp size={14} className="text-primary/40 group-hover:text-primary/60 transition-colors" />}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
+                                <Star size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
+                                <p className="text-sm text-on-surface-secondary">No skill data available yet</p>
                             </div>
                         )}
                     </div>
-                );
-            })()}
+
+                    {/* Chart Column */}
+                    <div className="lg:col-span-7 p-6 bg-surface/10">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2 text-on-surface">
+                                <Activity size={18} />
+                                <span className="font-semibold">Skill Fingerprint</span>
+                            </div>
+                        </div>
+
+                        {radarChartData.length > 0 ? (
+                            <div className="relative">
+                                {isAnalyzingSkills && (
+                                    <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
+                                        <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
+                                            <Spinner size="lg" />
+                                            <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing AI Insights...</p>
+                                            <p className="text-[10px] text-on-surface-secondary mt-1">Analyzing historical performance records</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="bg-surface rounded-2xl p-4 border border-border">
+                                    <ResponsiveContainer width="100%" height={400}>
+                                        <RadarChart data={radarChartData}>
+                                            <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                                            <PolarAngleAxis
+                                                dataKey="skill"
+                                                tick={({ x, y, payload }) => (
+                                                    <g transform={`translate(${x},${y})`}>
+                                                        <text
+                                                            x={0}
+                                                            y={0}
+                                                            dy={4}
+                                                            textAnchor="middle"
+                                                            fill="#6b7280"
+                                                            fontSize={10}
+                                                            fontWeight={600}
+                                                        >
+                                                            {payload.value}
+                                                        </text>
+                                                    </g>
+                                                )}
+                                            />
+                                            <PolarRadiusAxis
+                                                angle={90}
+                                                domain={[0, 10]}
+                                                tick={{ fill: '#9ca3af', fontSize: 9 }}
+                                            />
+                                            <Radar
+                                                name="Current Proficiency"
+                                                dataKey="current"
+                                                stroke="#2563eb"
+                                                fill="#2563eb"
+                                                fillOpacity={0.25}
+                                                strokeWidth={3}
+                                                animationDuration={1500}
+                                            />
+                                            <Radar
+                                                name="Global Average"
+                                                dataKey="team"
+                                                stroke="#f59e0b"
+                                                fill="#f59e0b"
+                                                fillOpacity={0.05}
+                                                strokeWidth={2}
+                                                strokeDasharray="4 4"
+                                            />
+                                            <Tooltip
+                                                content={({ active, payload }) => {
+                                                    if (active && payload && payload.length) {
+                                                        return (
+                                                            <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
+                                                                <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
+                                                                <div className="space-y-1.5">
+                                                                    {payload.map((entry: any) => (
+                                                                        <div key={entry.name} className="flex items-center justify-between gap-4">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                                                                <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
+                                                                            </div>
+                                                                            <span className="text-[10px] font-bold text-on-surface">{Number(entry.value).toFixed(1)}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                }}
+                                            />
+                                        </RadarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="h-full flex items-center justify-center p-12">
+                                <div className="text-center">
+                                    <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
+                                        <Activity size={32} className="text-on-surface-tertiary opacity-30" />
+                                    </div>
+                                    <p className="text-sm text-on-surface-secondary">No radial data available for this range</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
 
 
             {/* Score Trend and Report History Section */}
@@ -925,6 +1090,23 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 currentManagerId={currentManagerId}
                 viewMode={viewMode}
             />
+            {/* Metrics Customization Modal */}
+            {viewMode === 'manager' && (
+                <MetricsSelectionModal
+                    isOpen={isMetricsModalOpen}
+                    onClose={() => setIsMetricsModalOpen(false)}
+                    selectedMetrics={selectedMetrics}
+                    onSave={async (metrics) => {
+                        try {
+                            setSkillAnalysisScores({}); // Clear old scores to force re-analysis and reflect correctly in chart
+                            await updateOrganizationMetrics(metrics);
+                            await performSkillAnalysis(metrics);
+                        } catch (err) {
+                            alert('Failed to update metrics. Please try again.');
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };

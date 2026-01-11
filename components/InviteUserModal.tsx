@@ -1,17 +1,19 @@
 
 import React, { useState } from 'react';
-import { EmployeeRole, Invitation } from '../types';
 import Modal from './Modal';
 import Input from './Input';
 import Select from './Select';
+import { Project, Employee, EmployeeRole, Invitation } from '../types';
 import Button from './Button';
 import { UserPlus, Mail, Copy, CheckCircle, Loader2 } from 'lucide-react';
 
 interface InviteUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInvite: (email: string, role: EmployeeRole) => Promise<Invitation | null | void>;
+  onInvite: (email: string, role: EmployeeRole, projectId?: string, managerId?: string) => Promise<Invitation | null | void>;
   organizationName?: string;
+  projects?: Project[];
+  managers?: Employee[];
 }
 
 const InviteUserModal: React.FC<InviteUserModalProps> = ({
@@ -19,9 +21,13 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
   onClose,
   onInvite,
   organizationName = 'the organization',
+  projects = [],
+  managers = [],
 }) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<EmployeeRole>('employee');
+  const [projectId, setProjectId] = useState<string>('');
+  const [managerId, setManagerId] = useState<string>('');
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [copied, setCopied] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -30,7 +36,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
     if (email && email.includes('@')) {
       setIsInviting(true);
       try {
-        const result = await onInvite(email, role);
+        const result = await onInvite(email, role, projectId || undefined, managerId || undefined);
         if (result) {
           setInvitation(result);
         }
@@ -46,6 +52,8 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
   const handleClose = () => {
     setEmail('');
     setRole('employee');
+    setProjectId('');
+    setManagerId('');
     setInvitation(null);
     setCopied(false);
     onClose();
@@ -96,6 +104,27 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                   ? 'Managers can view and read reports from their team members.'
                   : 'Employees can submit reports for their assigned goals.'}
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Assign to Project (Optional)"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                options={[
+                  { value: '', label: 'None' },
+                  ...projects.map(p => ({ value: p.id, label: p.name }))
+                ]}
+              />
+              <Select
+                label="Assign to Team (Optional)"
+                value={managerId}
+                onChange={(e) => setManagerId(e.target.value)}
+                options={[
+                  { value: '', label: 'None' },
+                  ...managers.map(m => ({ value: m.id, label: m.name }))
+                ]}
+              />
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={handleClose} disabled={isInviting}>
@@ -168,6 +197,22 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                       : 'Never'}
                   </span>
                 </div>
+                {invitation.initialProjectId && (
+                  <div className="flex justify-between">
+                    <span className="text-on-surface-secondary">Initial Project:</span>
+                    <span className="text-on-surface">
+                      {projects.find(p => p.id === invitation.initialProjectId)?.name || invitation.initialProjectId}
+                    </span>
+                  </div>
+                )}
+                {invitation.initialManagerId && (
+                  <div className="flex justify-between">
+                    <span className="text-on-surface-secondary">Initial Team:</span>
+                    <span className="text-on-surface">
+                      {managers.find(m => m.id === invitation.initialManagerId)?.name || invitation.initialManagerId}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -181,6 +226,8 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                   setInvitation(null);
                   setEmail('');
                   setRole('employee');
+                  setProjectId('');
+                  setManagerId('');
                 }}
               >
                 Invite Another

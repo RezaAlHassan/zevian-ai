@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Employee, Report, EmployeeRole, Invitation } from '../types';
-import { User, Users, ChevronRight, Search, Star, Calendar, Eye, UserPlus, UserMinus, Plus } from 'lucide-react';
+import { Employee, Report, EmployeeRole, Invitation, Project } from '../types';
+import { User, Users, ChevronRight, Search, Star, Calendar, Eye, UserPlus, UserMinus, Plus, Mail, Clock, XCircle } from 'lucide-react';
 import { formatTableDate } from '../utils/dateFormat';
 import Table from '../components/Table';
 import StatCard from '../components/StatCard';
@@ -17,12 +17,15 @@ import { canViewOrganizationWide } from '../utils/managerPermissions';
 interface EmployeesPageProps {
   employees: Employee[];
   reports: Report[];
+  projects?: Project[];
+  invitations?: Invitation[];
   onSelectEmployee: (employeeId: string) => void;
   currentManagerId?: string;
   viewMode?: 'manager' | 'employee';
   onAddEmployee?: (employee: Employee) => void;
   onUpdateEmployee?: (employee: Employee) => Promise<void>;
-  onInvite?: (email: string, role: EmployeeRole) => Promise<Invitation | null | void>;
+  onInvite?: (email: string, role: EmployeeRole, projectId?: string, managerId?: string) => Promise<Invitation | null | void>;
+  onDeleteInvitation?: (invitationId: string) => Promise<void>;
   searchQuery?: string;
   scopeFilter?: 'direct-reports' | 'organization';
 }
@@ -30,6 +33,8 @@ interface EmployeesPageProps {
 const EmployeesPage: React.FC<EmployeesPageProps> = ({
   employees,
   reports,
+  projects = [],
+  invitations = [],
   onSelectEmployee,
   currentManagerId,
   viewMode = 'manager',
@@ -37,6 +42,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   onAddEmployee,
   onUpdateEmployee,
   onInvite,
+  onDeleteInvitation,
   searchQuery
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -125,6 +131,16 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
     }
   };
 
+  // Filter pending invitations
+  const pendingInvitations = useMemo(() => {
+    return invitations.filter(inv => inv.status === 'pending');
+  }, [invitations]);
+
+  // Leaders for assignment dropdown
+  const managers = useMemo(() => {
+    return employees.filter(emp => emp.role === 'manager');
+  }, [employees]);
+
   // Filter employees based on search AND Tab
   const filteredEmployees = useMemo(() => {
     // 1. Base list: In 'all' tab -> all employees. In 'team' tab -> team members only.
@@ -203,8 +219,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           onClick={() => onSelectEmployee(employee.id)}
           disabled={!canViewDetails}
           className={`flex items-center gap-1 text-sm font-medium transition-colors ${canViewDetails
-              ? "text-primary hover:text-primary-hover hover:underline"
-              : "text-on-surface-tertiary cursor-not-allowed opacity-50"
+            ? "text-primary hover:text-primary-hover hover:underline"
+            : "text-on-surface-tertiary cursor-not-allowed opacity-50"
             }`}
           title={!canViewDetails ? "Add to team to view details" : ""}
         >
@@ -238,6 +254,43 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
     ];
   });
 
+  const invitationTableHeaders = ['Email', 'Role', 'Project', 'Team', 'Invited At', 'Actions'];
+  const invitationTableRows = pendingInvitations.map(invitation => {
+    const projectName = projects.find(p => p.id === invitation.initialProjectId)?.name || 'None';
+    const managerName = employees.find(e => e.id === invitation.initialManagerId)?.name || 'None';
+
+    return [
+      <div className="flex items-center gap-2">
+        <Mail size={14} className="text-on-surface-tertiary" />
+        <span className="text-on-surface-secondary">{invitation.email}</span>
+      </div>,
+      <span className="capitalize text-on-surface-secondary">{invitation.role}</span>,
+      <span className="text-on-surface-secondary">{projectName}</span>,
+      <span className="text-on-surface-secondary">{managerName}</span>,
+      <div className="flex items-center gap-2">
+        <Clock size={14} className="text-on-surface-tertiary" />
+        <span className="text-on-surface-secondary">
+          {formatTableDate(invitation.invitedAt)}
+        </span>
+      </div>,
+      <div className="flex items-center gap-3">
+        {onDeleteInvitation && (
+          <button
+            onClick={() => {
+              if (confirm(`Cancel invitation for ${invitation.email}?`)) {
+                onDeleteInvitation(invitation.id);
+              }
+            }}
+            className="text-red-500 hover:text-red-700 hover:underline font-medium text-sm flex items-center gap-1 transition-colors"
+          >
+            <XCircle size={16} strokeWidth={2} />
+            Cancel
+          </button>
+        )}
+      </div>
+    ];
+  });
+
   return (
     <div className="w-full px-6 py-6 space-y-6">
       <h2 className="text-xl font-bold text-on-surface">Employees</h2>
@@ -254,8 +307,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
             <button
               onClick={() => setActiveTab('all')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'all'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'text-on-surface-secondary hover:text-on-surface'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-on-surface-secondary hover:text-on-surface'
                 }`}
             >
               All Employees
@@ -263,8 +316,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
             <button
               onClick={() => setActiveTab('team')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'team'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'text-on-surface-secondary hover:text-on-surface'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-on-surface-secondary hover:text-on-surface'
                 }`}
             >
               My Team
@@ -292,6 +345,19 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
         )}
       </div>
 
+      {/* Pending Invitations Section */}
+      {viewMode === 'manager' && pendingInvitations.length > 0 && (
+        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+              <Mail size={20} className="text-primary" />
+              Pending Invitations
+            </h3>
+          </div>
+          <Table headers={invitationTableHeaders} rows={invitationTableRows} />
+        </div>
+      )}
+
       {/* Invite User Modal */}
       {showInviteModal && onInvite && (
         <InviteUserModal
@@ -299,6 +365,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           onClose={() => setShowInviteModal(false)}
           onInvite={onInvite}
           organizationName="the organization"
+          projects={projects}
+          managers={managers}
         />
       )}
     </div>

@@ -6,7 +6,7 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 
 const AccountPage: React.FC = () => {
-    const { user, employee, refreshEmployee } = useAuth();
+    const { user, employee, organizationName, refreshEmployee } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState(employee?.name || '');
     const [title, setTitle] = useState(employee?.title || '');
@@ -21,8 +21,6 @@ const AccountPage: React.FC = () => {
     }, [employee]);
 
     if (!user) return null;
-
-    const organizationName = localStorage.getItem('organizationName') || 'My Organization';
 
     const handleSave = async () => {
         if (!employee) return;
