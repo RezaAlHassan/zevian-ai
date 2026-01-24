@@ -23,10 +23,14 @@ import SetPasswordPage from './pages/SetPasswordPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AccountPage from './pages/AccountPage';
+import OrganizationPage from './pages/OrganizationPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { useProjects } from './hooks/useProjects';
 import { useGoals } from './hooks/useGoals';
 import { useReports } from './hooks/useReports';
 import { useEmployees } from './hooks/useEmployees';
+import { ToastProvider, useToast } from './context/ToastContext';
+import { useOrganization } from './hooks/useOrganization';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { inviteService } from './services/inviteService';
 import { invitationService } from './services/invitationService';
@@ -37,11 +41,19 @@ const AppContent: React.FC = () => {
   const location = useLocation();
   const { user, employee, organizationName: orgNameFromContext, loading: authLoading, refreshEmployee, signOut } = useAuth();
 
+  // Organization ID - comes from authenticated employee record.
+  // We do NOT use localStorage here as it persists stale IDs across DB resets.
+  const organizationId = useMemo(() => {
+    return employee?.organizationId;
+  }, [employee]);
+
+
   // Database hooks
-  const { projects, loading: projectsLoading, createProject, updateProject: updateProjectDb, deleteProject: deleteProjectDb } = useProjects();
-  const { goals, loading: goalsLoading, createGoal, updateGoal: updateGoalDb, deleteGoal: deleteGoalDb } = useGoals();
-  const { reports, loading: reportsLoading, createReport, updateReport: updateReportDb, deleteReport: deleteReportDb } = useReports();
-  const { employees, loading: employeesLoading, createEmployee: createEmployeeDb, updateEmployee: updateEmployeeDb } = useEmployees();
+  const { projects, loading: projectsLoading, createProject, updateProject: updateProjectDb, deleteProject: deleteProjectDb } = useProjects(organizationId);
+  const { goals, loading: goalsLoading, createGoal, updateGoal: updateGoalDb, deleteGoal: deleteGoalDb } = useGoals(organizationId);
+  const { reports, loading: reportsLoading, createReport, updateReport: updateReportDb, deleteReport: deleteReportDb } = useReports(organizationId);
+  const { employees, loading: employeesLoading, createEmployee: createEmployeeDb, updateEmployee: updateEmployeeDb } = useEmployees(organizationId);
+  const { organization, refreshOrganization } = useOrganization(organizationId);
 
   const [settings, setSettings] = useState<ManagerSettings>({
     selectedDays: [],
@@ -62,12 +74,6 @@ const AppContent: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [scopeFilter, setScopeFilter] = useState<'direct-reports' | 'organization' | 'reporting-chain'>('direct-reports');
-
-  // Organization ID - comes from authenticated employee record.
-  // We do NOT use localStorage here as it persists stale IDs across DB resets.
-  const organizationId = useMemo(() => {
-    return employee?.organizationId;
-  }, [employee]);
 
   // Organization name - fetched from DB via AuthContext, with localStorage/static fallback
   const organizationName = useMemo(() => {
@@ -135,14 +141,17 @@ const AppContent: React.FC = () => {
     return path.slice(1) as any;
   }, [location.pathname]);
 
+  const { showToast } = useToast();
+
   const addGoal = useCallback(async (goal: Goal) => {
     try {
       await createGoal(goal);
+      showToast(`Goal "${goal.name}" created successfully.`, { type: 'success' });
     } catch (error) {
       console.error('Failed to create goal:', error);
-      alert('Failed to create goal. Please try again.');
+      showToast('Failed to create goal. Please try again.', { type: 'error' });
     }
-  }, [createGoal]);
+  }, [createGoal, showToast]);
 
   const addReport = useCallback(async (report: Report) => {
     try {
@@ -156,11 +165,24 @@ const AppContent: React.FC = () => {
   const addProject = useCallback(async (project: Project) => {
     try {
       await createProject(project);
+      showToast(`Project "${project.name}" created successfully.`, { type: 'success' });
+
+      // Delay the actionable toast slightly for better UX
+      setTimeout(() => {
+        showToast(`Ready to set some targets?`, {
+          type: 'action',
+          actionLabel: `Create first goal for ${project.name}`,
+          onAction: () => {
+            navigate(`/goals?action=create-goal&projectId=${project.id}`);
+          },
+          duration: 10000 // Show longer since it's an action
+        });
+      }, 1000);
     } catch (error) {
       console.error('Failed to create project:', error);
-      alert('Failed to create project. Please try again.');
+      showToast('Failed to create project. Please try again.', { type: 'error' });
     }
-  }, [createProject]);
+  }, [createProject, showToast, navigate]);
 
   const updateProject = useCallback(async (updatedProject: Project) => {
     try {
@@ -290,7 +312,8 @@ const AppContent: React.FC = () => {
 
   const updateSettings = useCallback((newSettings: ManagerSettings) => {
     setSettings(newSettings);
-  }, []);
+    showToast('Settings updated locally.', { type: 'info' });
+  }, [showToast]);
 
   const updateGoal = useCallback(async (updatedGoal: Goal) => {
     try {
@@ -355,32 +378,32 @@ const AppContent: React.FC = () => {
         const role = user.user_metadata?.role || user.app_metadata?.role;
 
         // Only show onboarding if we are NOT explicitly an employee (i.e. we are an Owner or role is unknown)
-        if (!pendingInv && role !== 'employee') {
-          console.log('[Onboarding] Triggered: No employee record found and not employee role', {
+        // AND we haven't completed onboarding according to DB (if employee exists) or localStorage
+        if (!pendingInv && role !== 'employee' && !employee?.onboardingCompleted) {
+          console.log('[Onboarding] Triggered: No employee record found or onboarding not completed', {
             userEmail: user.email,
             userId: user.id,
             role,
-            onboardingCompleted: localStorage.getItem('onboardingCompleted')
+            onboardingCompleted: employee?.onboardingCompleted
           });
           setShowOnboarding(true);
         }
       }
-      // Case 2: Employee record exists but is BROKEN (Missing Org ID) -> Repair flow
-      else if (employee && !employee.organizationId) {
-        console.warn("[Onboarding] Repair flow triggered: Employee record found but missing Organization ID.", {
+      // Case 2: Employee record exists but is BROKEN (Missing Org ID) OR Onboarding not finished
+      else if (employee && (!employee.organizationId || !employee.onboardingCompleted)) {
+        console.warn("[Onboarding] Triggered: Employee record found but missing Org ID or Onboarding incomplete.", {
           employeeId: employee.id,
-          email: employee.email,
-          isAccountOwner: employee.isAccountOwner,
-          organizationId: employee.organizationId
+          organizationId: employee.organizationId,
+          onboardingCompleted: employee.onboardingCompleted
         });
         setShowOnboarding(true);
       }
-      // Case 3: Valid employee with org - ensure onboarding is not shown
-      else if (employee && employee.organizationId) {
-        console.log('[Onboarding] Skipped: Valid employee record found', {
+      // Case 3: Valid employee with org and onboarding done
+      else if (employee && employee.organizationId && employee.onboardingCompleted) {
+        console.log('[Onboarding] Skipped: Valid employee and onboarding done', {
           employeeId: employee.id,
           organizationId: employee.organizationId,
-          isAccountOwner: employee.isAccountOwner
+          onboardingCompleted: employee.onboardingCompleted
         });
       }
     }
@@ -409,6 +432,10 @@ const AppContent: React.FC = () => {
           createEmployeeDb(newEmployee).then(() => {
             localStorage.removeItem('pendingInvitation');
             localStorage.setItem('onboardingCompleted', 'true');
+            // For invited users, we consider onboarding done
+            if (newEmployee.id) {
+              updateEmployeeDb(newEmployee.id, { onboardingCompleted: true });
+            }
             refreshEmployee(); // Refresh context
             setShowOnboarding(false);
           }).catch(err => {
@@ -492,12 +519,18 @@ const AppContent: React.FC = () => {
   }, [user, employee, organizationId, createEmployeeDb, updateEmployeeDb, refreshEmployee]);
 
 
+
   const handleOnboardingComplete = useCallback(async (data: OnboardingData) => {
     let finalOrgId = organizationId;
 
     // Fallback: If org wasn't created at step 1 for some reason
     if (!finalOrgId && data.organizationName) {
       finalOrgId = (await handleSaveOrganization(data.organizationName)) || '';
+    }
+
+    // Update organization with selected metrics
+    if (finalOrgId && data.selectedMetrics && data.selectedMetrics.length > 0) {
+      await organizationService.update(finalOrgId, { selectedMetrics: data.selectedMetrics }).catch(console.error);
     }
 
     // By now, owner should exist.
@@ -549,13 +582,18 @@ const AppContent: React.FC = () => {
     }
 
     localStorage.setItem('onboardingCompleted', 'true');
+
+    // Persist to database
+    if (ownerId) {
+      await updateEmployeeDb(ownerId, { onboardingCompleted: true }).catch(err => {
+        console.error('Failed to persist onboarding status:', err);
+      });
+      await refreshEmployee();
+    }
+
     setShowOnboarding(false);
   }, [addProject, addGoal, createEmployeeDb, organizationId, currentEmployeeId, user, handleSaveOrganization]);
 
-  const handleOnboardingSkip = useCallback(() => {
-    localStorage.setItem('onboardingCompleted', 'true');
-    setShowOnboarding(false);
-  }, []);
 
   // Show loading state - MUST be after all hooks
   const isLoading = projectsLoading || goalsLoading || reportsLoading || employeesLoading;
@@ -663,6 +701,7 @@ const AppContent: React.FC = () => {
                 />
               } />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/dashboard" element={
                 <DashboardPage
                   reports={memoizedReports}
@@ -694,6 +733,7 @@ const AppContent: React.FC = () => {
                   viewMode={viewMode}
                   scopeFilter={scopeFilter}
                   searchQuery={searchQuery}
+                  organizationId={organizationId}
                 />
               } />
               <Route path="/projects/:projectId" element={
@@ -754,6 +794,7 @@ const AppContent: React.FC = () => {
                   currentEmployeeId={currentEmployeeId}
                   isEmployeeView={viewMode === 'employee'}
                   settings={settings}
+                  organization={organization}
                 />
               } />
               <Route path="/reports" element={
@@ -803,8 +844,10 @@ const AppContent: React.FC = () => {
                   viewMode={viewMode}
                 />
               } />
-              <Route path="/settings" element={
-                <SettingsPage
+              <Route path="/organization" element={
+                <OrganizationPage
+                  organization={organization}
+                  refreshOrganization={refreshOrganization}
                   settings={settings}
                   employees={memoizedEmployees}
                   projects={memoizedProjects}
@@ -814,8 +857,7 @@ const AppContent: React.FC = () => {
                     localStorage.removeItem('onboardingCompleted');
                     setShowOnboarding(true);
                   }}
-                  currentManagerId={viewMode === 'manager' ? currentManagerId : undefined}
-                  viewMode={viewMode}
+                  currentManagerId={currentManagerId}
                 />
               } />
               <Route path="/invite/:token" element={<InviteAcceptPage />} />
@@ -827,8 +869,6 @@ const AppContent: React.FC = () => {
       <Onboarding
         isOpen={showOnboarding}
         onComplete={handleOnboardingComplete}
-        onSaveOrganization={handleSaveOrganization}
-        onSkip={handleOnboardingSkip}
       />
     </>
   );

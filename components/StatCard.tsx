@@ -9,6 +9,7 @@ interface StatCardProps {
   showActionBadge?: boolean; // Show "Action Needed" badge
 }
 
+
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, sparklineData, showActionBadge }) => {
   // Generate sparkline SVG if data is provided
   const renderSparkline = () => {
@@ -37,7 +38,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, sparklineData, 
     const trendColor = lastValue >= firstValue ? '#10b981' : '#ef4444';
 
     return (
-      <svg width={width} height={height} className="mt-2">
+      <svg width={width} height={height} className="mt-1 opacity-80">
         <polyline
           points={points}
           fill="none"
@@ -51,22 +52,28 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, sparklineData, 
   };
 
   return (
-    <div className="bg-surface-elevated p-4 rounded-lg border border-border hover:border-border-hover transition-colors">
-      <div className="flex items-center gap-4">
-        <div className="bg-primary/20 p-3 rounded-md border border-primary/30 text-primary">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <p className="text-sm text-on-surface-secondary font-medium flex-shrink-0">{title}</p>
-            {showActionBadge && (
-              <span className="px-2.5 py-1 text-xs bg-red-500/20 text-red-700 rounded-full font-semibold whitespace-nowrap">
-                Action Needed
-              </span>
-            )}
+    <div className="bg-surface p-4 rounded-lg border border-border hover:border-primary/30 transition-colors flex flex-col justify-between h-full">
+      {/* Header: Icon + Title */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1.5 bg-primary/10 rounded-md text-primary shrink-0 [&>svg]:w-4 [&>svg]:h-4">
+            {icon}
           </div>
-          <p className="text-2xl font-bold text-on-surface">{value}</p>
+          <h4 className="font-semibold text-on-surface text-sm truncate" title={title}>{title}</h4>
+        </div>
+        {showActionBadge && (
+          <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500" title="Action Needed" />
+        )}
+      </div>
+
+      {/* Body: Value + Sparkline */}
+      <div className="flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-2xl font-bold text-on-surface tracking-tight truncate" title={String(value)}>{value}</p>
+        </div>
+        <div className="flex flex-col items-end">
           {renderSparkline()}
+          {showActionBadge && <p className="text-[10px] text-red-500 font-medium mt-0.5">Action Needed</p>}
         </div>
       </div>
     </div>

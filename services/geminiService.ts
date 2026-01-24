@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Criterion, Report, ReportCriterionScore, Goal, Employee } from '../types';
+import { STANDARD_METRICS } from '../constants';
 
 const getAI = () => {
     const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -66,14 +67,14 @@ export const evaluateReport = async (
   
   You MUST ground your evaluation in this Knowledge Base and the specific Goal Criteria. Do NOT hallucinate or assume project details not mentioned in the Knowledge Base or the report itself.
   
-  Evaluate the report based on the provided criteria and goal instructions. For each criterion, provide a score from 1 (poor) to 10 (excellent).
+  Evaluate the report BASED ONLY on the provided criteria and goal instructions. For each criterion, provide a score from 1 (poor) to 10 (excellent).
   Consider how well the report demonstrates understanding of the project's priorities, adheres to quality benchmarks, and addresses known constraints.
   
-  If Standard Metrics are provided, you MUST evaluate those AS WELL.
+  If Standard Metrics are provided, you MUST evaluate those AS WELL. Use the EXACT names provided for each criterion and metric in your response.
 
   Your response must be a valid JSON object. Do not add any markdown formatting like \`\`\`json.
   The 'reasoning' should be a concise summary (2-3 sentences) explaining the overall performance based on the Knowledge Base context and criteria.
-  The 'criteriaScores' array must contain an object for each criterion AND each standard metric provided.`;
+  The 'criteriaScores' array must contain an object for each criterion AND each standard metric provided. Use the EXACT NAMES provided as keys.`;
 
     const knowledgeBaseSection = knowledgeBase
         ? `\n\nPROJECT KNOWLEDGE BASE (Use this as ground truth for project context):\n${knowledgeBase}\n`
@@ -84,8 +85,11 @@ export const evaluateReport = async (
         : '';
 
     const metricsSection = selectedMetrics && selectedMetrics.length > 0
-        ? `\n\nSTANDARD METRICS TO EVALUATE:
-  ${selectedMetrics.join('\n')}\n`
+        ? `\n\nSTANDARD METRICS TO EVALUATE (Include these in criteriaScores):
+  ${selectedMetrics.map(id => {
+            const m = STANDARD_METRICS.find(sm => sm.id === id);
+            return `- ${m?.friendlyName || id}: ${m?.description || ''}`;
+        }).join('\n')}\n`
         : '';
 
     const prompt = `${knowledgeBaseSection}${instructionsSection}${metricsSection}

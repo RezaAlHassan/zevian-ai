@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { reportService } from '../services/databaseService';
 import type { Report } from '../types';
 
-export function useReports() {
+export function useReports(organizationId?: string) {
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchReports = useCallback(async () => {
+        if (!organizationId) {
+            setReports([]);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -19,7 +25,7 @@ export function useReports() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [organizationId]);
 
     useEffect(() => {
         fetchReports();

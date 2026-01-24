@@ -46,7 +46,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   searchQuery
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'team'>('all'); // NEW: Tab state
+  const [activeTab, setActiveTab] = useState<'all' | 'team' | 'pending'>('all'); // NEW: Tab state
 
   // Get current manager for permission checks
   const currentManager = useMemo(() => {
@@ -322,6 +322,17 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
             >
               My Team
             </button>
+            {viewMode === 'manager' && (
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'pending'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-on-surface-secondary hover:text-on-surface'
+                  }`}
+              >
+                Pending
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -338,25 +349,20 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
             {/* Search - Removed local search, now global */}
           </div>
         </div>
-        {filteredEmployees.length > 0 ? (
+        {activeTab === 'pending' ? (
+          pendingInvitations.length > 0 ? (
+            <Table headers={invitationTableHeaders} rows={invitationTableRows} />
+          ) : (
+            <p className="text-on-surface-secondary text-center py-8">No pending invitations.</p>
+          )
+        ) : filteredEmployees.length > 0 ? (
           <Table headers={employeeTableHeaders} rows={employeeTableRows} />
         ) : (
           <p className="text-on-surface-secondary text-center py-8">No employees found matching your search.</p>
         )}
       </div>
 
-      {/* Pending Invitations Section */}
-      {viewMode === 'manager' && pendingInvitations.length > 0 && (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
-              <Mail size={20} className="text-primary" />
-              Pending Invitations
-            </h3>
-          </div>
-          <Table headers={invitationTableHeaders} rows={invitationTableRows} />
-        </div>
-      )}
+
 
       {/* Invite User Modal */}
       {showInviteModal && onInvite && (

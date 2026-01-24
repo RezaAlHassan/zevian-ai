@@ -8,7 +8,7 @@ import Input from '../components/Input';
 import Textarea from '../components/Textarea';
 import Button from '../components/Button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
-import { Bot, ArrowLeft, Eye, FileText, Star, Activity, Trophy, Award, Calendar, Sparkles, AlertTriangle, ArrowUpDown, List, TrendingUp, TrendingDown } from 'lucide-react';
+import { Bot, ArrowLeft, Eye, FileText, Star, Activity, Trophy, Award, Calendar, Sparkles, AlertTriangle, ArrowUpDown, List, TrendingUp, TrendingDown, Clock, Target } from 'lucide-react';
 import Table from '../components/Table';
 import StatCard from '../components/StatCard';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
@@ -56,13 +56,13 @@ const ReportDetailModal: React.FC<{
         }
     }, [report]);
 
-    if (!report) return null;
-
     // Check if current manager can override (must be direct manager)
     const canOverride = useMemo(() => {
-        if (viewMode === 'employee' || !currentManagerId || !employee) return false;
+        if (viewMode === 'employee' || !currentManagerId || !employee || !report) return false;
         return isDirectManager(employee, currentManagerId);
-    }, [employee, currentManagerId, viewMode]);
+    }, [employee, currentManagerId, viewMode, report]);
+
+    if (!report) return null;
 
     const handleSaveOverride = () => {
         if (!report || !overrideReasoning.trim()) return;
@@ -111,7 +111,7 @@ const ReportDetailModal: React.FC<{
                 <div>
                     <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score Breakdown</h3>
                     <ul className="space-y-1">
-                        {report.criterionScores.map(score => (
+                        {report.criterionScores?.map(score => (
                             <li key={score.criterionName} className="flex justify-between text-on-surface-secondary">
                                 <span>{score.criterionName}</span>
                                 <span className="font-bold text-on-surface">{score.score.toFixed(1)} / 10</span>
@@ -296,6 +296,11 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
     const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
     const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
     const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>({});
+
+    // Clear AI analysis when date range changes to ensure manual re-analysis for new period
+    useEffect(() => {
+        setSkillAnalysisScores({});
+    }, [startDate, endDate]);
     const [isAnalyzingSkills, setIsAnalyzingSkills] = useState(false);
     const [skillSortOrder, setSkillSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
 
@@ -368,33 +373,12 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         }
     };
 
-    // Trigger analysis when organization changes or initial load
-    useEffect(() => {
-        if (organization?.selectedMetrics && organization.selectedMetrics.length > 0 && Object.keys(skillAnalysisScores).length === 0 && filteredReports.length > 0) {
-            performSkillAnalysis(organization.selectedMetrics);
-        }
-    }, [organization, filteredReports]);
+    // Skill analysis is now triggered manually via a button to reduce API calls
+    // and ensure it only runs when the user explicitly requests it for the current date range.
 
 
     // Calculate consistency (coefficient of variation)
-    const consistency = useMemo(() => {
-        if (filteredReports.length < 2) return null;
 
-        const scores = filteredReports.map(r => r.evaluationScore);
-        const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-        const variance = scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / scores.length;
-        const stdDev = Math.sqrt(variance);
-        const coefficientOfVariation = mean > 0 ? (stdDev / mean) * 100 : 0;
-
-        // Convert to consistency percentage (lower CV = higher consistency)
-        const consistencyPercent = Math.max(0, Math.min(100, 100 - coefficientOfVariation * 10));
-
-        return {
-            value: consistencyPercent,
-            stdDev: stdDev,
-            cv: coefficientOfVariation
-        };
-    }, [filteredReports]);
 
     // Calculate key skills from goal criteria in projects during selected period
     const keySkills = useMemo(() => {
@@ -595,14 +579,33 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
     // Prepare radar chart data
     const radarChartData = useMemo(() => {
+        // Show empty state if AI analysis hasn't been triggered yet
+        if (Object.keys(skillAnalysisScores).length === 0) return [];
+
         // If we have organization-selected metrics, use those
         if (selectedMetrics.length > 0) {
             return selectedMetrics.map(metricId => {
                 const metricDef = STANDARD_METRICS.find(m => m.id === metricId);
                 const metricName = metricDef?.friendlyName || metricDef?.name || metricId;
 
-                // Use AI-analyzed score if available, otherwise fallback to reports average
+                // Use AI-analyzed score if available
                 let score = skillAnalysisScores[metricId];
+
+                // Robust matching fallback (if key in scores is name vs ID)
+                if (score === undefined) {
+                    const normalizedTargetId = metricId.toLowerCase().trim();
+                    const normalizedTargetName = (metricDef?.name || '').toLowerCase().trim();
+                    const normalizedTargetFriendly = (metricDef?.friendlyName || '').toLowerCase().trim();
+
+                    const foundKey = Object.keys(skillAnalysisScores).find(key => {
+                        const nk = key.toLowerCase().trim();
+                        return nk === normalizedTargetId || nk === normalizedTargetName || nk === normalizedTargetFriendly;
+                    });
+
+                    if (foundKey) {
+                        score = skillAnalysisScores[foundKey];
+                    }
+                }
 
                 if (score === undefined) {
                     let total = 0;
@@ -663,7 +666,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         });
 
         return data;
-    }, [selectedMetrics, filteredReports, previousPeriodReports, teamAverages, keySkills, previousPeriodKeySkills]);
+    }, [selectedMetrics, filteredReports, previousPeriodReports, teamAverages, keySkills, previousPeriodKeySkills, skillAnalysisScores]);
 
     // Calculate avg rating on projects (using filtered reports)
     const avgRatingOnProjects = useMemo(() => {
@@ -718,6 +721,59 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         return position >= 0 ? position + 1 : null;
     }, [allReports, employee.id, startDate, endDate]);
 
+    // Calculate Submission Reliability
+    const submissionReliability = useMemo(() => {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        let expectedReports = 0;
+        const frequencyMultipliers: { [key: string]: number } = {
+            'daily': 1,
+            'weekly': 1 / 7,
+            'bi-weekly': 1 / 14,
+            'monthly': 1 / 30
+        };
+
+        const projectStats = new Map<string, { expected: number; actual: number }>();
+
+        projects.forEach(project => {
+            const projectGoals = goals.filter(g => g.projectId === project.id);
+            if (projectGoals.length === 0) return;
+
+            const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
+            const expectedForProject = Math.ceil(daysDiff * multiplier * projectGoals.length);
+
+            const actualForProject = filteredReports.filter(r => {
+                const goalIds = projectGoals.map(g => g.id);
+                return goalIds.includes(r.goalId);
+            }).length;
+
+            projectStats.set(project.id, {
+                expected: expectedForProject,
+                actual: actualForProject
+            });
+        });
+
+        let totalExpected = 0;
+        let totalActual = 0;
+        projectStats.forEach(({ expected, actual }) => {
+            totalExpected += expected;
+            totalActual += actual;
+        });
+
+        if (totalExpected === 0) return null;
+        const reliabilityRate = Math.min(100, Math.max(0, (totalActual / totalExpected) * 100));
+
+        return {
+            rate: reliabilityRate,
+            expected: totalExpected,
+            actual: totalActual
+        };
+    }, [filteredReports, projects, goals, startDate, endDate]);
+
     const analytics = useMemo(() => {
         const reportAverage = filteredReports.length > 0
             ? filteredReports.reduce((sum, r) => sum + r.evaluationScore, 0) / filteredReports.length
@@ -763,10 +819,16 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 <Calendar size={14} className="text-on-surface-tertiary" />
                 <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
             </div>,
-            <span className="capitalize text-on-surface-secondary truncate">{goal?.name || 'N/A'}</span>,
+            <div className="max-w-[150px] lg:max-w-[250px] truncate capitalize text-on-surface-secondary" title={goal?.name}>
+                {goal?.name || 'N/A'}
+            </div>,
             <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(2)}</span>,
             <button
-                onClick={() => setSelectedReport(report)}
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedReport(report);
+                }}
                 className="text-primary hover:text-primary-hover hover:underline transition-colors flex items-center gap-1 text-sm font-normal"
             >
                 <Eye size={16} strokeWidth={2} className="text-primary" />
@@ -785,6 +847,9 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 <div className="border-l border-border h-8 mx-4 hidden sm:block"></div>
                 <h2 className="text-xl font-bold text-on-surface">Performance: {employee.name}</h2>
                 <div className="flex-grow"></div>
+                <div className="flex items-center gap-2 mr-2">
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded">Select duration:</span>
+                </div>
                 <div className="flex items-center gap-2">
                     <label htmlFor="start-date" className="text-sm font-medium text-on-surface-secondary">From:</label>
                     <Input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-auto" />
@@ -833,17 +898,27 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard title="Reports in Period" value={filteredReports.length} icon={<FileText size={24} className="text-on-surface-secondary" />} />
+
+                <StatCard
+                    title="Late Submissions"
+                    value={submissionReliability ? Math.max(0, submissionReliability.expected - submissionReliability.actual) : 0}
+                    icon={<Clock size={24} className="text-on-surface-secondary" />}
+                    showActionBadge={submissionReliability ? (submissionReliability.expected - submissionReliability.actual) > 0 : false}
+                />
+
+                <StatCard
+                    title="Avg Score (Org Metrics)"
+                    value={(() => {
+                        if (radarChartData.length > 0) {
+                            const total = radarChartData.reduce((sum, item) => sum + item.current, 0);
+                            return (total / radarChartData.length).toFixed(2);
+                        }
+                        return analytics.overallScore.toFixed(2);
+                    })()}
+                    icon={<Target size={24} className="text-on-surface-secondary" />}
+                />
+
                 <StatCard title="Average Score" value={analytics.overallScore.toFixed(2)} icon={<Star size={24} className="text-on-surface-secondary" />} />
-                <StatCard
-                    title="Avg Rating on Projects"
-                    value={avgRatingOnProjects.toFixed(2)}
-                    icon={<Star size={24} className="text-on-surface-secondary" />}
-                />
-                <StatCard
-                    title="Leaderboard Position"
-                    value={leaderboardPosition ? `#${leaderboardPosition}` : 'N/A'}
-                    icon={<Trophy size={24} className="text-on-surface-secondary" />}
-                />
             </div>
 
             <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden">
@@ -853,17 +928,19 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                             <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
                             <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across projects and missions</p>
                         </div>
-                        {viewMode === 'manager' && (
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => setIsMetricsModalOpen(true)}
-                                className="flex items-center gap-2 shadow-sm"
-                                icon={Sliders}
-                            >
-                                Customize Metrics
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {viewMode === 'manager' && (
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => setIsMetricsModalOpen(true)}
+                                    className="flex items-center gap-2 shadow-sm"
+                                    icon={Sliders}
+                                >
+                                    Customize Metrics
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -1024,11 +1101,25 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                             </div>
                         ) : (
                             <div className="h-full flex items-center justify-center p-12">
-                                <div className="text-center">
-                                    <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
-                                        <Activity size={32} className="text-on-surface-tertiary opacity-30" />
+                                <div className="text-center max-w-xs">
+                                    <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
+                                        <Target size={40} className="text-primary/20" />
+                                        <div className="absolute inset-0 border-2 border-dashed border-primary/10 rounded-full animate-spin-slow"></div>
                                     </div>
-                                    <p className="text-sm text-on-surface-secondary">No radial data available for this range</p>
+                                    <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Pending</h4>
+                                    <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
+                                        Skill data will appear here once reports are submitted or organizational metrics are defined.
+                                    </p>
+                                    <Button
+                                        variant="primary"
+                                        size="md"
+                                        onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
+                                        disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
+                                        className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
+                                        icon={Sparkles}
+                                    >
+                                        {isAnalyzingSkills ? 'Generating...' : 'Generate AI Fingerprint'}
+                                    </Button>
                                 </div>
                             </div>
                         )}
@@ -1036,29 +1127,30 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 </div>
             </section>
 
-
             {/* Score Trend and Report History Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Score Trend Line Chart */}
-                {filteredReports.length > 1 && (
-                    <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                        <h3 className="text-lg font-semibold mb-4 text-on-surface">Score Trend</h3>
-                        <ResponsiveContainer width="100%" height={400}>
-                            <LineChart data={filteredReports
-                                .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
-                                .map(r => ({
-                                    date: formatReportDate(r.submissionDate),
-                                    score: r.evaluationScore
-                                }))}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                <XAxis dataKey="date" tick={{ fill: '#111827', fontSize: 12 }} />
-                                <YAxis domain={[0, 10]} tick={{ fill: '#6b7280' }} />
-                                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
-                                <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2} dot={{ fill: '#2563eb', r: 4 }} name="Score" />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
+                {
+                    filteredReports.length > 1 && (
+                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                            <h3 className="text-lg font-semibold mb-4 text-on-surface">Score Trend</h3>
+                            <ResponsiveContainer width="100%" height={400}>
+                                <LineChart data={filteredReports
+                                    .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
+                                    .map(r => ({
+                                        date: formatReportDate(r.submissionDate),
+                                        score: r.evaluationScore
+                                    }))}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                    <XAxis dataKey="date" tick={{ fill: '#111827', fontSize: 12 }} />
+                                    <YAxis domain={[0, 10]} tick={{ fill: '#6b7280' }} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
+                                    <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2} dot={{ fill: '#2563eb', r: 4 }} name="Score" />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )
+                }
 
                 {/* Report History */}
                 <div className="bg-surface-elevated p-6 rounded-lg border border-border">

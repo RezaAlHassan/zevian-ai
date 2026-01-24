@@ -23,6 +23,9 @@ import Select from '../components/Select';
 import { useOrganization } from '../hooks/useOrganization';
 import MetricsSelectionModal from '../components/MetricsSelectionModal';
 import { STANDARD_METRICS } from '../constants';
+import OnboardingStepper from '../components/OnboardingStepper';
+import ReportDetailModal from '../components/ReportDetailModal';
+import { useAuth } from '../contexts/AuthContext';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -45,6 +48,10 @@ interface DashboardPageProps {
 
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects, employees, updateReport, currentEmployeeId, currentManagerId, isEmployeeView = false, onNavigate, onSelectEmployee, onSelectProject, viewMode = 'employee', scopeFilter = 'direct-reports' }) => {
+    const { employee: authEmployee } = useAuth();
+
+    // Helper to normalize strings for robust matching
+    const normalize = (s: string) => s.toLowerCase().trim();
 
     // Get current manager for permission checks
     const currentManager = useMemo(() => {
@@ -88,17 +95,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
     // Filter reports to only include scoped employees based on selected scope
     const scopedReports = useMemo(() => {
-        if (isEmployeeView) {
-            return reports;
+        if (isEmployeeView && currentEmployeeId) {
+            return reports.filter(r => String(r.employeeId) === String(currentEmployeeId));
         }
-        if (currentManagerId) {
+        if (!isEmployeeView && currentManagerId) {
             return reports.filter(report =>
                 scopedEmployeeIds.has(report.employeeId) ||
-                report.employeeId === currentManagerId // Always include self
+                String(report.employeeId) === String(currentManagerId) // Always include self
             );
         }
         return reports;
-    }, [reports, scopedEmployeeIds, currentManagerId, isEmployeeView]);
+    }, [reports, scopedEmployeeIds, currentManagerId, isEmployeeView, currentEmployeeId]);
+
+    // Helper to get local YYYY-MM-DD string
+    const getLocalDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     // Calculate earliest report date for default "all time" range
     const earliestReportDate = useMemo(() => {
@@ -113,28 +128,38 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    // Initialize date range when scopedReports changes (only once)
+    // Initialize date range when scopedReports changes
     useEffect(() => {
-        if (startDate === '' && endDate === '') {
-            if (scopedReports.length > 0) {
-                const earliest = earliestReportDate.toISOString().split('T')[0];
-                const latest = new Date().toISOString().split('T')[0];
+        // If we have reports and the start/end dates are currently set to the default "today" 
+        // OR they are empty, we should expand the range to include all available reports.
+        const todayStr = getLocalDateString(new Date());
+
+        if (scopedReports.length > 0) {
+            const earliest = getLocalDateString(earliestReportDate);
+            const latest = todayStr;
+
+            // Only auto-update if dates are empty or were set to today because there were no reports
+            if (startDate === '' || (startDate === todayStr && earliest !== todayStr)) {
                 setStartDate(earliest);
                 setEndDate(latest);
-            } else {
-                // If no reports, use today's date
-                const todayStr = new Date().toISOString().split('T')[0];
-                setStartDate(todayStr);
-                setEndDate(todayStr);
             }
+        } else if (startDate === '' && endDate === '') {
+            // If no reports at all, still set to today so the UI doesn't look empty/broken
+            setStartDate(todayStr);
+            setEndDate(todayStr);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [scopedReports.length]);
+    }, [scopedReports.length, earliestReportDate, startDate, endDate]);
 
     const [summary, setSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'reports' | 'redFlag' | 'contributors'>('reports');
+    const [activeTab, setActiveTab] = useState<'redFlag' | 'recent' | 'topContributors'>('redFlag');
     const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>({});
+
+
+    // Clear AI analysis when date range changes to ensure manual re-analysis for new period
+    useEffect(() => {
+        setSkillAnalysisScores({});
+    }, [startDate, endDate]);
     const [isAnalyzingSkills, setIsAnalyzingSkills] = useState(false);
     const [skillSortOrder, setSkillSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
     const [chartTimePeriod, setChartTimePeriod] = useState<'weekly' | 'monthly'>('weekly');
@@ -148,13 +173,19 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
     // Get current employee from context (assuming it's passed or find it)
     const currentUserProfile = useMemo(() => {
         const id = isEmployeeView ? currentEmployeeId : currentManagerId;
+        // Optimization: Use authEmployee if it matches the current view's profile for real-time updates
+        if (authEmployee && authEmployee.id === id) {
+            return authEmployee;
+        }
         return employees.find(e => e.id === id);
-    }, [employees, isEmployeeView, currentEmployeeId, currentManagerId]);
+    }, [employees, isEmployeeView, currentEmployeeId, currentManagerId, authEmployee]);
 
     const { organization, updateOrganizationMetrics } = useOrganization(currentUserProfile?.organizationId);
     const selectedMetrics = useMemo(() => organization?.selectedMetrics || [], [organization]);
 
     const filteredReports = useMemo(() => {
+        if (!startDate || !endDate) return scopedReports;
+
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
         const end = new Date(endDate);
@@ -162,36 +193,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
         return scopedReports.filter(r => {
             const reportDate = new Date(r.submissionDate);
-            const inDateRange = reportDate >= start && reportDate <= end;
-
-            // In employee view, only show their own reports
-            if (isEmployeeView && currentEmployeeId) {
-                return inDateRange && r.employeeId === currentEmployeeId;
-            }
-            return inDateRange;
+            return reportDate >= start && reportDate <= end;
         });
-    }, [scopedReports, startDate, endDate, isEmployeeView, currentEmployeeId]);
+    }, [scopedReports, startDate, endDate]);
 
 
-    // Calculate consistency (coefficient of variation)
-    const consistency = useMemo(() => {
-        if (filteredReports.length < 2) return null;
 
-        const scores = filteredReports.map(r => r.evaluationScore);
-        const mean = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-        const variance = scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / scores.length;
-        const stdDev = Math.sqrt(variance);
-        const coefficientOfVariation = mean > 0 ? (stdDev / mean) * 100 : 0;
-
-        // Convert to consistency percentage (lower CV = higher consistency)
-        const consistencyPercent = Math.max(0, Math.min(100, 100 - coefficientOfVariation * 10));
-
-        return {
-            value: consistencyPercent,
-            stdDev: stdDev,
-            cv: coefficientOfVariation
-        };
-    }, [filteredReports]);
 
     // Get ongoing projects and their goals
     const ongoingProjects = useMemo(() => {
@@ -251,9 +258,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             .slice(0, 10);
     }, [filteredReports, isEmployeeView]);
 
-    // Calculate Submission Reliability Rate (The Accountability Meter)
     const submissionReliability = useMemo(() => {
-        if (isEmployeeView) return null;
+        // if (isEmployeeView) return null; // Enabled for all views now
 
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -351,7 +357,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         if (isEmployeeView) return [];
         const threshold = 6.0;
         return filteredReports
-            .filter(r => r.evaluationScore < threshold)
+            .filter(r => r.evaluationScore < threshold && !r.isResolved)
             .sort((a, b) => {
                 // Sort by score (lowest first), then by date (most recent first)
                 if (a.evaluationScore !== b.evaluationScore) {
@@ -361,6 +367,28 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             })
             .slice(0, 10); // Limit to 10 most critical
     }, [filteredReports, isEmployeeView]);
+
+    // Set default tab based on data presence
+    useEffect(() => {
+        if (!isEmployeeView) {
+            if (redFlagReports.length > 0) {
+                setActiveTab('redFlag');
+            } else if (recentReports.length > 0) {
+                setActiveTab('recent');
+            }
+        }
+    }, [redFlagReports.length, recentReports.length, isEmployeeView]);
+
+    const handleUpdateReport = async (report: Report) => {
+        if (!updateReport) return;
+        updateReport(report);
+    };
+
+    const handleResolveReport = async (report: Report) => {
+        if (!updateReport) return;
+        const updated = { ...report, isResolved: true };
+        updateReport(updated);
+    };
 
     // Calculate chart data grouped by time period
     const chartData = useMemo(() => {
@@ -504,7 +532,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
     // Employee View Calculations
     // Calculate key skills from goal criteria in projects during selected period
     const keySkills = useMemo(() => {
-        if (!isEmployeeView) return [];
+        // if (!isEmployeeView) return []; // Enabled for manager view too
 
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -566,7 +594,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
                 // Count occurrences in reports regardless of AI score presence
                 filteredReports.forEach(report => {
-                    const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                    const scoreObj = report.criterionScores.find(s =>
+                        normalize(s.criterionName) === normalize(metricDef?.friendlyName || '') ||
+                        normalize(s.criterionName) === normalize(metricDef?.name || '') ||
+                        normalize(s.criterionName) === normalize(metricId)
+                    );
                     if (scoreObj) count++;
                 });
 
@@ -574,7 +606,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     // Fallback to manual average if AI hasn't analyzed it yet
                     let total = 0;
                     filteredReports.forEach(report => {
-                        const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                        const scoreObj = report.criterionScores.find(s =>
+                            normalize(s.criterionName) === normalize(metricDef?.friendlyName || '') ||
+                            normalize(s.criterionName) === normalize(metricDef?.name || '') ||
+                            normalize(s.criterionName) === normalize(metricId)
+                        );
                         if (scoreObj) total += scoreObj.score;
                     });
                     score = count > 0 ? total / count : 0;
@@ -604,7 +640,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
     // Calculate previous period for comparison
     const previousPeriodReports = useMemo(() => {
-        if (!isEmployeeView) return [];
+        // if (!isEmployeeView) return []; // Enabled for manager view too
 
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -615,16 +651,19 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         const prevEnd = new Date(start.getTime() - 1);
         const prevStart = new Date(prevEnd.getTime() - periodLength);
 
-        return reports.filter(r => {
+        return scopedReports.filter(r => {
             const reportDate = new Date(r.submissionDate);
-            return reportDate >= prevStart && reportDate <= prevEnd &&
-                (currentEmployeeId ? r.employeeId === currentEmployeeId : true);
-        });
-    }, [reports, startDate, endDate, isEmployeeView, currentEmployeeId]);
+            const inDateRange = reportDate >= prevStart && reportDate <= prevEnd;
 
-    // Calculate key skills for previous period
+            if (isEmployeeView && currentEmployeeId) {
+                return inDateRange && r.employeeId === currentEmployeeId;
+            }
+            return inDateRange;
+        });
+    }, [scopedReports, startDate, endDate, isEmployeeView, currentEmployeeId]);
+
     const previousPeriodKeySkills = useMemo(() => {
-        if (!isEmployeeView || !showPreviousPeriod || previousPeriodReports.length === 0) return [];
+        if (!showPreviousPeriod || previousPeriodReports.length === 0) return []; // Removed !isEmployeeView check
 
         const relevantGoalIds = new Set(previousPeriodReports.map(r => r.goalId));
         const relevantGoals = filteredGoals.filter(g => relevantGoalIds.has(g.id));
@@ -652,7 +691,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
     // Calculate radar chart data based on selected metrics OR dynamic goal criteria
     const radarChartData = useMemo(() => {
-        if (!isEmployeeView) return [];
+        // Only return data if it has been explicitly generated via AI analysis
+        // to reduce confusion and control when API calls are made.
+        if (Object.keys(skillAnalysisScores).length === 0) return [];
 
         // If we have organization-selected metrics, use those
         if (selectedMetrics.length > 0) {
@@ -660,14 +701,37 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 const metricDef = STANDARD_METRICS.find(m => m.id === metricId);
                 const metricName = metricDef?.friendlyName || metricDef?.name || metricId;
 
-                // Use AI-analyzed score if available, otherwise fallback to reports average
+                // Use AI-analyzed score if available
                 let score = skillAnalysisScores[metricId];
 
+                // If not found by ID, try matching by name or friendly name (robustness fix)
+                if (score === undefined) {
+                    const normalizedTargetId = normalize(metricId);
+                    const normalizedTargetName = normalize(metricDef?.name || '');
+                    const normalizedTargetFriendly = normalize(metricDef?.friendlyName || '');
+
+                    const foundKey = Object.keys(skillAnalysisScores).find(key => {
+                        const normalizedKey = normalize(key);
+                        return normalizedKey === normalizedTargetId ||
+                            normalizedKey === normalizedTargetName ||
+                            normalizedKey === normalizedTargetFriendly;
+                    });
+
+                    if (foundKey) {
+                        score = skillAnalysisScores[foundKey];
+                    }
+                }
+
+                // If still undefined, use the average of this metric from criterionScores in reports
                 if (score === undefined) {
                     let total = 0;
                     let count = 0;
                     filteredReports.forEach(report => {
-                        const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                        const scoreObj = report.criterionScores.find(s =>
+                            normalize(s.criterionName) === normalize(metricDef?.friendlyName || '') ||
+                            normalize(s.criterionName) === normalize(metricDef?.name || '') ||
+                            normalize(s.criterionName) === normalize(metricId)
+                        );
                         if (scoreObj) {
                             total += scoreObj.score;
                             count++;
@@ -680,7 +744,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 let prevTotal = 0;
                 let prevCount = 0;
                 previousPeriodReports.forEach(report => {
-                    const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
+                    const scoreObj = report.criterionScores.find(s =>
+                        normalize(s.criterionName) === normalize(metricDef?.friendlyName || '') ||
+                        normalize(s.criterionName) === normalize(metricDef?.name || '') ||
+                        normalize(s.criterionName) === normalize(metricId)
+                    );
                     if (scoreObj) {
                         prevTotal += scoreObj.score;
                         prevCount++;
@@ -707,22 +775,62 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 previous: prevSkill ? prevSkill.averageScore : 0
             };
         });
-    }, [selectedMetrics, filteredReports, previousPeriodReports, keySkills, previousPeriodKeySkills, isEmployeeView]);
+    }, [selectedMetrics, filteredReports, previousPeriodReports, keySkills, previousPeriodKeySkills, skillAnalysisScores]);
+
+    const orgMetricsAverage = useMemo(() => {
+        if (selectedMetrics.length === 0) return 0;
+
+        let totalWeightedAverage = 0;
+        let activeMetricsCount = 0;
+
+        selectedMetrics.forEach(metricId => {
+            const metricDef = STANDARD_METRICS.find(m => m.id === metricId);
+            let metricTotal = 0;
+            let metricCount = 0;
+
+            filteredReports.forEach(report => {
+                const scoreObj = report.criterionScores.find(s =>
+                    normalize(s.criterionName) === normalize(metricDef?.friendlyName || '') ||
+                    normalize(s.criterionName) === normalize(metricDef?.name || '') ||
+                    normalize(s.criterionName) === normalize(metricId)
+                );
+                if (scoreObj) {
+                    metricTotal += scoreObj.score;
+                    metricCount++;
+                }
+            });
+
+            if (metricCount > 0) {
+                totalWeightedAverage += (metricTotal / metricCount);
+                activeMetricsCount++;
+            }
+        });
+
+        return activeMetricsCount > 0 ? totalWeightedAverage / activeMetricsCount : 0;
+    }, [selectedMetrics, filteredReports]);
 
     const analytics = useMemo(() => {
         const reportAverage = filteredReports.length > 0
             ? filteredReports.reduce((sum, r) => sum + r.evaluationScore, 0) / filteredReports.length
             : 0;
 
-        // Holistic Score for Employee View: Average of (Report Average + Organizational Metrics Average)
-        if (isEmployeeView && selectedMetrics.length > 0 && radarChartData.length > 0) {
-            const metricsAverage = radarChartData.reduce((sum, d) => sum + d.current, 0) / radarChartData.length;
-            const holisticScore = (reportAverage + metricsAverage) / 2;
+        // Holistic Score: Weighted average of Report Average (Goals) and Organizational Metrics
+        // Note: The evaluationScore in reports already includes org metrics if they existed at time of submission.
+        // For the dashboard "Average Score", we use the calculated reportAverage which is the most "real-time"
+        // representation of performance across all submitted items in the date range.
+
+        if (isEmployeeView && selectedMetrics.length > 0) {
+            // If org metrics are selected, we weight them alongside the goal-based report average
+            // for the "Average Score" stat card to provide a holistic view.
+            const holisticScore = orgMetricsAverage > 0
+                ? (reportAverage * 0.7) + (orgMetricsAverage * 0.3)
+                : reportAverage;
+
             return { overallScore: holisticScore };
         }
 
         return { overallScore: reportAverage };
-    }, [filteredReports, radarChartData, selectedMetrics, isEmployeeView]);
+    }, [filteredReports, orgMetricsAverage, selectedMetrics, isEmployeeView]);
 
     // Calculate avg rating on projects (using filtered reports)
     const avgRatingOnProjects = useMemo(() => {
@@ -890,12 +998,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         }
     };
 
-    // Trigger analysis when organization changes or initial load for employee
-    useEffect(() => {
-        if (isEmployeeView && organization?.selectedMetrics && organization.selectedMetrics.length > 0 && Object.keys(skillAnalysisScores).length === 0 && filteredReports.length > 0) {
-            performSkillAnalysis(organization.selectedMetrics);
-        }
-    }, [organization, filteredReports, isEmployeeView]);
+    // Skill analysis is now triggered manually via a button to reduce API calls
+    // and ensure it only runs when the user explicitly requests it for the current date range.
 
     // Get sorted reports for table
     const sortedReportsForTable = useMemo(() => {
@@ -1000,28 +1104,41 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         ];
     });
 
+
+
     return (
         <div className="w-full px-6 py-6 space-y-6">
             {/* Header with Date Selection */}
-            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+            <div className="bg-surface p-4 rounded-lg border border-border">
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                        <Sliders size={24} className="text-on-surface-secondary" />
-                        <h2 className="text-xl font-bold text-on-surface">Dashboard</h2>
-                    </div>
+                    <h2 className="text-lg font-bold text-on-surface">Dashboard</h2>
                     <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                            <Calendar size={18} className="text-on-surface-secondary" />
-                            <label htmlFor="start-date" className="text-sm font-medium text-on-surface-secondary">From</label>
-                            <Input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="min-w-[150px]" />
+                        <div className="flex items-center gap-2 mr-2">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded">Select duration:</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <label htmlFor="end-date" className="text-sm font-medium text-on-surface-secondary">To</label>
-                            <Input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="min-w-[150px]" />
+                            <Calendar size={16} className="text-on-surface-secondary" />
+                            <label htmlFor="start-date" className="text-xs font-medium text-on-surface-secondary">From</label>
+                            <Input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="min-w-[130px] py-1 text-sm" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="end-date" className="text-xs font-medium text-on-surface-secondary">To</label>
+                            <Input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="min-w-[130px] py-1 text-sm" />
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Onboarding Stepper */}
+            {currentUserProfile && (
+                <OnboardingStepper
+                    currentEmployee={currentUserProfile}
+                    organization={organization}
+                    employeesCount={employees.length}
+                    onNavigate={onNavigate || (() => { })}
+                    onOpenMetricsModal={() => setIsMetricsModalOpen(true)}
+                />
+            )}
 
             {/* Generate Summary Banner (Manager View Only) */}
             {!isEmployeeView && (
@@ -1067,22 +1184,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
             {/* Employee View Content - Performance Summary */}
             {isEmployeeView && (
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                <div className="bg-surface border border-primary/20 rounded-lg p-4">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                                <Sparkles size={18} className="text-on-surface" />
-                                <h3 className="text-base font-semibold text-on-surface">Performance Summary</h3>
+                                <Sparkles size={16} className="text-primary" />
+                                <h3 className="text-sm font-semibold text-on-surface">Performance Summary</h3>
                             </div>
-                            <p className="text-sm text-on-surface-secondary ml-7">
-                                Create an AI-powered performance summary for the selected date range based on all reports and evaluation criteria.
+                            <p className="text-xs text-on-surface-secondary">
+                                Create an AI-powered performance summary based on reports.
                             </p>
                         </div>
                         <Button
                             onClick={handleGenerateSummary}
                             disabled={isSummaryLoading || filteredReports.length === 0}
                             variant="primary"
-                            size="md"
+                            size="sm"
                             icon={isSummaryLoading ? undefined : Sparkles}
                         >
                             {isSummaryLoading ? (
@@ -1096,9 +1213,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         </Button>
                     </div>
                     {summary && (
-                        <div className="bg-surface p-4 rounded-lg text-sm text-on-surface-secondary border border-border mt-4 whitespace-pre-wrap">
+                        <div className="bg-surface-elevated p-3 rounded-lg text-sm text-on-surface-secondary border border-border mt-3 whitespace-pre-wrap">
                             <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
-                                <User size={16} />
+                                <User size={14} />
                                 <span>Personal Performance Summary</span>
                             </div>
                             {summary}
@@ -1107,41 +1224,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Reports" value={filteredReports.length} icon={<FileText size={24} className="text-on-surface-secondary" />} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="Reports" value={filteredReports.length} icon={<FileText size={20} className="text-on-surface-secondary" />} />
+
+                {/* Modified/New Cards based on request */}
+                <StatCard
+                    title="Late Submissions"
+                    value={submissionReliability ? Math.max(0, (submissionReliability.expected - submissionReliability.actual)) : 0}
+                    icon={<Clock size={20} className="text-on-surface-secondary" />}
+                    showActionBadge={submissionReliability ? (submissionReliability.expected - submissionReliability.actual) > 0 : false}
+                />
+
+                <StatCard
+                    title="Avg Score (Metrics)"
+                    value={orgMetricsAverage.toFixed(2)}
+                    icon={<Target size={20} className="text-on-surface-secondary" />}
+                />
+
                 <StatCard
                     title="Average Score"
                     value={analytics.overallScore.toFixed(2)}
-                    icon={<Star size={24} className="text-on-surface-secondary" />}
+                    icon={<Star size={20} className="text-on-surface-secondary" />}
                     showActionBadge={analytics.overallScore < 6.0}
                 />
-                {submissionReliability && !isEmployeeView && (
-                    <StatCard
-                        title="Report Reliability"
-                        value={`${submissionReliability.rate.toFixed(0)}%`}
-                        icon={<TrendingUp size={24} className="text-on-surface-secondary" />}
-                        showActionBadge={submissionReliability.rate < 80}
-                    />
-                )}
-                {consistency && (
-                    <StatCard
-                        title="Consistency"
-                        value={`${consistency.value.toFixed(0)}%`}
-                        icon={<Activity size={24} className="text-on-surface-secondary" />}
-                    />
-                )}
-                {isEmployeeView ? (
-                    <StatCard
-                        title="Leaderboard Position"
-                        value={leaderboardPosition ? `#${leaderboardPosition}` : 'N/A'}
-                        icon={<Trophy size={24} className="text-on-surface-secondary" />}
-                    />
-                ) : (
-                    <>
-                        {/* Teams stat removed - teams data not available */}
-                    </>
-                )}
+
+
             </div>
+
 
             {/* Employee View Content */}
             {isEmployeeView && (
@@ -1154,23 +1263,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                     <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
                                     <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across missions and targets</p>
                                 </div>
-                                {viewMode === 'manager' && (
-                                    <Button
-                                        variant="primary"
-                                        size="sm"
-                                        onClick={() => setIsMetricsModalOpen(true)}
-                                        className="flex items-center gap-2 shadow-sm"
-                                        icon={Sliders}
-                                    >
-                                        Customize Metrics
-                                    </Button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {viewMode === 'manager' && (
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            onClick={() => setIsMetricsModalOpen(true)}
+                                            className="flex items-center gap-2 shadow-sm"
+                                            icon={Sliders}
+                                        >
+                                            Customize Metrics
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
                             {/* Skills List Column */}
-                            <div className="lg:col-span-5 p-6 border-r border-border">
+                            <div className="lg:col-span-6 p-6 border-r border-border">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-2 text-on-surface">
                                         <List size={18} />
@@ -1232,7 +1343,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                             </div>
 
                             {/* Chart Column */}
-                            <div className="lg:col-span-7 p-6 bg-surface/10">
+                            <div className="lg:col-span-6 p-6 bg-surface/10">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-2 text-on-surface">
                                         <Activity size={18} />
@@ -1316,11 +1427,27 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                     </div>
                                 ) : (
                                     <div className="h-full flex items-center justify-center p-12">
-                                        <div className="text-center">
-                                            <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
-                                                <Activity size={32} className="text-on-surface-tertiary opacity-30" />
+                                        <div className="text-center max-w-xs">
+                                            <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
+                                                <Target size={40} className="text-primary/20" />
+                                                <div className="absolute inset-0 border-2 border-dashed border-primary/10 rounded-full animate-spin-slow"></div>
                                             </div>
-                                            <p className="text-sm text-on-surface-secondary">No radial data available for this range</p>
+                                            <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Ready</h4>
+                                            <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
+                                                Generate your AI Proficiency Fingerprint to visualize performance across key metrics.
+                                            </p>
+                                            {(isEmployeeView || viewMode === 'manager') && (
+                                                <Button
+                                                    variant="primary"
+                                                    size="md"
+                                                    onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
+                                                    disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
+                                                    className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
+                                                    icon={Sparkles}
+                                                >
+                                                    {isAnalyzingSkills ? 'Generating...' : 'Generate AI Fingerprint'}
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -1332,7 +1459,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Score Trend Line Chart */}
                         {filteredReports.length > 1 && (
-                            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                            <div className="bg-surface-elevated p-6 rounded-lg border border-border col-span-2">
                                 <h3 className="text-lg font-semibold mb-4 text-on-surface">Score Trend</h3>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <LineChart data={filteredReports
@@ -1350,25 +1477,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                 </ResponsiveContainer>
                             </div>
                         )}
-
-                        {/* Report History */}
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                            <h3 className="text-lg font-semibold mb-4 text-on-surface">Report History ({filteredReports.length})</h3>
-                            {filteredReports.length > 0 ? (
-                                <div className="max-h-[400px] overflow-y-auto">
-                                    <Table
-                                        headers={employeeReportTableHeaders}
-                                        rows={employeeReportTableRows}
-                                        sortable
-                                        sortColumn={sortColumn}
-                                        sortDirection={sortDirection}
-                                        onSort={handleSort}
-                                    />
-                                </div>
-                            ) : (
-                                <p className="text-on-surface-secondary text-center py-4">No reports in selected date range.</p>
-                            )}
-                        </div>
                     </div>
                 </>
             )}
@@ -1517,7 +1625,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                         }}
                                         className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
                                     >
-                                        View All Reports
+                                        View Reports
                                         <ChevronRight size={16} />
                                     </a>
                                 )}
@@ -1633,9 +1741,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                                     <div className="text-sm font-bold text-red-600 mb-1">
                                                                         {report.evaluationScore.toFixed(1)}/10
                                                                     </div>
-                                                                    <div className="text-xs text-red-600 font-medium">
-                                                                        Critical
-                                                                    </div>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleResolveReport(report);
+                                                                        }}
+                                                                        className="mt-2 text-[10px] font-semibold text-on-surface-tertiary hover:text-primary border border-border px-1.5 py-0.5 rounded transition-colors"
+                                                                        title="Mark as resolved and remove from red flags"
+                                                                    >
+                                                                        Resolve
+                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1797,311 +1912,236 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         </div>
                     )}
                 </div>
-            )}
+            )
+            }
 
             {/* Goal Alignment Matrix and Ongoing Projects (Manager View Only) */}
-            {!isEmployeeView && (goalAlignmentData.length > 0 || ongoingProjects.length > 0) && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Goal Alignment Matrix */}
-                    {goalAlignmentData.length > 0 && (
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <Target size={24} className="text-on-surface-secondary" />
-                                    <h3 className="text-lg font-semibold text-on-surface">Goal Alignment Matrix</h3>
+            {
+                !isEmployeeView && (goalAlignmentData.length > 0 || ongoingProjects.length > 0) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Goal Alignment Matrix */}
+                        {goalAlignmentData.length > 0 && (
+                            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Target size={24} className="text-on-surface-secondary" />
+                                        <h3 className="text-lg font-semibold text-on-surface">Goal Alignment Matrix</h3>
+                                    </div>
+                                    {onNavigate && (
+                                        <a
+                                            href="#"
+                                            onClick={(e) => { e.preventDefault(); onNavigate('goals'); }}
+                                            className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
+                                        >
+                                            View All Goals
+                                            <ChevronRight size={16} />
+                                        </a>
+                                    )}
                                 </div>
-                                {onNavigate && (
-                                    <a
-                                        href="#"
-                                        onClick={(e) => { e.preventDefault(); onNavigate('goals'); }}
-                                        className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
+                                <p className="text-sm text-on-surface-secondary mb-4">
+                                    Shows how much work is actually linking to specific goals/OKRs. Stacked bars represent performance quality distribution (High: 8.0+, Medium: 6.0-7.9, Low: &lt;6.0).
+                                </p>
+                                <ResponsiveContainer width="100%" height={500}>
+                                    <BarChart
+                                        data={goalAlignmentData}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                                     >
-                                        View All Goals
-                                        <ChevronRight size={16} />
-                                    </a>
-                                )}
-                            </div>
-                            <p className="text-sm text-on-surface-secondary mb-4">
-                                Shows how much work is actually linking to specific goals/OKRs. Stacked bars represent performance quality distribution (High: 8.0+, Medium: 6.0-7.9, Low: &lt;6.0).
-                            </p>
-                            <ResponsiveContainer width="100%" height={500}>
-                                <BarChart
-                                    data={goalAlignmentData}
-                                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                    <XAxis
-                                        dataKey="goal"
-                                        tick={{ fill: '#6b7280', fontSize: 10 }}
-                                        tickFormatter={(value) => {
-                                            if (value.length > 20) {
-                                                return value.substring(0, 20) + '...';
-                                            }
-                                            return value;
-                                        }}
-                                        interval={0}
-                                        height={30}
-                                    />
-                                    <YAxis
-                                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                                        label={{ value: 'Number of Reports', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: '#ffffff',
-                                            border: '1px solid #e5e7eb',
-                                            color: '#111827',
-                                            borderRadius: '0.5rem',
-                                            padding: '0.5rem'
-                                        }}
-                                        formatter={(value: number) => [value, 'Reports']}
-                                        labelFormatter={(label) => {
-                                            const dataPoint = goalAlignmentData.find(d => d.goal === label);
-                                            return dataPoint ? `${dataPoint.goalFull} (${dataPoint.project})` : label;
-                                        }}
-                                    />
-                                    <Legend
-                                        wrapperStyle={{ paddingTop: '10px' }}
-                                    />
-                                    {performanceBands.map((band) => (
-                                        <Bar
-                                            key={band.key}
-                                            dataKey={band.key}
-                                            stackId="a"
-                                            fill={band.color}
-                                            name={band.name}
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis
+                                            dataKey="goal"
+                                            tick={{ fill: '#6b7280', fontSize: 10 }}
+                                            tickFormatter={(value) => {
+                                                if (value.length > 20) {
+                                                    return value.substring(0, 20) + '...';
+                                                }
+                                                return value;
+                                            }}
+                                            interval={0}
+                                            height={30}
                                         />
-                                    ))}
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
-
-                    {/* Ongoing Projects Section */}
-                    {ongoingProjects.length > 0 && (
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <FolderKanban size={24} className="text-on-surface-secondary" />
-                                    <h3 className="text-lg font-semibold text-on-surface">Ongoing Projects</h3>
-                                </div>
-                                {onNavigate && (
-                                    <a
-                                        href="#"
-                                        onClick={(e) => { e.preventDefault(); onNavigate('projects'); }}
-                                        className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
-                                    >
-                                        View All Projects
-                                        <ChevronRight size={16} />
-                                    </a>
-                                )}
+                                        <YAxis
+                                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                                            label={{ value: 'Number of Reports', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#ffffff',
+                                                border: '1px solid #e5e7eb',
+                                                color: '#111827',
+                                                borderRadius: '0.5rem',
+                                                padding: '0.5rem'
+                                            }}
+                                            formatter={(value: number) => [value, 'Reports']}
+                                            labelFormatter={(label) => {
+                                                const dataPoint = goalAlignmentData.find(d => d.goal === label);
+                                                return dataPoint ? `${dataPoint.goalFull} (${dataPoint.project})` : label;
+                                            }}
+                                        />
+                                        <Legend
+                                            wrapperStyle={{ paddingTop: '10px' }}
+                                        />
+                                        {performanceBands.map((band) => (
+                                            <Bar
+                                                key={band.key}
+                                                dataKey={band.key}
+                                                stackId="a"
+                                                fill={band.color}
+                                                name={band.name}
+                                            />
+                                        ))}
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
-                            <div className="space-y-4">
-                                {ongoingProjects.map((project) => (
-                                    <div
-                                        key={project.id}
-                                        className={`bg-surface p-4 rounded-lg border border-border ${onSelectProject ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}`}
-                                        onClick={onSelectProject ? () => onSelectProject(project.id) : undefined}
-                                    >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-on-surface mb-1 truncate" title={project.name}>{project.name}</h4>
-                                                {project.description && (
-                                                    <p className="text-sm text-on-surface-secondary mb-2 line-clamp-2" title={project.description}>{project.description}</p>
-                                                )}
-                                                <div className="flex items-center gap-4 text-xs text-on-surface-secondary">
-                                                    {project.category && (
-                                                        <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                                                            {project.category}
-                                                        </span>
+                        )}
+
+                        {/* Ongoing Projects Section */}
+                        {ongoingProjects.length > 0 && (
+                            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <FolderKanban size={24} className="text-on-surface-secondary" />
+                                        <h3 className="text-lg font-semibold text-on-surface">Ongoing Projects</h3>
+                                    </div>
+                                    {onNavigate && (
+                                        <a
+                                            href="#"
+                                            onClick={(e) => { e.preventDefault(); onNavigate('projects'); }}
+                                            className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
+                                        >
+                                            View All Projects
+                                            <ChevronRight size={16} />
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="space-y-4">
+                                    {ongoingProjects.map((project) => (
+                                        <div
+                                            key={project.id}
+                                            className={`bg-surface p-4 rounded-lg border border-border ${onSelectProject ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}`}
+                                            onClick={onSelectProject ? () => onSelectProject(project.id) : undefined}
+                                        >
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex-1">
+                                                    <h4 className="font-semibold text-on-surface mb-1 truncate" title={project.name}>{project.name}</h4>
+                                                    {project.description && (
+                                                        <p className="text-sm text-on-surface-secondary mb-2 line-clamp-2" title={project.description}>{project.description}</p>
                                                     )}
-                                                    <span>{project.reportFrequency} reports</span>
-                                                    {project.reportCount > 0 && (
-                                                        <span>Avg Score: {project.averageScore.toFixed(1)}/10</span>
-                                                    )}
+                                                    <div className="flex items-center gap-4 text-xs text-on-surface-secondary">
+                                                        {project.category && (
+                                                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">
+                                                                {project.category}
+                                                            </span>
+                                                        )}
+                                                        <span>{project.reportFrequency} reports</span>
+                                                        {project.reportCount > 0 && (
+                                                            <span>Avg Score: {project.averageScore.toFixed(1)}/10</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        {project.goals.length > 0 && (
-                                            <div className="mt-3 pt-3 border-t border-border">
-                                                <h5 className="text-sm font-medium text-on-surface mb-2 flex items-center gap-2">
-                                                    <Target size={14} className="text-on-surface-secondary" />
-                                                    Goals ({project.goals.length})
-                                                </h5>
-                                                <div className="space-y-2">
-                                                    {project.goals.map((goal) => {
-                                                        const goalReports = reports.filter(r => r.goalId === goal.id);
-                                                        const goalAvgScore = goalReports.length > 0
-                                                            ? goalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / goalReports.length
-                                                            : 0;
-                                                        return (
-                                                            <div key={goal.id} className="bg-surface-elevated p-3 rounded border border-border">
-                                                                <div className="flex items-start justify-between">
-                                                                    <div className="flex-1">
-                                                                        <span className="font-medium text-sm text-on-surface truncate block" title={goal.name}>{goal.name}</span>
-                                                                        {goal.deadline && (
-                                                                            <div className="flex items-center gap-1 mt-1 text-xs text-on-surface-secondary">
-                                                                                <Calendar size={12} />
-                                                                                <span>Deadline: {new Date(goal.deadline).toLocaleDateString()}</span>
-                                                                            </div>
-                                                                        )}
-                                                                        {goal.criteria.length > 0 && (
-                                                                            <div className="mt-1 flex flex-wrap gap-1">
-                                                                                {goal.criteria.slice(0, 3).map((criterion) => (
-                                                                                    <span key={criterion.id} className="text-xs px-2 py-0.5 bg-surface border border-border text-on-surface-secondary rounded">
-                                                                                        {criterion.name}
-                                                                                    </span>
-                                                                                ))}
-                                                                                {goal.criteria.length > 3 && (
-                                                                                    <span className="text-xs text-on-surface-secondary">
-                                                                                        +{goal.criteria.length - 3} more
-                                                                                    </span>
-                                                                                )}
+                                            {project.goals.length > 0 && (
+                                                <div className="mt-3 pt-3 border-t border-border">
+                                                    <h5 className="text-sm font-medium text-on-surface mb-2 flex items-center gap-2">
+                                                        <Target size={14} className="text-on-surface-secondary" />
+                                                        Goals ({project.goals.length})
+                                                    </h5>
+                                                    <div className="space-y-2">
+                                                        {project.goals.map((goal) => {
+                                                            const goalReports = reports.filter(r => r.goalId === goal.id);
+                                                            const goalAvgScore = goalReports.length > 0
+                                                                ? goalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / goalReports.length
+                                                                : 0;
+                                                            return (
+                                                                <div key={goal.id} className="bg-surface-elevated p-3 rounded border border-border">
+                                                                    <div className="flex items-start justify-between">
+                                                                        <div className="flex-1">
+                                                                            <span className="font-medium text-sm text-on-surface truncate block" title={goal.name}>{goal.name}</span>
+                                                                            {goal.deadline && (
+                                                                                <div className="flex items-center gap-1 mt-1 text-xs text-on-surface-secondary">
+                                                                                    <Calendar size={12} />
+                                                                                    <span>Deadline: {new Date(goal.deadline).toLocaleDateString()}</span>
+                                                                                </div>
+                                                                            )}
+                                                                            {goal.criteria.length > 0 && (
+                                                                                <div className="mt-1 flex flex-wrap gap-1">
+                                                                                    {goal.criteria.slice(0, 3).map((criterion) => (
+                                                                                        <span key={criterion.id} className="text-xs px-2 py-0.5 bg-surface border border-border text-on-surface-secondary rounded">
+                                                                                            {criterion.name}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                    {goal.criteria.length > 3 && (
+                                                                                        <span className="text-xs text-on-surface-secondary">
+                                                                                            +{goal.criteria.length - 3} more
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        {goalReports.length > 0 && (
+                                                                            <div className="ml-3 text-right">
+                                                                                <div className="text-sm font-semibold text-on-surface">
+                                                                                    {goalAvgScore.toFixed(1)}/10
+                                                                                </div>
+                                                                                <div className="text-xs text-on-surface-secondary">
+                                                                                    {goalReports.length} report{goalReports.length !== 1 ? 's' : ''}
+                                                                                </div>
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                    {goalReports.length > 0 && (
-                                                                        <div className="ml-3 text-right">
-                                                                            <div className="text-sm font-semibold text-on-surface">
-                                                                                {goalAvgScore.toFixed(1)}/10
-                                                                            </div>
-                                                                            <div className="text-xs text-on-surface-secondary">
-                                                                                {goalReports.length} report{goalReports.length !== 1 ? 's' : ''}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Report Detail Modal */}
-            {selectedReport && (
-                <Modal
-                    isOpen={!!selectedReport}
-                    onClose={() => setSelectedReport(null)}
-                    title={`Report - ${formatReportDate(selectedReport.submissionDate)}`}
-                >
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="text-lg font-semibold text-on-surface mb-1">Employee</h3>
-                            {onSelectEmployee && employees.find(e => e.id === selectedReport.employeeId) ? (
-                                <button
-                                    onClick={() => {
-                                        setSelectedReport(null);
-                                        onSelectEmployee(selectedReport.employeeId);
-                                    }}
-                                    className="text-primary hover:underline"
-                                >
-                                    {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
-                                </button>
-                            ) : (
-                                <p className="text-on-surface-secondary">
-                                    {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
-                                </p>
-                            )}
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-on-surface mb-1">Goal</h3>
-                            <p className="text-on-surface-secondary">
-                                {filteredGoals.find(g => g.id === selectedReport.goalId)?.name || 'N/A'}
-                            </p>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-on-surface mb-1">Project</h3>
-                            {(() => {
-                                const goal = filteredGoals.find(g => g.id === selectedReport.goalId);
-                                const project = goal ? projects.find(p => p.id === goal.projectId) : null;
-                                if (onSelectProject && project) {
-                                    return (
-                                        <button
-                                            onClick={() => {
-                                                setSelectedReport(null);
-                                                onSelectProject(project.id);
-                                            }}
-                                            className="text-primary hover:underline"
-                                        >
-                                            {project.name}
-                                        </button>
-                                    );
-                                }
-                                return <p className="text-on-surface-secondary">{project?.name || 'N/A'}</p>;
-                            })()}
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
-                            <div
-                                className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
-                                dangerouslySetInnerHTML={{ __html: selectedReport.reportText }}
-                            />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-on-surface mb-1 flex items-center gap-2">
-                                <TrendingUp size={20} className="text-on-surface-secondary" />
-                                AI Analysis
-                            </h3>
-                            <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
-                                "{selectedReport.evaluationReasoning}"
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score</h3>
-                            <div className="bg-surface p-4 rounded-lg border border-border">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-on-surface font-medium">Overall Score</span>
-                                    <span className="text-2xl font-bold text-on-surface">{selectedReport.evaluationScore.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {selectedReport.evaluationCriteriaScores.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
-                                <div className="space-y-2">
-                                    {selectedReport.evaluationCriteriaScores.map((score, index) => (
-                                        <div key={index} className="bg-surface p-3 rounded-lg border border-border">
-                                            <div className="flex justify-between items-center">
-                                                <span className="font-medium text-on-surface">{score.name}</span>
-                                                <span className="text-sm text-on-surface-secondary">{score.score.toFixed(1)}/10</span>
-                                            </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
                     </div>
-                </Modal>
+                )
+            }
+
+            {/* Report Detail Modal */}
+            {selectedReport && (
+                <ReportDetailModal
+                    report={selectedReport}
+                    isOpen={!!selectedReport}
+                    onClose={() => setSelectedReport(null)}
+                    onUpdateReport={handleUpdateReport}
+                    employees={employees}
+                    goals={goals}
+                    projects={projects}
+                    currentManagerId={currentManagerId}
+                    isManagerView={!isEmployeeView}
+                    onSelectEmployee={onSelectEmployee}
+                    onSelectProject={onSelectProject}
+                />
             )}
 
             {/* Metrics Customization Modal */}
-            {!isEmployeeView && viewMode === 'manager' && (
-                <MetricsSelectionModal
-                    isOpen={isMetricsModalOpen}
-                    onClose={() => setIsMetricsModalOpen(false)}
-                    selectedMetrics={selectedMetrics}
-                    onSave={async (metrics) => {
-                        try {
-                            setSkillAnalysisScores({}); // Clear old scores
-                            await updateOrganizationMetrics(metrics);
-                            if (isEmployeeView) {
-                                await performSkillAnalysis(metrics);
+            {
+                !isEmployeeView && viewMode === 'manager' && (
+                    <MetricsSelectionModal
+                        isOpen={isMetricsModalOpen}
+                        onClose={() => setIsMetricsModalOpen(false)}
+                        selectedMetrics={selectedMetrics}
+                        onSave={async (metrics) => {
+                            try {
+                                setSkillAnalysisScores({}); // Clear old scores
+                                await updateOrganizationMetrics(metrics);
+                                if (isEmployeeView) {
+                                    await performSkillAnalysis(metrics);
+                                }
+                            } catch (err) {
+                                alert('Failed to update metrics. Please try again.');
                             }
-                        } catch (err) {
-                            alert('Failed to update metrics. Please try again.');
-                        }
-                    }}
-                />
-            )}
-        </div>
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 

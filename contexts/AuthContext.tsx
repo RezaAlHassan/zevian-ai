@@ -56,9 +56,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const fetchEmployeeProfile = async (authUserId: string, email?: string) => {
+        setLoading(true);
         try {
             // 1. Try to find matched employee by Auth ID (Standard)
-            let emp = await authService.getCurrentEmployee();
+            // Use the authUserId passed solely from the active session to avoid race conditions with auth.getUser()
+            let emp = await employeeService.getByAuthId(authUserId);
 
             // 2. Fallback: If not found by Auth ID, try to find by Email (Owner Recovery)
             if (!emp && email) {
@@ -72,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         await authService.linkEmployeeToAuth(empByEmail.id, authUserId);
                         console.log('[AuthContext] Successfully linked employee to Auth User ID. Retrying fetch...');
                         // Retry fetch by ID
-                        emp = await authService.getCurrentEmployee();
+                        emp = await employeeService.getByAuthId(authUserId);
                     } catch (linkError) {
                         console.error('[AuthContext] Failed to auto-link employee:', linkError);
                         // If RLS blocks update, we might still want to return the employee if possible (but RLS likely hides data)

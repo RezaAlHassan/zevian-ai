@@ -1,0 +1,24 @@
+// Temporary file to add organizational metrics section
+// Insert this after line 283 in SubmitReportPage.tsx
+
+        {/* Organizational Metrics Info */}
+        {organization?.selectedMetrics && organization.selectedMetrics.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-on-surface mb-3">Evaluation Criteria</h2>
+            <p className="text-sm text-on-surface-secondary mb-4">
+              Your report will be evaluated on your goal-specific criteria (70%) and the following organizational standards (30%):
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {organization.selectedMetrics.map(metricId => {
+                const metric = STANDARD_METRICS.find(m => m.id === metricId);
+                if (!metric) return null;
+                return (
+                  <div key={metric.id} className="bg-white border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <h3 className="font-semibold text-on-surface text-sm mb-1">{metric.friendlyName}</h3>
+                    <p className="text-xs text-on-surface-secondary">{metric.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}

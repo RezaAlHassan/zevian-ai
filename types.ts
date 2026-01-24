@@ -39,6 +39,7 @@ export interface Employee {
   managerId?: string;
   permissions?: EmployeePermissions; // Permissions granted by account owner
   isAccountOwner?: boolean; // True if this user is the account creator/owner
+  onboardingCompleted?: boolean;
   joinDate?: string; // ISO 8601 format date string
   authUserId?: string; // Link to Supabase Auth User
 }
@@ -69,6 +70,7 @@ export interface Goal {
   managerId?: string; // ID of the manager who created this goal
   createdBy?: string; // ID of the employee/manager who created this goal (same as managerId for manager-created goals)
   createdAt?: string;
+  status?: 'active' | 'completed';
 }
 
 export interface ReportCriterionScore {
@@ -85,11 +87,13 @@ export interface Report {
   evaluationScore: number;
   managerOverallScore?: number;
   managerOverrideReasoning?: string; // Required justification when manager overrides score
+  managerFeedback?: string; // Optional feedback from manager
   evaluationReasoning: string;
   criterionScores: ReportCriterionScore[]; // Renamed from evaluationCriteriaScores to match DB
+  isResolved?: boolean; // Explicitly marked as resolved by a manager
 }
 
-export type Page = 'projects' | 'goals' | 'submit' | 'dashboard' | 'reports' | 'allReports' | 'employees' | 'employeeDetail' | 'goalDetail' | 'projectDetail' | 'settings';
+export type Page = 'projects' | 'goals' | 'submit' | 'dashboard' | 'reports' | 'allReports' | 'employees' | 'employeeDetail' | 'goalDetail' | 'projectDetail' | 'settings' | 'organization';
 export type ViewMode = 'manager' | 'employee'; // Deprecated - use Employee.role instead
 
 export interface Invitation {
@@ -134,3 +138,15 @@ export interface ProjectDocument {
   uploadedBy?: string;
   uploadedAt?: string;
 }
+
+export interface Notification {
+  id: number;
+  userId: string;
+  type: 'assignment' | 'team_update' | 'goal' | 'performance' | 'alert' | 'info';
+  title: string;
+  message: string;
+  linkUrl?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+

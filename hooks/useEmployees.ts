@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { employeeService } from '../services/databaseService';
 import type { Employee } from '../types';
 
-export function useEmployees() {
+export function useEmployees(organizationId?: string) {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchEmployees = useCallback(async () => {
+        if (!organizationId) {
+            setEmployees([]);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -19,7 +25,7 @@ export function useEmployees() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [organizationId]);
 
     useEffect(() => {
         fetchEmployees();

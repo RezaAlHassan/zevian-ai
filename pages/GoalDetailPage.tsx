@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Goal, Report, Employee, Criterion, Project } from '../types';
-import { ArrowLeft, Plus, Trash2, Edit2, Save, X, File, Calendar, User, Users, Target, Trophy, Award, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, Save, X, File, Calendar, User, Users, Target, Trophy, Award, Eye, CheckCircle, RotateCcw } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Table from '../components/Table';
@@ -202,11 +202,30 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
         >
           Back to Goals
         </Button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-on-surface flex items-center gap-3">
-            <Target size={32} className="text-on-surface-secondary" />
-            {goal.name}
-          </h1>
+        <div className="flex-1 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-on-surface">
+              {goal.name}
+            </h1>
+            {goal.status === 'completed' && (
+              <span className="bg-success/20 text-success text-xs px-2 py-1 rounded-full border border-success/30 flex items-center gap-1">
+                <CheckCircle size={12} /> Completed
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <Button
+                onClick={() => updateGoal({ ...goal, status: goal.status === 'completed' ? 'active' : 'completed' })}
+                variant={goal.status === 'completed' ? 'outline' : 'primary'}
+                size="sm"
+                icon={goal.status === 'completed' ? RotateCcw : CheckCircle}
+              >
+                {goal.status === 'completed' ? 'Mark as Active' : 'Mark as Completed'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -497,58 +516,60 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
       </div>
 
       {/* Report Detail Modal */}
-      {selectedReport && (
-        <Modal
-          isOpen={!!selectedReport}
-          onClose={() => setSelectedReport(null)}
-          title={`Report - ${formatReportDate(selectedReport.submissionDate)}`}
-        >
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Employee</h3>
-              <p className="text-on-surface-secondary">
-                {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
-              <div
-                className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: selectedReport.reportText }}
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">AI Analysis</h3>
-              <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
-                "{selectedReport.evaluationReasoning}"
+      {
+        selectedReport && (
+          <Modal
+            isOpen={!!selectedReport}
+            onClose={() => setSelectedReport(null)}
+            title={`Report - ${formatReportDate(selectedReport.submissionDate)}`}
+          >
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Employee</h3>
+                <p className="text-on-surface-secondary">
+                  {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
+                </p>
               </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score</h3>
-              <div className="bg-surface p-4 rounded-lg border border-border">
-                <div className="flex items-center justify-between">
-                  <span className="text-on-surface font-medium">Overall Score</span>
-                  <span className="text-2xl font-bold text-on-surface">{selectedReport.evaluationScore.toFixed(2)}</span>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
+                <div
+                  className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: selectedReport.reportText }}
+                />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">AI Analysis</h3>
+                <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
+                  "{selectedReport.evaluationReasoning}"
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score</h3>
+                <div className="bg-surface p-4 rounded-lg border border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-on-surface font-medium">Overall Score</span>
+                    <span className="text-2xl font-bold text-on-surface">{selectedReport.evaluationScore.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
+                <div className="space-y-2">
+                  {selectedReport.evaluationCriteriaScores.map((score, index) => (
+                    <div key={index} className="bg-surface p-3 rounded-lg border border-border">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-on-surface">{score.name}</span>
+                        <span className="text-sm font-semibold text-on-surface">{score.score.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
-              <div className="space-y-2">
-                {selectedReport.evaluationCriteriaScores.map((score, index) => (
-                  <div key={index} className="bg-surface p-3 rounded-lg border border-border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-on-surface">{score.name}</span>
-                      <span className="text-sm font-semibold text-on-surface">{score.score.toFixed(1)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </div>
+          </Modal>
+        )
+      }
+    </div >
   );
 };
 

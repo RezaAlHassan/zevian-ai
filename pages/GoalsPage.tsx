@@ -1,5 +1,5 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Goal, Criterion, Project, Employee } from '../types';
 import { Plus, Trash2, AlertTriangle, CheckCircle, Search, Eye, Target, MoreHorizontal, Edit2, Info, Calendar, User } from 'lucide-react';
 import Table from '../components/Table';
@@ -26,6 +26,7 @@ interface GoalsPageProps {
   searchQuery?: string;
 }
 
+
 const GoalsPage: React.FC<GoalsPageProps> = ({
   goals,
   projects,
@@ -39,7 +40,10 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
   viewMode = 'manager',
   searchQuery
 }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [assignProjectModal, setAssignProjectModal] = useState<{ goal: Goal | null; isOpen: boolean }>({ goal: null, isOpen: false });
   const [selectedProjectForAssign, setSelectedProjectForAssign] = useState<string>('');
@@ -53,6 +57,22 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
   const [criterionWeight, setCriterionWeight] = useState<string>('');
   const [instructions, setInstructions] = useState('');
   const [deadline, setDeadline] = useState<string>('');
+
+  // Handle actionable toasts
+  useEffect(() => {
+    const action = searchParams.get('action');
+    const pid = searchParams.get('projectId');
+    if (action === 'create-goal' && pid) {
+      setProjectId(pid);
+      setShowCreateModal(true);
+      // Clean up params so it doesn't reopen on refresh
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      newParams.delete('projectId');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
 
   const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
 
@@ -197,7 +217,10 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
   const goalTableHeaders = ['Goal Name', 'Parent Project', 'Created By', 'Created', 'Actions'];
   const goalTableRows = filteredGoals.map(goal => [
-    <span className="capitalize text-on-surface-secondary">{goal.name}</span>,
+    <div className="flex items-center gap-2">
+      {goal.status === 'completed' && <CheckCircle size={14} className="text-success" />}
+      <span className={`capitalize ${goal.status === 'completed' ? 'text-on-surface-tertiary line-through' : 'text-on-surface-secondary'}`}>{goal.name}</span>
+    </div>,
     <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
     <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
     <span className="text-on-surface-secondary text-sm">
@@ -254,7 +277,6 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         {/* Header with Search and Create Button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Target size={28} className="text-on-surface-secondary" />
             <h2 className="text-xl font-bold text-on-surface">Goals</h2>
             <button
               onClick={() => setShowInfoModal(true)}

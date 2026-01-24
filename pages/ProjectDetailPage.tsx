@@ -232,7 +232,6 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           Back to Projects
         </Button>
         <div className="flex items-center gap-3">
-          <FolderKanban size={28} className="text-on-surface-secondary" />
           <h2 className="text-2xl font-bold text-on-surface">{project.name}</h2>
         </div>
       </div>

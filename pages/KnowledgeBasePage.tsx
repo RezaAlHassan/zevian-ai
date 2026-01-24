@@ -317,7 +317,6 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                         Back to Project
                     </Button>
                     <div className="flex items-center gap-3">
-                        <Layout size={28} className="text-on-surface-secondary" />
                         <div>
                             <h2 className="text-2xl font-bold text-on-surface">Knowledge Base</h2>
                             <p className="text-sm text-on-surface-tertiary">{project.name}</p>
@@ -425,7 +424,33 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                     </div>
 
                     <div className="relative group">
-                        {isEditing ? (
+                        {isSyncing ? (
+                            <div className="min-h-[400px] flex flex-col items-center justify-center p-12 text-center">
+                                <div className="relative mb-8">
+                                    <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center border border-primary/10 relative">
+                                        <Bot size={48} className="text-primary animate-pulse" />
+                                        <div className="absolute inset-0 border-2 border-dashed border-primary/20 rounded-full animate-spin-slow"></div>
+                                    </div>
+                                    <div className="absolute -bottom-2 -right-2 bg-surface-elevated p-2 rounded-lg border border-border shadow-lg">
+                                        <Loader2 size={20} className="text-primary animate-spin" />
+                                    </div>
+                                </div>
+                                <div className="max-w-md space-y-4">
+                                    <h4 className="text-xl font-bold text-on-surface tracking-tight">Synthesizing Knowledge Base</h4>
+                                    <p className="text-on-surface-secondary text-sm leading-relaxed">
+                                        Gemini is analyzing your project objectives, goals, and historical reports to build a comprehensive context for performance evaluation.
+                                    </p>
+                                    <div className="flex items-center justify-center gap-4 py-2">
+                                        <div className="flex gap-1">
+                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Processing technical context</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : isEditing ? (
                             <div className="space-y-4">
                                 <Textarea
                                     value={editedContext}

@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { Project, Goal, Report, Employee, Organization } from '../types';
+import type { Project, Goal, Report, Employee, Organization, Notification } from '../types';
 
 // ============================================================================
 // ORGANIZATIONS SERVICE (Multi-Tenancy)
@@ -260,6 +260,7 @@ function dbGoalToGoal(dbGoal: any): Goal {
         managerId: dbGoal.manager_id,
         createdBy: dbGoal.created_by,
         createdAt: dbGoal.created_at,
+        status: dbGoal.status || 'active',
     };
 }
 
@@ -305,6 +306,7 @@ export const goalService = {
                 deadline: goal.deadline,
                 manager_id: goal.managerId,
                 created_by: goal.createdBy,
+                status: goal.status || 'active',
             });
         // Removed .select() to avoid RLS 403 race condition
 
@@ -338,6 +340,7 @@ export const goalService = {
         if (updates.instructions !== undefined) dbUpdates.instructions = updates.instructions;
         if (updates.deadline !== undefined) dbUpdates.deadline = updates.deadline;
         if (updates.managerId !== undefined) dbUpdates.manager_id = updates.managerId;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
 
         const { data, error } = await supabase
             .from('goals')
@@ -549,8 +552,11 @@ export const reportService = {
             .update(dbUpdates)
             .eq('id', id)
             .select()
-            .single();
+            .maybeSingle();
+
         if (error) throw error;
+        if (!data) throw new Error(`Report with ID ${id} not found or you don't have permission to update it.`);
+
         return dbReportToReport(data);
     },
 
@@ -578,6 +584,7 @@ function dbEmployeeToEmployee(dbEmployee: any): Employee {
         role: dbEmployee.role,
         managerId: dbEmployee.manager_id,
         isAccountOwner: dbEmployee.is_account_owner,
+        onboardingCompleted: dbEmployee.onboarding_completed,
         joinDate: dbEmployee.join_date,
         authUserId: dbEmployee.auth_user_id,
         permissions: dbEmployee.employee_permissions ? {
@@ -660,6 +667,7 @@ export const employeeService = {
                 role: employee.role,
                 manager_id: employee.managerId,
                 is_account_owner: employee.isAccountOwner,
+                onboarding_completed: employee.onboardingCompleted,
                 join_date: employee.joinDate,
                 auth_user_id: employee.authUserId,
             })
@@ -692,6 +700,7 @@ export const employeeService = {
         if (updates.role !== undefined) dbUpdates.role = updates.role;
         if (updates.managerId !== undefined) dbUpdates.manager_id = updates.managerId;
         if (updates.isAccountOwner !== undefined) dbUpdates.is_account_owner = updates.isAccountOwner;
+        if (updates.onboardingCompleted !== undefined) dbUpdates.onboarding_completed = updates.onboardingCompleted;
         if (updates.joinDate !== undefined) dbUpdates.join_date = updates.joinDate;
         if (updates.authUserId !== undefined) dbUpdates.auth_user_id = updates.authUserId;
 
@@ -758,3 +767,82 @@ export const dbUtils = {
         };
     },
 };
+
+// ============================================================================
+// NOTIFICATIONS SERVICE
+// ============================================================================
+
+// Helper function to convert DB notification to TS Notification
+function dbNotificationToNotification(dbNotif: any): Notification {
+    return {
+        id: dbNotif.id,
+        userId: dbNotif.user_id,
+        type: dbNotif.type,
+        title: dbNotif.title,
+        message: dbNotif.message,
+        linkUrl: dbNotif.link_url,
+        isRead: dbNotif.is_read,
+        createdAt: dbNotif.created_at,
+    };
+}
+
+export const notificationService = {
+    async getAll(userId: string) {
+        // Fetch all notifications for the user, ordered by newest first
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50); // Limit to last 50 for now
+
+        if (error) throw error;
+        return data ? data.map(dbNotificationToNotification) : [];
+    },
+
+    async getUnreadCount(userId: string) {
+        const { count, error } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+        if (error) throw error;
+        return count || 0;
+    },
+
+    async markAsRead(notificationId: number) {
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', notificationId);
+
+        if (error) throw error;
+    },
+
+    async markAllAsRead(userId: string) {
+        const { error } = await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', userId)
+            .eq('is_read', false); // Only update unread ones
+
+        if (error) throw error;
+    },
+
+    // For manual creation (e.g. from backend logic/Edge Functions, though most are triggers)
+    async create(notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) {
+        const { error } = await supabase
+            .from('notifications')
+            .insert({
+                user_id: notification.userId,
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                link_url: notification.linkUrl,
+            });
+
+        if (error) throw error;
+    }
+};
+

@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS organizations CASCADE;
 -- ============================================================================
 -- 1. ORGANIZATIONS
 -- ============================================================================
+
 CREATE TABLE organizations (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -64,6 +65,7 @@ CREATE TABLE employees (
     role TEXT NOT NULL CHECK (role IN ('manager', 'employee', 'admin')),
     manager_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
     is_account_owner BOOLEAN DEFAULT FALSE,
+    onboarding_completed BOOLEAN DEFAULT FALSE,
     join_date DATE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -159,6 +161,7 @@ CREATE TABLE reports (
     evaluation_score NUMERIC(4,2) NOT NULL CHECK (evaluation_score >= 0 AND evaluation_score <= 10),
     manager_overall_score NUMERIC(4,2) CHECK (manager_overall_score >= 0 AND manager_overall_score <= 10),
     manager_override_reasoning TEXT,
+    manager_feedback TEXT,
     evaluation_reasoning TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -321,6 +324,7 @@ BEGIN
     email, 
     role, 
     manager_id, 
+    onboarding_completed,
     join_date
   ) VALUES (
     new_employee_id,
@@ -330,6 +334,7 @@ BEGIN
     invite_record.email,
     invite_record.role,
     invite_record.initial_manager_id,
+    TRUE,
     NOW()
   );
 
@@ -430,6 +435,7 @@ CREATE POLICY "View own reports" ON reports FOR SELECT USING (employee_id IN (SE
 CREATE POLICY "Manager view org reports" ON reports FOR SELECT USING (is_manager() AND EXISTS (SELECT 1 FROM employees WHERE employees.id = reports.employee_id AND employees.organization_id = get_my_org_id()));
 CREATE POLICY "Create own reports" ON reports FOR INSERT WITH CHECK (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 CREATE POLICY "Update own reports" ON reports FOR UPDATE USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
+CREATE POLICY "Manager update org reports" ON reports FOR UPDATE USING (is_manager() AND EXISTS (SELECT 1 FROM employees WHERE employees.id = reports.employee_id AND employees.organization_id = get_my_org_id()));
 
 -- REPORT CRITERION SCORES
 CREATE POLICY "Enable read access for authenticated users" ON report_criterion_scores FOR SELECT USING (auth.role() = 'authenticated');
@@ -492,3 +498,151 @@ INSERT INTO projects (id, organization_id, name, description, category, report_f
 INSERT INTO project_assignees (project_id, assignee_id, assignee_type) VALUES ('proj-1', 'mgr-2', 'manager'), ('proj-1', 'emp-1', 'employee'), ('proj-1', 'emp-2', 'employee');
 INSERT INTO goals (id, name, project_id, instructions, manager_id, created_by, deadline) VALUES ('goal-1', 'Deliver Core API', 'proj-1', 'Deliver robust API endpoints.', 'mgr-2', 'mgr-2', '2025-12-31');
 INSERT INTO criteria (id, goal_id, name, weight, display_order) VALUES ('crit-1', 'goal-1', 'Code Quality', 40, 1), ('crit-2', 'goal-1', 'Test Coverage', 30, 2), ('crit-3', 'goal-1', 'Documentation', 30, 3);
+
+
+-- Add status column to goals table
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed'));
+
+-- Add index for status
+CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
+
+-- ============================================================================
+-- 17. NOTIFICATIONS SYSTEM
+-- ============================================================================
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('assignment', 'team_update', 'goal', 'performance', 'alert', 'info')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    link_url TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+
+-- RLS for Notifications
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "View own notifications" ON notifications
+    FOR SELECT USING (user_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
+
+CREATE POLICY "Update own notifications" ON notifications
+    FOR UPDATE USING (user_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
+
+-- ============================================================================
+-- 18. NOTIFICATION TRIGGERS
+-- ============================================================================
+
+-- 1. Trigger: New Project Assignment
+CREATE OR REPLACE FUNCTION notify_project_assignment()
+RETURNS TRIGGER AS $$
+DECLARE
+    project_name TEXT;
+BEGIN
+    SELECT name INTO project_name FROM projects WHERE id = NEW.project_id;
+    
+    INSERT INTO notifications (user_id, type, title, message, link_url)
+    VALUES (
+        NEW.assignee_id,
+        'assignment',
+        'New Project Assignment',
+        'You have been assigned to project: ' || project_name,
+        '/projects/' || NEW.project_id
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_project_assignment
+AFTER INSERT ON project_assignees
+FOR EACH ROW
+EXECUTE FUNCTION notify_project_assignment();
+
+-- 2. Trigger: New Team Member (Notifies Manager)
+CREATE OR REPLACE FUNCTION notify_new_team_member()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.manager_id IS NOT NULL THEN
+        INSERT INTO notifications (user_id, type, title, message, link_url)
+        VALUES (
+            NEW.manager_id,
+            'team_update',
+            'New Team Member',
+            NEW.name || ' has joined your team.',
+            '/employees/' || NEW.id
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_new_team_member
+AFTER INSERT ON employees
+FOR EACH ROW
+EXECUTE FUNCTION notify_new_team_member();
+
+-- 3. Trigger: New Goal (Notifies Project Assignees)
+CREATE OR REPLACE FUNCTION notify_new_goal()
+RETURNS TRIGGER AS $$
+DECLARE
+    assignee_rec RECORD;
+    project_name TEXT;
+BEGIN
+    SELECT name INTO project_name FROM projects WHERE id = NEW.project_id;
+
+    FOR assignee_rec IN 
+        SELECT assignee_id FROM project_assignees WHERE project_id = NEW.project_id
+    LOOP
+        -- Don't notify the person who created the goal (if they are an assignee)
+        -- Assuming created_by matches assignee_id (both are employee IDs)
+        IF assignee_rec.assignee_id != NEW.created_by THEN
+            INSERT INTO notifications (user_id, type, title, message, link_url)
+            VALUES (
+                assignee_rec.assignee_id,
+                'goal',
+                'New Goal Added',
+                'A new goal "' || NEW.name || '" has been added to project: ' || project_name,
+                '/projects/' || NEW.project_id
+            );
+        END IF;
+    END LOOP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_new_goal
+AFTER INSERT ON goals
+FOR EACH ROW
+EXECUTE FUNCTION notify_new_goal();
+
+-- 4. Trigger: Manager Feedback (Notifies Employee)
+CREATE OR REPLACE FUNCTION notify_manager_feedback()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if manager feedback or score has changed (and it was done by a manager, implicit by who updates it usually, but simpler to just check change)
+    -- We want to avoid notifying when the report is first created by the employee or AI
+    -- This trigger runs on UPDATE.
+    
+    IF (OLD.manager_feedback IS DISTINCT FROM NEW.manager_feedback) OR 
+       (OLD.manager_overall_score IS DISTINCT FROM NEW.manager_overall_score) THEN
+       
+       INSERT INTO notifications (user_id, type, title, message, link_url)
+       VALUES (
+           NEW.employee_id,
+           'performance',
+           'Report Feedback',
+           'Your manager has updated feedback or scoring on your report.',
+           '/dashboard' 
+       );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_manager_feedback
+AFTER UPDATE ON reports
+FOR EACH ROW
+EXECUTE FUNCTION notify_manager_feedback();
