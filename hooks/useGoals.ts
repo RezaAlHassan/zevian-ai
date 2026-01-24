@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { goalService } from '../services/databaseService';
 import type { Goal } from '../types';
 
-export function useGoals() {
+export function useGoals(organizationId?: string) {
     const [goals, setGoals] = useState<Goal[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchGoals = useCallback(async () => {
+        if (!organizationId) {
+            setGoals([]);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -19,7 +25,7 @@ export function useGoals() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [organizationId]);
 
     useEffect(() => {
         fetchGoals();

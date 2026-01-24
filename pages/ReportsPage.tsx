@@ -102,8 +102,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
   const reportTableHeaders = [
     { key: 'date', label: 'Date', sortable: true },
     { key: 'goal', label: 'Goal', sortable: true },
-    { key: 'preview', label: 'Preview', sortable: false },
-    { key: 'analysis', label: 'Analysis', sortable: false },
+    { key: 'analysis', label: 'AI Score', sortable: true },
+    { key: 'managerScore', label: 'Manager Score', sortable: true },
     { key: 'actions', label: 'Actions', sortable: false },
   ];
   const reportTableRows = employeeReports.map((report) => {
@@ -115,13 +115,15 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
         <span className="capitalize text-on-surface-secondary">{formatReportDate(report.submissionDate)}</span>
       </div>,
       <span className="capitalize text-on-surface-secondary">{goal?.name || 'Unknown Goal'}</span>,
-      <span className="capitalize text-on-surface-secondary">{previewText}...</span>,
       <div className="flex items-center gap-2">
-        <TrendingUp size={16} className="text-on-surface-secondary" />
-        <span className="capitalize text-on-surface-secondary font-semibold">
+        <TrendingUp size={16} className="text-on-surface-tertiary" />
+        <span className="text-on-surface-secondary font-medium">
           {report.evaluationScore.toFixed(1)}
         </span>
       </div>,
+      <span className={`font-semibold ${report.managerOverallScore !== undefined ? 'text-primary' : 'text-on-surface-tertiary'}`}>
+        {report.managerOverallScore !== undefined ? report.managerOverallScore.toFixed(1) : '—'}
+      </span>,
       <button
         onClick={() => setSelectedReport(report)}
         className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors"

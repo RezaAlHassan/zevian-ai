@@ -19,13 +19,13 @@ interface TableProps {
   onSort?: (column: string, direction: SortDirection) => void;
 }
 
-const Table: React.FC<TableProps> = ({ 
-  headers, 
-  rows, 
+const Table: React.FC<TableProps> = ({
+  headers,
+  rows,
   sortable = false,
   sortColumn = null,
   sortDirection = null,
-  onSort 
+  onSort
 }) => {
   const handleSort = (columnKey: string, isSortable: boolean) => {
     if (!isSortable || !onSort) return;
@@ -44,7 +44,7 @@ const Table: React.FC<TableProps> = ({
 
   const getSortIcon = (columnKey: string, isSortable: boolean) => {
     if (!isSortable) return null;
-    
+
     if (sortColumn === columnKey) {
       if (sortDirection === 'asc') {
         return <ArrowUp size={14} className="ml-1 text-primary" />;
@@ -63,16 +63,16 @@ const Table: React.FC<TableProps> = ({
   });
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="rounded-lg border border-border overflow-hidden">
       <table className="w-full text-sm text-left">
         <thead className="bg-surface border-b border-border">
           <tr>
             {normalizedHeaders.map((header, index) => {
               const isSortable = sortable && (header.sortable !== false);
               return (
-                <th 
-                  key={header.key || index} 
-                  scope="col" 
+                <th
+                  key={header.key || index}
+                  scope="col"
                   className={`
                     px-4 py-3 text-xs font-semibold text-on-surface-tertiary uppercase tracking-wider
                     ${isSortable ? 'cursor-pointer hover:bg-surface-hover select-none' : ''}
@@ -91,8 +91,8 @@ const Table: React.FC<TableProps> = ({
         </thead>
         <tbody className="divide-y divide-border">
           {rows.map((row, rowIndex) => (
-            <tr 
-              key={rowIndex} 
+            <tr
+              key={rowIndex}
               className="bg-surface-elevated hover:bg-surface-hover transition-colors"
             >
               {row.map((cell, cellIndex) => (

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Page, ViewMode, EmployeeRole, Invitation, Project, Employee } from '../types';
-import { Target, FileText, Users, User, LayoutDashboard, List, Search, FolderKanban, UserPlus } from 'lucide-react';
+import { Target, FileText, Users, User, LayoutDashboard, List, Search, FolderKanban, UserPlus, Building2 } from 'lucide-react';
 import InviteUserModal from './InviteUserModal';
 
 interface SidebarProps {
@@ -111,6 +111,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               label="Employees"
               to="/employees"
               icon={<User size={18} />}
+            />
+            <NavButton
+              label="Organization"
+              to="/organization"
+              icon={<Building2 size={18} />}
             />
           </>
         ) : (

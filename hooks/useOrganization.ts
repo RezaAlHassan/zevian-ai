@@ -7,25 +7,27 @@ export const useOrganization = (organizationId?: string) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
+    const fetchOrganization = async () => {
+        if (!organizationId) return;
+        try {
+            setLoading(true);
+            const data = await organizationService.getById(organizationId);
+            setOrganization(data);
+            setError(null);
+        } catch (err: any) {
+            console.error('Error fetching organization:', err);
+            setError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (!organizationId) {
             setLoading(false);
+            setOrganization(null);
             return;
         }
-
-        const fetchOrganization = async () => {
-            try {
-                setLoading(true);
-                const data = await organizationService.getById(organizationId);
-                setOrganization(data);
-                setError(null);
-            } catch (err: any) {
-                console.error('Error fetching organization:', err);
-                setError(err);
-            } finally {
-                setLoading(false);
-            }
-        };
 
         fetchOrganization();
     }, [organizationId]);
@@ -47,6 +49,7 @@ export const useOrganization = (organizationId?: string) => {
         organization,
         loading,
         error,
-        updateOrganizationMetrics
+        updateOrganizationMetrics,
+        refreshOrganization: fetchOrganization
     };
 };

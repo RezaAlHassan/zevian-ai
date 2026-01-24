@@ -36,6 +36,9 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
     setIsOpen(false);
     if (action === 'settings' && onNavigateToSettings) {
       onNavigateToSettings();
+    } else if (action === 'organization' && onNavigateToSettings) {
+      // For now, mapping organization to settings navigation if specifically for org settings
+      onNavigateToSettings();
     } else if (action === 'account' && onNavigateToAccount) {
       onNavigateToAccount();
     } else if (action === 'logout' && onLogout) {

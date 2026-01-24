@@ -29,9 +29,10 @@ interface ProjectsPageProps {
   viewMode?: 'manager' | 'employee';
   scopeFilter?: 'direct-reports' | 'organization';
   searchQuery?: string;
+  organizationId?: string;
 }
 
-const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updateProject, deleteProject, employees, goals = [], reports = [], onSelectProject, currentEmployeeId, currentManagerId, viewMode = 'employee', scopeFilter = 'direct-reports', searchQuery }) => {
+const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updateProject, deleteProject, employees, goals = [], reports = [], onSelectProject, currentEmployeeId, currentManagerId, viewMode = 'employee', scopeFilter = 'direct-reports', searchQuery, organizationId }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectName, setProjectName] = useState('');
@@ -181,6 +182,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         // Create new project
         addProject({
           id: `project-${Date.now()}`,
+          organizationId: organizationId || '',
           name: projectName,
           description: finalDescription,
           category: projectCategory,
@@ -377,7 +379,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         {/* Header with Create Button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FolderKanban size={28} className="text-on-surface-secondary" />
             <h2 className="text-xl font-bold text-on-surface">Projects</h2>
           </div>
           <Button

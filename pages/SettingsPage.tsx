@@ -189,7 +189,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   return (
     <div className="w-full px-6 py-6 space-y-6">
       <div className="flex items-center gap-3 mb-6">
-        <Settings size={28} className="text-on-surface-secondary" />
         <h2 className="text-xl font-bold text-on-surface">Manager Settings</h2>
       </div>
 

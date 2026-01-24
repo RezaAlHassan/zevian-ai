@@ -1,7 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import { X, CheckCircle, ArrowRight, ArrowLeft, Rocket, Info, File, Paperclip } from 'lucide-react'; // Added File, Paperclip
+import { X, CheckCircle, ArrowRight, ArrowLeft, Rocket, Info, File, Paperclip, BarChart3 } from 'lucide-react'; // Added BarChart3
 import { Employee, Project, Goal, Criterion, ManagerSettings } from '../types';
+import { STANDARD_METRICS } from '../constants';
 import Input from './Input';
 import Button from './Button';
 import Select from './Select';
@@ -14,44 +15,44 @@ import FileInput from './FileInput';
 interface OnboardingProps {
   isOpen: boolean;
   onComplete: (data: OnboardingData) => void;
-  onSkip?: () => void;
 }
 
 export interface OnboardingData {
   organizationName: string;
+  selectedMetrics: string[];
   employees: Employee[];
   settings: ManagerSettings;
   project: Project | null;
   goal: Goal | null;
 }
 
-const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) => {
+const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   // Step 1: Welcome
   const [organizationName, setOrganizationName] = useState('');
 
-  // Step 2: Employees
+  // Step 2: Metrics
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['quality', 'reliability', 'business-value', 'documentation', 'collaboration']);
+
+  // Step 3: Employees
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [newEmployeeRole, setNewEmployeeRole] = useState<'manager' | 'employee'>('employee');
 
-  // Step 3: Accountability
+  // Step 4: Accountability
   const [globalFrequency, setGlobalFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('weekly'); // Default to weekly
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
-  // Step 3: Project
+  // Step 5: Project
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectCategory, setProjectCategory] = useState('');
   const [projectFiles, setProjectFiles] = useState<File[]>([]);
-  // const [knowledgeBaseLink, setKnowledgeBaseLink] = useState(''); // Removed
-  const [showProjectInfoModal, setShowProjectInfoModal] = useState(false);
 
-  // Step 4: Goal
-  // Step 5: Invite Users (moved from step 2, second last step)
+  // Step 6: Goal
   const [goalName, setGoalName] = useState('');
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [criterionName, setCriterionName] = useState('');
@@ -104,19 +105,21 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
       case 1:
         return organizationName.trim().length > 0;
       case 2:
-        return true; // Frequency is always valid
+        return selectedMetrics.length > 0;
       case 3:
+        return true; // Frequency is always valid
+      case 4:
         return projectName.trim().length > 0 &&
           projectCategory.trim().length > 0 &&
           projectDescription.trim().length > 0;
-      case 4:
+      case 5:
         return goalName.trim().length > 0 &&
           criteria.length > 0 &&
           totalWeight === 100 &&
           instructions.trim().length >= 10;
-      case 5:
-        return true; // Invite step can be skipped
       case 6:
+        return true; // Invite step can be skipped
+      case 7:
         return true;
       default:
         return false;
@@ -184,6 +187,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
 
     onComplete({
       organizationName,
+      selectedMetrics,
       employees,
       settings,
       project,
@@ -195,6 +199,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
 
   const stepLabels = [
     'Welcome',
+    'Metrics',
     'Frequency',
     'Project',
     'Goal',
@@ -207,14 +212,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
       case 1:
         return (
           <div className="space-y-6">
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
+            <div className="text-center space-y-1">
+              <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-2 shadow-sm border border-border">
                   <img src="/logo.png" alt="Performance Tracker Logo" className="w-10 h-10 object-contain" />
                 </div>
               </div>
               <h3 className="text-2xl font-semibold text-on-surface">Zevian</h3>
-              <p className="text-on-surface-secondary max-w-md mx-auto">
+              <p className="text-on-surface-secondary max-w-md mx-auto text-sm">
                 Track performance with AI-powered evaluations. Create projects, set goals with criteria, and generate objective reports that reduce bias and save time.
               </p>
             </div>
@@ -232,11 +237,64 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
       case 2:
         return (
           <div className="space-y-6">
-            <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold text-on-surface">Select Organizational Metrics</h3>
+              <p className="text-on-surface-secondary text-sm">
+                Choose the metrics your organization values most. These will be used to track progress and generate insights.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {STANDARD_METRICS.map((metric) => (
+                <div
+                  key={metric.id}
+                  onClick={() => {
+                    if (selectedMetrics.includes(metric.id)) {
+                      setSelectedMetrics(selectedMetrics.filter(id => id !== metric.id));
+                    } else {
+                      setSelectedMetrics([...selectedMetrics, metric.id]);
+                    }
+                  }}
+                  className={`
+                    p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md
+                    ${selectedMetrics.includes(metric.id)
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border bg-surface-elevated hover:border-on-surface-tertiary'
+                    }
+                  `}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`
+                      mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors
+                      ${selectedMetrics.includes(metric.id) ? 'bg-primary border-primary' : 'border-border'}
+                    `}>
+                      {selectedMetrics.includes(metric.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-on-surface">{metric.friendlyName}</h4>
+                      <p className="text-xs text-on-surface-secondary mt-1 leading-relaxed">
+                        {metric.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-1">
               <h3 className="text-xl font-semibold text-on-surface">Set Reporting Frequency</h3>
               <p className="text-on-surface-secondary text-sm">
                 Configure how often reports should be submitted. You can customize this per project later.
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-on-surface">Reporting Frequency</label>
               <Select
                 value={globalFrequency}
                 onChange={(e) => setGlobalFrequency(e.target.value as any)}
@@ -283,22 +341,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-semibold text-on-surface">Create Your First Project</h3>
-                <button
-                  onClick={() => setShowProjectInfoModal(true)}
-                  className="text-on-surface-secondary hover:text-primary transition-colors p-1 rounded hover:bg-surface-hover"
-                  title="Learn more about Projects and Goals"
-                >
-                  <Info size={20} />
-                </button>
-              </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold text-on-surface">Create Your First Project</h3>
               <p className="text-on-surface-secondary text-sm">
-                Projects organize your work and help track progress across teams and individuals.
+                Projects act as containers to organize related goals and track collective analytics. Think of them as folders for your work.
               </p>
             </div>
 
@@ -359,9 +408,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
                   onChange={handleFileSelect}
                 />
 
-                <div className="mt-3 flex gap-2 items-start bg-primary/5 border border-primary/20 rounded-lg p-3">
-                  <Info size={16} className="text-primary flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-on-surface-secondary">
+                <div className="mt-2 flex gap-2 items-start bg-primary/5 border border-primary/20 rounded-lg p-2">
+                  <Info size={14} className="text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] leading-tight text-on-surface-secondary">
                     This description, along with goal instructions and criteria, will be used by the AI to generate a comprehensive Knowledge Base for evaluating employee reports.
                   </p>
                 </div>
@@ -370,13 +419,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-6">
-            <div className="space-y-4">
+            <div className="space-y-1">
               <h3 className="text-xl font-semibold text-on-surface">Create Your First Goal</h3>
               <p className="text-on-surface-secondary text-sm">
-                Goals define what success looks like. Add criteria with weights and objective rules for AI evaluation.
+                Goals are what employees submit reports against. Define objective rules (instructions) and scoring categories (criteria) for AI evaluation.
               </p>
             </div>
 
@@ -461,14 +510,16 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="space-y-6">
-            <div className="space-y-4">
+            <div className="space-y-1">
               <h3 className="text-xl font-semibold text-on-surface">Invite Users</h3>
               <p className="text-on-surface-secondary text-sm">
                 Invite users to your organization. Managers can read reports, employees send reports. You can skip this step and invite users later.
               </p>
+            </div>
+            <div className="space-y-4">
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <Input
@@ -525,24 +576,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           </div>
         );
 
-      case 6:
+      case 7:
         return (
           <div className="space-y-6">
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
+            <div className="text-center space-y-1">
+              <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-success" />
                 </div>
               </div>
               <h3 className="text-2xl font-semibold text-on-surface">You're Ready to Go Live!</h3>
+              <p className="text-on-surface-secondary text-sm">Review your configuration before completing the setup.</p>
             </div>
 
-            <div className="bg-surface rounded-lg p-6 space-y-4">
+            <div className="bg-surface rounded-lg p-6 space-y-4 text-sm overflow-y-auto max-h-[400px]">
               <h4 className="font-semibold text-on-surface">Setup Summary</h4>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-on-surface-secondary">Organization:</span>
                   <span className="font-medium text-on-surface">{organizationName}</span>
+                </div>
+                <div className="flex justify-between border-b border-border pb-2 mb-2">
+                  <span className="text-on-surface-secondary">Metrics:</span>
+                  <span className="font-medium text-on-surface">{selectedMetrics.length} selected</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-on-surface-secondary">Employees:</span>
@@ -605,14 +661,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
               Step {currentStep} of {totalSteps}
             </span>
           </div>
-          {onSkip && (
-            <button
-              onClick={onSkip}
-              className="text-on-surface-secondary hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-hover"
-            >
-              <X size={24} />
-            </button>
-          )}
         </div>
 
         <div className="p-6">
@@ -649,47 +697,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           {renderStep()}
         </div>
 
-        {/* Project Info Modal */}
-        <Modal
-          isOpen={showProjectInfoModal}
-          onClose={() => setShowProjectInfoModal(false)}
-          title="Understanding Projects and Goals"
-        >
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-on-surface mb-2">What are Projects?</h4>
-              <p className="text-on-surface-secondary text-sm mb-3">
-                Projects act as an anchor point for several goals. Think of a project as a container that holds multiple related goals together.
-              </p>
-              <p className="text-on-surface-secondary text-sm">
-                Projects help you organize your work and measure analytics separately. For example, you might have a "Q4 Marketing Campaign" project that contains multiple goals like "Increase Website Traffic" and "Improve Social Media Engagement".
-              </p>
-            </div>
-            <div className="border-t border-border pt-4">
-              <h4 className="font-semibold text-on-surface mb-2">What are Goals?</h4>
-              <p className="text-on-surface-secondary text-sm mb-3">
-                Goals are tied to projects and are used to submit reports against. Each goal has specific criteria and rules that help evaluate performance.
-              </p>
-              <p className="text-on-surface-secondary text-sm">
-                When employees submit reports, they do so against a specific goal. The AI evaluates these reports based on the criteria and objective rules you define for each goal.
-              </p>
-            </div>
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mt-4">
-              <p className="text-sm text-on-surface">
-                <strong>Simple Summary:</strong> Projects are like folders that organize multiple goals. Goals are what employees submit reports against. You can track analytics for entire projects or individual goals.
-              </p>
-            </div>
-            <div className="border-t border-border pt-4">
-              <h4 className="font-semibold text-on-surface mb-2">Instructions vs Criteria</h4>
-              <p className="text-on-surface-secondary text-sm mb-3">
-                <strong className="text-on-surface">Instructions</strong> are specific, objective rules that the AI follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
-              </p>
-              <p className="text-on-surface-secondary text-sm">
-                <strong className="text-on-surface">Criteria</strong> are the broad categories on which performance is scored (e.g., "Code Quality", "Creativity", "Speed") and given a weight.
-              </p>
-            </div>
-          </div>
-        </Modal>
 
         <div className="sticky bottom-0 bg-surface-elevated px-6 py-4 border-t border-border flex justify-between items-center">
           <Button
@@ -702,7 +709,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete, onSkip }) =
           </Button>
           {currentStep < totalSteps ? (
             <>
-              {currentStep === 5 && (
+              {currentStep === 6 && (
                 <Button
                   onClick={handleNext}
                   variant="outline"

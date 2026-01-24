@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { projectService } from '../services/databaseService';
 import type { Project } from '../types';
 
-export function useProjects() {
+export function useProjects(organizationId?: string) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchProjects = useCallback(async () => {
+        if (!organizationId) {
+            setProjects([]);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -19,7 +25,7 @@ export function useProjects() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [organizationId]);
 
     useEffect(() => {
         fetchProjects();

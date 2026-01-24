@@ -122,6 +122,12 @@ const SetPasswordPage: React.FC = () => {
             localStorage.setItem('userRole', invitation.role);
             localStorage.setItem('onboardingCompleted', 'true');
 
+            // Persist to DB if possible (though RPC should handle this, let's be safe or just trust the next refresh)
+            const employeeId = rpcData?.employee_id;
+            if (employeeId) {
+                await employeeService.update(employeeId, { onboardingCompleted: true }).catch(console.error);
+            }
+
             // 4. Redirect
             setTimeout(() => {
                 navigate('/dashboard');

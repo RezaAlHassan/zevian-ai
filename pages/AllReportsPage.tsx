@@ -312,8 +312,8 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
     { key: 'employee', label: 'Employee', sortable: true },
     { key: 'project', label: 'Project', sortable: true },
     { key: 'goal', label: 'Goal', sortable: true },
-    { key: 'score', label: 'Score', sortable: true },
-    { key: 'preview', label: 'Preview', sortable: false },
+    { key: 'score', label: 'AI Score', sortable: true },
+    { key: 'managerScore', label: 'Manager Score', sortable: true },
     { key: 'actions', label: 'Actions', sortable: false },
   ];
   const reportTableRows = filteredReports.map((report) => {
@@ -330,8 +330,10 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
       <span className="capitalize text-on-surface-secondary">{employee?.name || 'Unknown'}</span>,
       <span className="capitalize text-on-surface-secondary">{project?.name || '—'}</span>,
       <span className="capitalize text-on-surface-secondary">{goal?.name || 'Unknown Goal'}</span>,
-      <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(1)}</span>,
-      <span className="capitalize text-on-surface-secondary truncate block">{previewText}...</span>,
+      <span className="capitalize text-on-surface-secondary font-medium">{report.evaluationScore.toFixed(1)}</span>,
+      <span className={`capitalize font-semibold ${report.managerOverallScore !== undefined ? 'text-primary' : 'text-on-surface-tertiary'}`}>
+        {report.managerOverallScore !== undefined ? report.managerOverallScore.toFixed(1) : '—'}
+      </span>,
       <button
         onClick={() => setSelectedReport(report)}
         className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors whitespace-nowrap"
@@ -346,8 +348,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
     <div className="w-full px-6 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FileText size={28} className="text-on-surface-secondary" />
-          <h2 className="text-xl font-bold text-on-surface">All Reports</h2>
+          <h2 className="text-xl font-bold text-on-surface">Reports</h2>
           {hasActiveFilters && (
             <span className="px-2 py-1 text-xs bg-primary/20 text-primary rounded-full">
               {filteredReports.length} result{filteredReports.length !== 1 ? 's' : ''}

@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Goal, Report, Employee, Project, ManagerSettings, ReportCriterionScore } from '../types';
+import { Goal, Report, Employee, Project, ManagerSettings, ReportCriterionScore, Organization } from '../types';
 import { evaluateReport } from '../services/geminiService';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
-import RichTextEditor from '../components/RichTextEditor';
+
 import Button from '../components/Button';
 import Select from '../components/Select';
-import { CheckCircle, AlertTriangle, Eye, Target, Plus, Paperclip, Mic, FileText, Send, ChevronDown, ChevronUp, Calendar, FolderKanban, Info } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Target, Paperclip, Send, ChevronDown, ChevronUp, Calendar, FolderKanban, Info } from 'lucide-react';
+import { STANDARD_METRICS } from '../constants';
 
 interface SubmitReportPageProps {
   goals: Goal[];
@@ -16,9 +17,10 @@ interface SubmitReportPageProps {
   currentEmployeeId?: string;
   isEmployeeView?: boolean;
   settings?: ManagerSettings;
+  organization?: Organization;
 }
 
-const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, addReport, employees, currentEmployeeId, isEmployeeView = false, settings }) => {
+const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, addReport, employees, currentEmployeeId, isEmployeeView = false, settings, organization }) => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
     isEmployeeView && currentEmployeeId ? currentEmployeeId : (employees[0]?.id || '')
   );
@@ -72,7 +74,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
   // Get goals that belong to the selected project
   const availableGoals = useMemo(() => {
     if (!selectedProjectId) return [];
-    return goals.filter(goal => goal.projectId === selectedProjectId);
+    return goals.filter(goal => goal.projectId === selectedProjectId && goal.status !== 'completed');
   }, [goals, selectedProjectId]);
 
   const selectedProject = useMemo(() => {
@@ -130,16 +132,70 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
         const goalToEvaluate = goals.find(g => g.id === goalId);
         if (!goalToEvaluate) continue;
 
-        const evaluation = await evaluateReport(plainText, goalToEvaluate.criteria);
+        // Get project knowledge base and selected metrics for comprehensive evaluation
+        const projectKnowledgeBase = selectedProject?.aiContext;
+        const organizationMetrics = organization?.selectedMetrics;
 
-        const totalWeight = goalToEvaluate.criteria.reduce((sum, c) => sum + c.weight, 0);
-        const overallScore = evaluation.criteriaScores.reduce((weightedSum, scoreItem) => {
-          const criterion = goalToEvaluate.criteria.find(c => c.name === scoreItem.criterionName);
+        const evaluation = await evaluateReport(
+          plainText,
+          goalToEvaluate.criteria,
+          goalToEvaluate.instructions, // Goal instructions provide specific context
+          projectKnowledgeBase, // Project knowledge base for domain-specific evaluation
+          organizationMetrics // Organizational metrics to evaluate alongside criteria
+        );
+
+        // Helper to normalize strings for robust matching
+        const normalize = (s: string) => s.toLowerCase().trim();
+
+        // Separate goal criteria scores from organizational metric scores using robust matching
+        const goalCriteriaScores = evaluation.criteriaScores.filter(scoreItem =>
+          goalToEvaluate.criteria.some(c => normalize(c.name) === normalize(scoreItem.criterionName))
+        );
+
+        const orgMetricScores = evaluation.criteriaScores.filter(scoreItem =>
+          !goalToEvaluate.criteria.some(c => normalize(c.name) === normalize(scoreItem.criterionName))
+        );
+
+        // Calculate weighted average for goal criteria
+        const totalCriteriaWeight = goalToEvaluate.criteria.reduce((sum, c) => sum + c.weight, 0);
+        let goalCriteriaScore = goalCriteriaScores.reduce((weightedSum, scoreItem) => {
+          const criterion = goalToEvaluate.criteria.find(c => normalize(c.name) === normalize(scoreItem.criterionName));
           if (criterion) {
-            return weightedSum + (scoreItem.score * (criterion.weight / totalWeight));
+            return weightedSum + (scoreItem.score * (criterion.weight / totalCriteriaWeight));
           }
           return weightedSum;
         }, 0);
+
+        // Fallback: If AI returned scores but none matched the criteria names exactly (potentially due to AI misnaming), 
+        // use the average of all criteria scores as the goal score to avoid a 0.7 weight penalty.
+        if (goalCriteriaScores.length === 0 && goalToEvaluate.criteria.length > 0 && evaluation.criteriaScores.length > 0) {
+          console.warn("Matching failed for goal criteria, falling back to simple average of all scores.");
+          goalCriteriaScore = evaluation.criteriaScores.reduce((sum, s) => sum + s.score, 0) / evaluation.criteriaScores.length;
+        }
+
+        // Calculate simple average for organizational metrics (all weighted equally)
+        const orgMetricsScore = orgMetricScores.length > 0
+          ? orgMetricScores.reduce((sum, scoreItem) => sum + scoreItem.score, 0) / orgMetricScores.length
+          : 0;
+
+        // Combine scores with appropriate weighting
+        // Goal criteria: 70% of total score
+        // Organizational metrics: 30% of total score (if present)
+        const goalCriteriaWeight = 0.7;
+        const orgMetricsWeight = 0.3;
+
+        let overallScore;
+        if (orgMetricScores.length > 0 && goalToEvaluate.criteria.length > 0) {
+          overallScore = (goalCriteriaScore * goalCriteriaWeight) + (orgMetricsScore * orgMetricsWeight);
+        } else if (goalToEvaluate.criteria.length > 0) {
+          overallScore = goalCriteriaScore; // 100% Goal
+        } else if (orgMetricScores.length > 0) {
+          overallScore = orgMetricsScore; // 100% Org Metrics if no goal criteria defined
+        } else {
+          overallScore = evaluation.criteriaScores.length > 0
+            ? evaluation.criteriaScores.reduce((sum, s) => sum + s.score, 0) / evaluation.criteriaScores.length
+            : 0;
+        }
 
         newEvaluations.set(goalId, {
           evaluationScore: parseFloat(overallScore.toFixed(2)),
@@ -238,9 +294,43 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
       <div className="w-full px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-on-surface mb-2">Submit Report</h1>
+          <h1 className="text-2xl font-bold text-on-surface mb-2">Submit Work Report</h1>
           <p className="text-sm text-on-surface-secondary">
             Select a project, then choose a goal to submit your work report.
+          </p>
+        </div>
+
+        {/* Organizational Metrics Info - Moved to top for visibility */}
+        {(() => {
+          const metricsToShow = organization?.selectedMetrics && organization.selectedMetrics.length > 0
+            ? organization.selectedMetrics
+            : [];
+
+          if (metricsToShow.length === 0) return null;
+
+          return (
+            <div className="mb-8 p-5 bg-surface/30 border border-border rounded-xl">
+              <h2 className="text-base font-semibold text-on-surface mb-1">Company-Wide Standards</h2>
+              <p className="text-xs text-on-surface-secondary mb-4">
+                Beyond your specific goals, every report is evaluated against these organizational excellence metrics (30% of total score):
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {metricsToShow.map(metricId => {
+                  const metric = STANDARD_METRICS.find(m => m.id === metricId);
+                  if (!metric) return null;
+                  return (
+                    <div key={metric.id} className="bg-white border border-border rounded-lg p-3 hover:border-primary/50 transition-all shadow-sm">
+                      <h3 className="font-bold text-primary text-xs mb-1">{metric.friendlyName}</h3>
+                      <p className="text-[10px] text-on-surface-secondary leading-tight line-clamp-2">{metric.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+        <div >
+          <p>
           </p>
         </div>
 
@@ -405,15 +495,19 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
         {/* Report Input Section */}
         {selectedGoalIds.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-on-surface mb-4">
+            <h2 className="text-xl font-semibold text-on-surface mb-2">
               Report Details {selectedGoalIds.length > 1 && `(${selectedGoalIds.length} goals selected)`}
             </h2>
-            <div className="bg-white border border-border rounded-lg p-4">
-              <RichTextEditor
+            <p className="text-sm text-on-surface-secondary mb-4">
+              Focus on clarity and results. The analysis looks beyond keywords to understand the actual value delivered.
+            </p>
+
+            <div className="bg-white border border-border rounded-lg">
+              <textarea
                 value={reportText}
-                onChange={setReportText}
+                onChange={(e) => setReportText(e.target.value)}
                 placeholder="Describe the work you've completed, challenges faced, and outcomes achieved..."
-                minLength={50}
+                className="w-full h-48 p-4 bg-transparent border-0 focus:ring-0 resize-none text-on-surface placeholder:text-on-surface-tertiary"
               />
             </div>
           </div>
@@ -438,14 +532,8 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
         {selectedGoalIds.length > 0 && (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button className="p-2 text-on-surface-secondary hover:text-on-surface hover:bg-surface-hover rounded-lg transition-all">
+              <button className="p-2 text-on-surface-secondary hover:text-on-surface hover:bg-surface-hover rounded-lg transition-all" title="Add attachment">
                 <Paperclip size={18} />
-              </button>
-              <button className="p-2 text-on-surface-secondary hover:text-on-surface hover:bg-surface-hover rounded-lg transition-all">
-                <Mic size={18} />
-              </button>
-              <button className="p-2 text-on-surface-secondary hover:text-on-surface hover:bg-surface-hover rounded-lg transition-all">
-                <FileText size={18} />
               </button>
             </div>
             <div className="flex items-center gap-3">
