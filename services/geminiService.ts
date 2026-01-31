@@ -1,8 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Criterion, Report, ReportCriterionScore, Goal, Employee } from '../types';
+import { Criterion, Report, ReportCriterionScore, Goal, Employee, KnowledgeBaseData, KnowledgePin } from '../types';
 import { STANDARD_METRICS } from '../constants';
 
-const getAI = () => {
+const getZevian = () => {
     const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
     if (!apiKey) {
         throw new Error("VITE_GOOGLE_API_KEY is missing. Please add it to your environment variables.");
@@ -31,7 +31,7 @@ export const getReportFeedback = async (reportText: string, criteria: Criterion[
     Please provide your feedback now.`;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
             config: {
@@ -41,7 +41,7 @@ export const getReportFeedback = async (reportText: string, criteria: Criterion[
         });
         return response.text;
     } catch (error) {
-        console.error("Error getting report feedback from Gemini:", error);
+        console.error("Error getting report feedback from Zevian:", error);
         throw new Error("Failed to get report feedback. Please try again.");
     }
 };
@@ -101,7 +101,7 @@ export const evaluateReport = async (
   `;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
             config: {
@@ -142,7 +142,7 @@ export const evaluateReport = async (
         return result;
 
     } catch (error) {
-        console.error("Error evaluating report with Gemini:", error);
+        console.error("Error evaluating report with Zevian:", error);
         throw new Error("Failed to get evaluation. Please check your API key and try again.");
     }
 };
@@ -162,13 +162,13 @@ export const summarizePerformance = async (reasonings: string[], averageScores: 
     Summary:`;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
         });
         return response.text;
     } catch (error) {
-        console.error("Error summarizing performance with Gemini:", error);
+        console.error("Error summarizing performance with Zevian:", error);
         throw new Error("Failed to generate performance summary.");
     }
 };
@@ -217,7 +217,7 @@ export const summarizeTeamPerformance = async (params: {
     Please provide the Senior Engineering Manager summary now.`;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
             config: {
@@ -227,7 +227,7 @@ export const summarizeTeamPerformance = async (params: {
         });
         return response.text;
     } catch (error) {
-        console.error("Error summarizing team performance with Gemini:", error);
+        console.error("Error summarizing team performance with Zevian:", error);
         throw new Error("Failed to generate team performance summary.");
     }
 };
@@ -261,7 +261,7 @@ export const generateInsights = async (reports: Report[]): Promise<{ strengths: 
     `;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
             config: {
@@ -281,7 +281,7 @@ export const generateInsights = async (reports: Report[]): Promise<{ strengths: 
         const jsonText = response.text.trim();
         return JSON.parse(jsonText) as { strengths: string; improvements: string; };
     } catch (error) {
-        console.error("Error generating insights with Gemini:", error);
+        console.error("Error generating insights with Zevian:", error);
         throw new Error("Failed to generate insights.");
     }
 };
@@ -293,7 +293,8 @@ export const generateKnowledgeBase = async (params: {
     reports: Report[];
     employees: Employee[];
     fileContents?: { name: string; content: string }[];
-}): Promise<string> => {
+    pinnedItems?: KnowledgePin[];
+}): Promise<KnowledgeBaseData> => {
     const model = 'gemini-2.5-flash';
 
     const goalSummary = params.goals.map(g =>
@@ -317,11 +318,16 @@ export const generateKnowledgeBase = async (params: {
         `File [${f.name}]:\n${f.content}`
     ).join('\n\n') || 'No additional files provided.';
 
+    const pinnedContent = params.pinnedItems && params.pinnedItems.length > 0
+        ? params.pinnedItems.map(p => `[${p.section.toUpperCase()}] ${p.content}`).join('\n')
+        : 'No pinned rules.';
+
     const systemInstruction = `You are a project documentation specialist. Your task is to synthesize project data into a structured JSON knowledge base for AI-driven performance evaluation.
 
 CRITICAL INSTRUCTIONS:
-1. Analyze ALL input data comprehensively
-2. Extract technical terms, acronyms, and project-specific vocabulary
+1. Analyze ALL input data comprehensively.
+2. Respect MANDATORY PINNED RULES/OVERRIDES provided. These are absolute truth and must not be contradicted.
+3. Extract technical terms, acronyms, and project-specific vocabulary.
 3. Identify success patterns from high-performance reports
 4. Detect implicit challenges or constraints mentioned in descriptions
 5. Output ONLY valid JSON - no markdown, no explanation text
@@ -344,6 +350,9 @@ ${goalSummary}
 
 5. ALL REPORTS SUMMARY:
 ${allReportsSummary || 'No reports submitted yet'}
+
+6. MANDATORY PINNED RULES (HARD CONSTRAINTS):
+${pinnedContent}
 
 ### TASK:
 Create a structured JSON knowledge base that standardizes the following:
@@ -371,7 +380,7 @@ Create a structured JSON knowledge base that standardizes the following:
 Return ONLY the JSON object. Ensure it is concise, factual, and removes redundant fluff.`;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
             config: {
@@ -414,33 +423,13 @@ Return ONLY the JSON object. Ensure it is concise, factual, and removes redundan
             }
         });
 
-        // Parse and format the JSON for display
-        const jsonData = JSON.parse(response.text);
 
-        // Convert to human-readable format
-        let formatted = `PROJECT DESCRIPTION\n${jsonData.projectDescription}\n\n`;
+        // Parse the JSON
+        const jsonData = JSON.parse(response.text) as KnowledgeBaseData;
+        return jsonData;
 
-        formatted += `ROADMAPS AND KPIS\n${jsonData.roadmapsAndKPIs.map((kpi: string, i: number) => `${i + 1}. ${kpi}`).join('\n')}\n\n`;
-
-        formatted += `PROJECT LEXICON\n`;
-        if (Array.isArray(jsonData.projectLexicon)) {
-            jsonData.projectLexicon.forEach((item: { term: string; definition: string }) => {
-                formatted += `• ${item.term}: ${item.definition}\n`;
-            });
-        }
-        formatted += '\n';
-
-        formatted += `OPERATIONAL PRIORITIES\n${jsonData.operationalPriorities.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}\n\n`;
-
-        formatted += `STYLE AND QUALITY BENCHMARKS\n${jsonData.styleAndQualityBenchmarks}\n\n`;
-
-        if (jsonData.implicitConstraints && jsonData.implicitConstraints.length > 0) {
-            formatted += `IMPLICIT CONSTRAINTS\n${jsonData.implicitConstraints.map((c: string) => `• ${c}`).join('\n')}`;
-        }
-
-        return formatted;
     } catch (error) {
-        console.error("Error generating knowledge base with Gemini:", error);
+        console.error("Error generating knowledge base with Zevian:", error);
         throw new Error("Failed to generate comprehensive knowledge base.");
     }
 };
@@ -488,7 +477,7 @@ export const analyzeSkillMetrics = async (
     Please provide the scores now as a JSON object of { "metricId": score }.`;
 
     try {
-        const response = await getAI().models.generateContent({
+        const response = await getZevian().models.generateContent({
             model: model,
             contents: prompt,
             config: {
@@ -501,7 +490,7 @@ export const analyzeSkillMetrics = async (
         const jsonText = response.text.trim();
         return JSON.parse(jsonText);
     } catch (error) {
-        console.error("Error analyzing skill metrics with Gemini:", error);
+        console.error("Error analyzing skill metrics with Zevian:", error);
         throw new Error("Failed to analyze skills.");
     }
 };

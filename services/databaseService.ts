@@ -76,6 +76,7 @@ function dbProjectToProject(dbProject: any): Project {
         reportFrequency: dbProject.report_frequency,
         knowledgeBaseLink: dbProject.knowledge_base_link,
         aiContext: dbProject.ai_context,
+        knowledgeBaseCache: dbProject.knowledge_base_cache,
         createdBy: dbProject.created_by,
         assignees: [], // Assignees are loaded separately
     };
@@ -163,6 +164,7 @@ export const projectService = {
         if (updates.reportFrequency !== undefined) dbUpdates.report_frequency = updates.reportFrequency;
         if (updates.knowledgeBaseLink !== undefined) dbUpdates.knowledge_base_link = updates.knowledgeBaseLink;
         if (updates.aiContext !== undefined) dbUpdates.ai_context = updates.aiContext;
+        if (updates.knowledgeBaseCache !== undefined) dbUpdates.knowledge_base_cache = updates.knowledgeBaseCache;
 
         const { data, error } = await supabase
             .from('projects')
@@ -399,6 +401,7 @@ function dbReportToReport(dbReport: any): Report {
         evaluationScore: dbReport.evaluation_score,
         managerOverallScore: dbReport.manager_overall_score,
         managerOverrideReasoning: dbReport.manager_override_reasoning,
+        managerFeedback: dbReport.manager_feedback,
         evaluationReasoning: dbReport.evaluation_reasoning,
         criterionScores: dbReport.report_criterion_scores ? dbReport.report_criterion_scores.map((s: any) => ({
             criterionName: s.criterion_name,
@@ -545,6 +548,7 @@ export const reportService = {
         if (updates.evaluationScore !== undefined) dbUpdates.evaluation_score = updates.evaluationScore;
         if (updates.managerOverallScore !== undefined) dbUpdates.manager_overall_score = updates.managerOverallScore;
         if (updates.managerOverrideReasoning !== undefined) dbUpdates.manager_override_reasoning = updates.managerOverrideReasoning;
+        if (updates.managerFeedback !== undefined) dbUpdates.manager_feedback = updates.managerFeedback;
         if (updates.evaluationReasoning !== undefined) dbUpdates.evaluation_reasoning = updates.evaluationReasoning;
 
         const { data, error } = await supabase
@@ -620,9 +624,9 @@ export const employeeService = {
             .from('employees')
             .select('*, employee_permissions(*)')
             .eq('email', email)
-            .single();
+            .maybeSingle();
         if (error) throw error;
-        return dbEmployeeToEmployee(data);
+        return data ? dbEmployeeToEmployee(data) : null;
     },
 
     async getByAuthId(authUserId: string) {

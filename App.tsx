@@ -34,6 +34,7 @@ import { useOrganization } from './hooks/useOrganization';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { inviteService } from './services/inviteService';
 import { invitationService } from './services/invitationService';
+import { storageService } from './services/storageService';
 
 // Wrapper component to access router hooks
 const AppContent: React.FC = () => {
@@ -457,7 +458,7 @@ const AppContent: React.FC = () => {
         // Only run if user is logged in
         if (user) {
           // Simplified check for manager paths:
-          if (path === '/projects' || path === '/goals' || path === '/employees' || path === '/all-reports' || path === '/settings') {
+          if (path === '/employees' || path === '/all-reports' || path === '/settings') {
             navigate('/dashboard');
           }
         }
@@ -569,6 +570,25 @@ const AppContent: React.FC = () => {
         createdBy: ownerId || 'emp-1',
       };
       await addProject(projectWithOrg);
+
+      // Upload files if any
+      if (data.projectFiles && data.projectFiles.length > 0) {
+        console.log('[App] Uploading onboarding project files...');
+        try {
+          await Promise.all(
+            data.projectFiles.map(file =>
+              storageService.uploadFile(
+                projectWithOrg.id,
+                file,
+                ownerId || 'emp-1'
+              )
+            )
+          );
+        } catch (error) {
+          console.error('[App] Failed to upload onboarding files:', error);
+          // Non-blocking error, user can retry in KB page
+        }
+      }
     }
 
     if (data.goal && data.project) {
@@ -695,6 +715,7 @@ const AppContent: React.FC = () => {
                   currentManagerId={viewMode === 'manager' ? currentManagerId : undefined}
                   isEmployeeView={viewMode === 'employee'}
                   viewMode={viewMode}
+                  scopeFilter={scopeFilter}
                   onNavigate={(page) => navigate(`/${page}`)}
                   onSelectEmployee={viewEmployeeDetails}
                   onSelectProject={viewProjectDetails}
@@ -713,6 +734,7 @@ const AppContent: React.FC = () => {
                   currentManagerId={viewMode === 'manager' ? currentManagerId : undefined}
                   isEmployeeView={viewMode === 'employee'}
                   viewMode={viewMode}
+                  scopeFilter={scopeFilter}
                   onNavigate={(page) => navigate(`/${page}`)}
                   onSelectEmployee={viewEmployeeDetails}
                   onSelectProject={viewProjectDetails}

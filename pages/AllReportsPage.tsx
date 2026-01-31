@@ -54,29 +54,56 @@ const ReportPreviewModal: React.FC<{
         <div>
           <h3 className="text-lg font-semibold text-on-surface mb-1 flex items-center gap-2">
             <TrendingUp size={20} className="text-on-surface-secondary" />
-            AI Analysis
+            Zevian Analysis
           </h3>
           <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
             "{report.evaluationReasoning}"
           </div>
         </div>
-        <div>
-          <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score</h3>
-          <div className="bg-surface p-4 rounded-lg border border-border">
-            <div className="flex items-center justify-between">
-              <span className="text-on-surface font-medium">Overall Score</span>
-              <span className="text-2xl font-bold text-primary">{report.evaluationScore.toFixed(2)}</span>
+        {/* Score & Feedback Section */}
+        <div className="border-t border-border pt-6">
+          <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
+          <div className="space-y-4">
+            <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
+              <span className="font-medium text-on-surface">Overall Score</span>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-primary">
+                  {(report.managerOverallScore != null ? report.managerOverallScore : (report.evaluationScore || 0)).toFixed(2)}
+                </span>
+                {report.managerOverallScore != null && (
+                  <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                )}
+              </div>
             </div>
+
+            {report.managerFeedback && (
+              <div>
+                <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                  {report.managerFeedback}
+                </div>
+              </div>
+            )}
+
+            {report.managerOverrideReasoning && (
+              <div>
+                <h4 className="text-sm font-semibold text-on-surface mb-2">Override Reasoning</h4>
+                <div className="bg-surface p-4 rounded-lg border border-border text-on-surface-secondary italic text-sm">
+                  "{report.managerOverrideReasoning}"
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
         <div>
-          <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
+          <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
           <div className="space-y-2">
             {report.criterionScores.map((score, index) => (
               <div key={index} className="bg-surface p-3 rounded-lg border border-border">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-on-surface">{score.criterionName}</span>
-                  <span className="text-sm font-semibold text-primary">{score.score.toFixed(1)}</span>
+                  <span className="text-sm font-semibold text-primary">{(score.score || 0).toFixed(1)}</span>
                 </div>
               </div>
             ))}
@@ -312,7 +339,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
     { key: 'employee', label: 'Employee', sortable: true },
     { key: 'project', label: 'Project', sortable: true },
     { key: 'goal', label: 'Goal', sortable: true },
-    { key: 'score', label: 'AI Score', sortable: true },
+    { key: 'score', label: 'Zevian Score', sortable: true },
     { key: 'managerScore', label: 'Manager Score', sortable: true },
     { key: 'actions', label: 'Actions', sortable: false },
   ];
@@ -330,16 +357,16 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
       <span className="capitalize text-on-surface-secondary">{employee?.name || 'Unknown'}</span>,
       <span className="capitalize text-on-surface-secondary">{project?.name || '—'}</span>,
       <span className="capitalize text-on-surface-secondary">{goal?.name || 'Unknown Goal'}</span>,
-      <span className="capitalize text-on-surface-secondary font-medium">{report.evaluationScore.toFixed(1)}</span>,
-      <span className={`capitalize font-semibold ${report.managerOverallScore !== undefined ? 'text-primary' : 'text-on-surface-tertiary'}`}>
-        {report.managerOverallScore !== undefined ? report.managerOverallScore.toFixed(1) : '—'}
+      <span className="capitalize text-on-surface-secondary font-medium">{(report.evaluationScore || 0).toFixed(1)}</span>,
+      <span className={`capitalize font-semibold ${report.managerOverallScore != null ? 'text-primary' : 'text-on-surface-tertiary'}`}>
+        {report.managerOverallScore != null ? report.managerOverallScore.toFixed(1) : '—'}
       </span>,
       <button
         onClick={() => setSelectedReport(report)}
-        className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors whitespace-nowrap"
+        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+        title="View Details"
       >
-        <Eye size={16} strokeWidth={2} />
-        View Details
+        <Eye size={18} strokeWidth={2} />
       </button>
     ];
   });

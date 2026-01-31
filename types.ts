@@ -57,6 +57,7 @@ export interface Project {
   reportFrequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'custom';
   knowledgeBaseLink?: string;
   aiContext?: string; // Context for AI to keep track of project reports and updates
+  knowledgeBaseCache?: KnowledgeBaseData; // Structured AI-generated content
   createdBy?: string; // ID of the employee/manager who created this project
 }
 
@@ -148,5 +149,23 @@ export interface Notification {
   linkUrl?: string;
   isRead: boolean;
   createdAt: string;
+}
+
+export interface KnowledgePin {
+  id: string;
+  projectId: string;
+  section: 'lexicon' | 'priorities' | 'benchmarks' | 'constraints' | 'general';
+  content: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface KnowledgeBaseData {
+  projectDescription: string;
+  roadmapsAndKPIs: string[];
+  projectLexicon: { term: string; definition: string }[];
+  operationalPriorities: string[];
+  styleAndQualityBenchmarks: string;
+  implicitConstraints: string[];
 }
 

@@ -13,6 +13,7 @@ const RegisterPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [verificationRequired, setVerificationRequired] = useState(false);
     const navigate = useNavigate();
 
     const handleRegister = async (e: React.FormEvent) => {
@@ -43,6 +44,7 @@ const RegisterPage: React.FC = () => {
                     }, 1500);
                 } else {
                     // Email confirmation required
+                    setVerificationRequired(true);
                     setSuccess(true);
                     // Do not redirect; let user read message
                 }
@@ -60,13 +62,33 @@ const RegisterPage: React.FC = () => {
                     <div className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-success" />
                     </div>
-                    <h2 className="text-2xl font-bold text-on-surface mb-2">Account Created!</h2>
+                    <h2 className="text-2xl font-bold text-on-surface mb-2">
+                        {verificationRequired ? 'Verify Your Account' : 'Account Created!'}
+                    </h2>
                     <p className="text-on-surface-secondary mb-6">
-                        Please check your email to confirm your account, then log in.
+                        {verificationRequired
+                            ? 'We have sent a confirmation link to your email. Please verify your account before logging in.'
+                            : 'Redirecting you to the dashboard...'}
                     </p>
-                    <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    </div>
+
+                    {verificationRequired ? (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-surface rounded-lg border border-border text-sm text-on-surface-secondary">
+                                <p>Didn't receive the email? Check your spam folder.</p>
+                            </div>
+                            <Button
+                                onClick={() => navigate('/login')}
+                                variant="primary"
+                                className="w-full justify-center"
+                            >
+                                Back to Login
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        </div>
+                    )}
                 </div>
             </div>
         );

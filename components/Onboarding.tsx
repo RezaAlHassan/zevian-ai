@@ -23,6 +23,7 @@ export interface OnboardingData {
   employees: Employee[];
   settings: ManagerSettings;
   project: Project | null;
+  projectFiles: File[];
   goal: Goal | null;
 }
 
@@ -191,6 +192,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
       employees,
       settings,
       project,
+      projectFiles, // Pass uploaded files
       goal,
     });
   };
@@ -220,7 +222,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               </div>
               <h3 className="text-2xl font-semibold text-on-surface">Zevian</h3>
               <p className="text-on-surface-secondary max-w-md mx-auto text-sm">
-                Track performance with AI-powered evaluations. Create projects, set goals with criteria, and generate objective reports that reduce bias and save time.
+                Track performance with Zevian-powered evaluations. Create projects, set goals with criteria, and generate objective reports that reduce bias and save time.
               </p>
             </div>
             <div className="space-y-2">
@@ -411,7 +413,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                 <div className="mt-2 flex gap-2 items-start bg-primary/5 border border-primary/20 rounded-lg p-2">
                   <Info size={14} className="text-primary flex-shrink-0 mt-0.5" />
                   <p className="text-[10px] leading-tight text-on-surface-secondary">
-                    This description, along with goal instructions and criteria, will be used by the AI to generate a comprehensive Knowledge Base for evaluating employee reports.
+                    This description, along with goal instructions and criteria, will be used by Zevian to generate a comprehensive Knowledge Base for evaluating employee reports.
                   </p>
                 </div>
               </div>
@@ -425,7 +427,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
             <div className="space-y-1">
               <h3 className="text-xl font-semibold text-on-surface">Create Your First Goal</h3>
               <p className="text-on-surface-secondary text-sm">
-                Goals are what employees submit reports against. Define objective rules (instructions) and scoring categories (criteria) for AI evaluation.
+                Goals are what employees submit reports against. Define objective rules (instructions) and scoring categories (criteria) for Zevian evaluation.
               </p>
             </div>
 
@@ -497,7 +499,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-on-surface">Instructions *</label>
                 <p className="text-xs text-on-surface-secondary">
-                  Specific, objective instructions for the AI to follow during evaluation.
+                  Specific, objective instructions for Zevian to follow during evaluation.
                 </p>
                 <Textarea
                   value={instructions}
@@ -637,7 +639,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
 
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
               <p className="text-sm text-on-surface">
-                <strong>Next Steps:</strong> Start creating reports against your goal. The AI will evaluate them based on your criteria and objective rules.
+                <strong>Next Steps:</strong> Start creating reports against your goal. Zevian will evaluate them based on your criteria and objective rules.
               </p>
             </div>
           </div>

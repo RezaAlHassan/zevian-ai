@@ -85,13 +85,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         }
     }, [employees, currentManagerId, scopeFilter, canViewOrgWide, isEmployeeView]);
 
-    // Filter goals by manager if in manager mode
+    // Filter goals by manager based on the selected scope
     const filteredGoals = useMemo(() => {
         if (!isEmployeeView && currentManagerId) {
-            return filterGoalsByManager(goals, projects, employees, currentManagerId);
+            // Use scopedEmployeeIds which correctly handles Org/Chain/Direct logic
+            // Include:
+            // 1. Goals created by currentManager (or where managerId is currentManager)
+            // 2. Goals for projects assigned to any employee in scopedEmployeeIds
+
+            const relevantProjectIds = new Set(
+                projects
+                    .filter(project => {
+                        return project.assignees?.some(assignee =>
+                            assignee.type === 'employee' && scopedEmployeeIds.has(assignee.id)
+                        ) || false;
+                    })
+                    .map(project => project.id)
+            );
+
+            return goals.filter(goal => {
+                if (goal.createdBy === currentManagerId || goal.managerId === currentManagerId) {
+                    return true;
+                }
+                return relevantProjectIds.has(goal.projectId);
+            });
         }
         return goals;
-    }, [goals, projects, employees, currentManagerId, isEmployeeView]);
+    }, [goals, projects, scopedEmployeeIds, currentManagerId, isEmployeeView]);
 
     // Filter reports to only include scoped employees based on selected scope
     const scopedReports = useMemo(() => {
@@ -262,8 +282,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         // if (isEmployeeView) return null; // Enabled for all views now
 
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
         const end = new Date(endDate);
+
+        // Safety check: Avoid NaN when dates are invalid or loading
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+
+        start.setHours(0, 0, 0, 0);
         end.setHours(23, 59, 59, 999);
 
         // Calculate expected reports based on project reportFrequency
@@ -395,8 +419,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         if (filteredReports.length === 0) return [];
 
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
         const end = new Date(endDate);
+
+        // Safety check: Avoid NaN when dates are invalid or loading
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+
+        start.setHours(0, 0, 0, 0);
         end.setHours(23, 59, 59, 999);
 
         const dataMap = new Map<string, { total: number; redFlag: number }>();
@@ -814,23 +842,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             ? filteredReports.reduce((sum, r) => sum + r.evaluationScore, 0) / filteredReports.length
             : 0;
 
-        // Holistic Score: Weighted average of Report Average (Goals) and Organizational Metrics
-        // Note: The evaluationScore in reports already includes org metrics if they existed at time of submission.
-        // For the dashboard "Average Score", we use the calculated reportAverage which is the most "real-time"
-        // representation of performance across all submitted items in the date range.
-
-        if (isEmployeeView && selectedMetrics.length > 0) {
-            // If org metrics are selected, we weight them alongside the goal-based report average
-            // for the "Average Score" stat card to provide a holistic view.
-            const holisticScore = orgMetricsAverage > 0
-                ? (reportAverage * 0.7) + (orgMetricsAverage * 0.3)
-                : reportAverage;
-
-            return { overallScore: holisticScore };
-        }
-
+        // The evaluationScore in reports already reflects a weighted average of Goal performance (70%) 
+        // and Organizational Metrics (30%) if applicable. 
         return { overallScore: reportAverage };
-    }, [filteredReports, orgMetricsAverage, selectedMetrics, isEmployeeView]);
+    }, [filteredReports]);
 
     // Calculate avg rating on projects (using filtered reports)
     const avgRatingOnProjects = useMemo(() => {
@@ -942,7 +957,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 // Reliability metrics
                 const reliability = submissionReliability || { rate: 0, expected: 0, actual: 0 };
 
-                // Get AI Context (Knowledge Bases) from ongoing projects
+                // Get Zevian Context (Knowledge Bases) from ongoing projects
                 // The user requested to use knowledgebase page data (which maps to project aiContext)
                 const knowledgeBases = ongoingProjects
                     .filter(p => p.aiContext)
@@ -1065,10 +1080,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(2)}</span>,
             <button
                 onClick={() => setSelectedReport(report)}
-                className="text-primary hover:text-primary-hover hover:underline transition-colors flex items-center gap-1 text-sm font-normal"
+                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                title="View Details"
             >
-                <Eye size={16} strokeWidth={2} className="text-primary" />
-                View Details
+                <Eye size={18} strokeWidth={2} />
             </button>
         ];
     });
@@ -1096,10 +1111,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(2)}</span>,
             <button
                 onClick={() => setSelectedReport(report)}
-                className="text-primary hover:text-primary-hover hover:underline transition-colors flex items-center gap-1 text-sm font-normal"
+                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                title="View Details"
             >
-                <Eye size={24} strokeWidth={1.5} className="text-primary" />
-                View Details
+                <Eye size={18} strokeWidth={2} />
             </button>
         ];
     });
@@ -1147,10 +1162,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                                 <Sparkles size={18} className="text-on-surface" />
-                                <h3 className="text-base font-semibold text-on-surface">AI Performance Summary</h3>
+                                <h3 className="text-base font-semibold text-on-surface">Zevian Performance Summary</h3>
                             </div>
                             <p className="text-sm text-on-surface-secondary ml-7">
-                                Create an AI-powered performance summary for the selected date range based on all reports and evaluation criteria.
+                                Create a Zevian-powered performance summary for the selected date range based on all reports and evaluation criteria.
                             </p>
                         </div>
                         <Button
@@ -1192,7 +1207,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                 <h3 className="text-sm font-semibold text-on-surface">Performance Summary</h3>
                             </div>
                             <p className="text-xs text-on-surface-secondary">
-                                Create an AI-powered performance summary based on reports.
+                                Create a Zevian-powered performance summary based on reports.
                             </p>
                         </div>
                         <Button
@@ -1236,7 +1251,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 />
 
                 <StatCard
-                    title="Avg Score (Metrics)"
+                    title="Avg Score (Org Metrics)"
                     value={orgMetricsAverage.toFixed(2)}
                     icon={<Target size={20} className="text-on-surface-secondary" />}
                 />
@@ -1357,7 +1372,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                             <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
                                                 <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
                                                     <Spinner size="lg" />
-                                                    <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing AI Insights...</p>
+                                                    <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
                                                     <p className="text-[10px] text-on-surface-secondary mt-1">Analyzing historical performance records</p>
                                                 </div>
                                             </div>
@@ -1434,7 +1449,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                             </div>
                                             <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Ready</h4>
                                             <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
-                                                Generate your AI Proficiency Fingerprint to visualize performance across key metrics.
+                                                Generate your Zevian Proficiency Fingerprint to visualize performance across key metrics.
                                             </p>
                                             {(isEmployeeView || viewMode === 'manager') && (
                                                 <Button
@@ -1445,7 +1460,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                     className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
                                                     icon={Sparkles}
                                                 >
-                                                    {isAnalyzingSkills ? 'Generating...' : 'Generate AI Fingerprint'}
+                                                    {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
                                                 </Button>
                                             )}
                                         </div>

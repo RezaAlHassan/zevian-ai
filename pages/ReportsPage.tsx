@@ -45,7 +45,7 @@ const ReportPreviewModal: React.FC<{
           </div>
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
+          <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
           <div className="space-y-2">
             {report.criterionScores.map((score, index) => (
               <div key={index} className="bg-surface p-3 rounded-lg border border-border">
@@ -57,15 +57,52 @@ const ReportPreviewModal: React.FC<{
             ))}
           </div>
         </div>
+
+        {/* Manager Evaluation & Feedback */}
+        <div className="border-t border-border pt-6">
+          <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
+          <div className="space-y-4">
+            <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
+              <span className="font-medium text-on-surface">Overall Score</span>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-primary">
+                  {(report.managerOverallScore != null ? report.managerOverallScore : (report.evaluationScore ?? 0)).toFixed(2)}
+                </span>
+                {report.managerOverallScore != null && (
+                  <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                )}
+              </div>
+            </div>
+
+            {report.managerFeedback && (
+              <div>
+                <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                  {report.managerFeedback}
+                </div>
+              </div>
+            )}
+            {!report.managerFeedback && report.managerOverallScore == null && (
+              <p className="text-xs text-on-surface-tertiary italic text-center">
+                Waiting for manager review and feedback.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </Modal>
   );
 };
 
+import { useLocation } from 'react-router-dom';
+
+// ... (existing imports)
+
 const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmployeeId }) => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const location = useLocation();
 
   const employeeReports = useMemo(() => {
     let filtered = reports.filter(r => r.employeeId === currentEmployeeId);
@@ -94,6 +131,19 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
     return filtered;
   }, [reports, currentEmployeeId, sortColumn, sortDirection, goals]);
 
+  // Deep linking: Check for 'id' parameter in URL
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const reportId = params.get('id');
+
+    if (reportId) {
+      const report = reports.find(r => r.id === reportId);
+      if (report && report.employeeId === currentEmployeeId) {
+        setSelectedReport(report);
+      }
+    }
+  }, [location.search, reports, currentEmployeeId]);
+
   const handleSort = (column: string, direction: SortDirection) => {
     setSortColumn(direction ? column : null);
     setSortDirection(direction);
@@ -118,18 +168,18 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, currentEmploy
       <div className="flex items-center gap-2">
         <TrendingUp size={16} className="text-on-surface-tertiary" />
         <span className="text-on-surface-secondary font-medium">
-          {report.evaluationScore.toFixed(1)}
+          {(report.evaluationScore ?? 0).toFixed(1)}
         </span>
       </div>,
-      <span className={`font-semibold ${report.managerOverallScore !== undefined ? 'text-primary' : 'text-on-surface-tertiary'}`}>
-        {report.managerOverallScore !== undefined ? report.managerOverallScore.toFixed(1) : '—'}
+      <span className={`font-semibold ${report.managerOverallScore != null ? 'text-primary' : 'text-on-surface-tertiary'}`}>
+        {report.managerOverallScore != null ? report.managerOverallScore.toFixed(1) : '—'}
       </span>,
       <button
         onClick={() => setSelectedReport(report)}
-        className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors"
+        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+        title="View Details"
       >
-        <Eye size={16} strokeWidth={2} />
-        View Details
+        <Eye size={18} strokeWidth={2} />
       </button>
     ];
   });

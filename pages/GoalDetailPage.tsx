@@ -178,7 +178,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
         {report.evaluationScore.toFixed(1)} / 10
       </span>,
       <span className="text-sm text-on-surface-secondary">
-        AI Evaluated
+        Zevian Evaluated
       </span>,
       <button
         onClick={() => setSelectedReport(report)}
@@ -194,14 +194,17 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
     <div className="w-full px-6 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
+        <button
           onClick={onBack}
-          variant="ghost"
-          size="sm"
-          icon={ArrowLeft}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 text-on-surface-secondary hover:text-primary group/back"
+          title="Back to Goals"
         >
-          Back to Goals
-        </Button>
+          <div className="p-1 rounded-full bg-surface group-hover/back:bg-primary/10 transition-colors">
+            <ArrowLeft size={16} strokeWidth={2.5} />
+          </div>
+          <span className="text-sm font-medium pr-1">Back</span>
+        </button>
+        <div className="h-6 w-px bg-border mx-1" />
         <div className="flex-1 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-on-surface">
@@ -538,33 +541,58 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-1">AI Analysis</h3>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Zevian Analysis</h3>
                 <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
                   "{selectedReport.evaluationReasoning}"
                 </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score</h3>
-                <div className="bg-surface p-4 rounded-lg border border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-on-surface font-medium">Overall Score</span>
-                    <span className="text-2xl font-bold text-on-surface">{selectedReport.evaluationScore.toFixed(2)}</span>
+              {/* Manager Evaluation & Feedback */}
+              <div className="border-t border-border pt-6">
+                <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
+                <div className="space-y-4">
+                  <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
+                    <span className="font-medium text-on-surface">Overall Score</span>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-primary">
+                        {(selectedReport.managerOverallScore != null ? selectedReport.managerOverallScore : (selectedReport.evaluationScore ?? 0)).toFixed(2)}
+                      </span>
+                      {selectedReport.managerOverallScore != null && (
+                        <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-1">Criteria Analysis</h3>
-                <div className="space-y-2">
-                  {selectedReport.evaluationCriteriaScores.map((score, index) => (
-                    <div key={index} className="bg-surface p-3 rounded-lg border border-border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-on-surface">{score.name}</span>
-                        <span className="text-sm font-semibold text-on-surface">{score.score.toFixed(1)}</span>
+
+                  {selectedReport.managerFeedback && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
+                      <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                        {selectedReport.managerFeedback}
                       </div>
                     </div>
-                  ))}
+                  )}
+                  {!selectedReport.managerFeedback && selectedReport.managerOverallScore === undefined && (
+                    <p className="text-xs text-on-surface-tertiary italic text-center">
+                      Waiting for manager review and feedback.
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {selectedReport.criterionScores && selectedReport.criterionScores.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
+                  <div className="space-y-2">
+                    {selectedReport.criterionScores.map((score, index) => (
+                      <div key={index} className="bg-surface p-3 rounded-lg border border-border">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-on-surface text-sm">{score.criterionName}</span>
+                          <span className="text-sm font-semibold text-on-surface-secondary">{score.score.toFixed(1)}/10</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Modal>
         )

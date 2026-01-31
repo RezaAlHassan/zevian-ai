@@ -111,8 +111,6 @@ const Header: React.FC<HeaderProps> = ({
           <UserDropdown
             userName={userName}
             userEmail={userEmail}
-            isCreator={true}
-            onNavigateToSettings={() => navigate('/settings')}
             onNavigateToAccount={() => navigate('/account')}
             onLogout={onLogout}
           />

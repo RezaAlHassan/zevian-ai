@@ -511,7 +511,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       )}
 
-      {/* Onboarding Section */}
+      {/* Onboarding Section - Hidden for now
       {onRestartOnboarding && (
         <div className="bg-surface-elevated rounded-lg p-6 border border-border">
           <div className="flex items-center gap-2 mb-4">
@@ -532,6 +532,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
       )}
+      */}
 
       {/* Save Button */}
       <div className="flex justify-end">
