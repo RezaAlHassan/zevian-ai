@@ -126,6 +126,16 @@ const Sidebar: React.FC<SidebarProps> = ({
               icon={<LayoutDashboard size={18} />}
             />
             <NavButton
+              label="Projects"
+              to="/projects"
+              icon={<FolderKanban size={18} />}
+            />
+            <NavButton
+              label="Goals"
+              to="/goals"
+              icon={<Target size={18} />}
+            />
+            <NavButton
               label="My Reports"
               to="/reports"
               icon={<List size={18} />}

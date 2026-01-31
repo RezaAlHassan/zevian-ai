@@ -208,14 +208,6 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                         className="w-full"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-on-surface">Plan Tier</label>
-                                    <div className="h-10 flex items-center">
-                                        <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full uppercase tracking-wider border border-primary/20">
-                                            {organization.planTier} Plan
-                                        </span>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -510,7 +502,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                 <AlertTriangle size={20} className="text-error" />
                                 <h3 className="text-lg font-semibold text-on-surface">Danger Zone</h3>
                             </div>
-                            <div className="p-4 bg-error/5 border border-error/10 rounded-lg space-y-4">
+                            {/* 
                                 <div className="space-y-1">
                                     <p className="text-sm font-bold text-on-surface">Restart Onboarding</p>
                                     <p className="text-xs text-on-surface-secondary leading-relaxed">
@@ -525,7 +517,10 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                 >
                                     Restart Onboarding Flow
                                 </Button>
-                            </div>
+                                */}
+                            <p className="text-sm text-on-surface-secondary italic text-center py-4">
+                                Advanced organization management options are currently restricted.
+                            </p>
                         </div>
                     </div>
                 )}
@@ -542,15 +537,24 @@ const PermissionsTable: React.FC<{
     const managers = employees.filter(emp => emp.role === 'manager' || emp.isAccountOwner);
     const managerOptions = managers.map(e => ({ value: e.id, label: e.name }));
 
-    const headers = ['Manager', 'Reports To', 'Access Level', 'Actions'];
+    const headers = ['Manager', 'Reports To', 'View Org', 'Settings', 'Global Freq', 'Actions'];
     const rows = managers.map(emp => {
-        const isFull = emp.permissions?.canManageSettings && emp.permissions?.canViewOrganizationWide;
+        // Helper to check permission or if owner
+        const hasPerm = (p: keyof import('../types').EmployeePermissions) => emp.isAccountOwner || emp.permissions?.[p];
+
+        // Helper to toggle permission
+        const togglePerm = (p: keyof import('../types').EmployeePermissions) => {
+            if (emp.isAccountOwner) return;
+            const newPerms = { ...emp.permissions, [p]: !emp.permissions?.[p] };
+            updateEmployee({ ...emp, permissions: newPerms });
+        };
+
         return [
             <div key="name" className="flex flex-col">
                 <span className="font-semibold text-sm">{emp.name}</span>
                 <span className="text-[10px] text-on-surface-tertiary uppercase font-bold">{emp.title || 'No Title'}</span>
             </div>,
-            <div key="manager" className="w-40">
+            <div key="manager" className="w-32">
                 {!emp.isAccountOwner ? (
                     <Select
                         value={emp.managerId || ''}
@@ -560,15 +564,35 @@ const PermissionsTable: React.FC<{
                     />
                 ) : <span className="text-xs text-primary font-bold">Organization Owner</span>}
             </div>,
-            <div key="access" className="flex gap-4">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" checked={!isFull} disabled={emp.isAccountOwner} onChange={() => updateEmployee({ ...emp, permissions: {} })} className="w-3 h-3 text-primary" />
-                    <span className="text-[11px] font-medium">Standard</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" checked={!!isFull || emp.isAccountOwner} disabled={emp.isAccountOwner} onChange={() => updateEmployee({ ...emp, permissions: { canSetGlobalFrequency: true, canViewOrganizationWide: true, canManageSettings: true } })} className="w-3 h-3 text-primary" />
-                    <span className="text-[11px] font-medium">Senior</span>
-                </label>
+            // View Org Permission
+            <div key="view" className="flex justify-center">
+                <input
+                    type="checkbox"
+                    checked={!!hasPerm('canViewOrganizationWide')}
+                    disabled={emp.isAccountOwner}
+                    onChange={() => togglePerm('canViewOrganizationWide')}
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-50"
+                />
+            </div>,
+            // Manage Settings Permission
+            <div key="settings" className="flex justify-center">
+                <input
+                    type="checkbox"
+                    checked={!!hasPerm('canManageSettings')}
+                    disabled={emp.isAccountOwner}
+                    onChange={() => togglePerm('canManageSettings')}
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-50"
+                />
+            </div>,
+            // Global Frequency Permission
+            <div key="freq" className="flex justify-center">
+                <input
+                    type="checkbox"
+                    checked={!!hasPerm('canSetGlobalFrequency')}
+                    disabled={emp.isAccountOwner}
+                    onChange={() => togglePerm('canSetGlobalFrequency')}
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-50"
+                />
             </div>,
             <div key="status" className="text-[10px] text-on-surface-secondary">
                 {emp.id === currentManagerId ? '(You)' : ''}

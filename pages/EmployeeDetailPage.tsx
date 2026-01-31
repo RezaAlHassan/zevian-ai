@@ -119,109 +119,136 @@ const ReportDetailModal: React.FC<{
                         ))}
                     </ul>
                     <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-border text-on-surface">
-                        <span>AI Evaluation Score:</span>
+                        <span>Zevian Evaluation Score:</span>
                         <span>{report.evaluationScore.toFixed(2)} / 10</span>
                     </div>
                 </div>
 
-                {/* Manager Override Section */}
+                {/* Manager Evaluation & Feedback (Read-Only View) */}
+                {!isEditingOverride && (
+                    <div className="border-t border-border pt-4">
+                        <h3 className="text-lg font-semibold text-on-surface mb-3">Manager Evaluation</h3>
+
+                        {/* Overall Score Display */}
+                        <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center mb-3">
+                            <span className="font-medium text-on-surface">Overall Score</span>
+                            <div className="text-right">
+                                <span className="text-2xl font-bold text-primary">
+                                    {(report.managerOverallScore !== undefined ? report.managerOverallScore : report.evaluationScore).toFixed(2)}
+                                </span>
+                                {report.managerOverallScore !== undefined && (
+                                    <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Manager Feedback */}
+                        {report.managerFeedback && (
+                            <div className="mb-3">
+                                <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
+                                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                                    {report.managerFeedback}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Override Reasoning */}
+                        {report.managerOverrideReasoning && (
+                            <div className="mb-3">
+                                <h4 className="text-sm font-semibold text-on-surface mb-2">Override Justification</h4>
+                                <div className="bg-surface p-4 rounded-lg border border-border text-on-surface-secondary italic text-sm">
+                                    "{report.managerOverrideReasoning}"
+                                </div>
+                            </div>
+                        )}
+
+                        {!report.managerFeedback && report.managerOverallScore === undefined && !canOverride && (
+                            <p className="text-sm text-on-surface-secondary italic">No manager evaluation yet.</p>
+                        )}
+                    </div>
+                )}
+
+                {/* Manager Override Actions (Edit Mode) */}
                 {canOverride && (
                     <div className="border-t border-border pt-4">
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold text-on-surface">Manager Override</h3>
+                            <h3 className="text-lg font-semibold text-on-surface">Edit Evaluation</h3>
                             {!isEditingOverride && (
                                 <Button
                                     onClick={() => setIsEditingOverride(true)}
                                     variant="outline"
                                     size="sm"
                                 >
-                                    {report.managerOverallScore ? 'Edit Override' : 'Add Override'}
+                                    {report.managerOverallScore ? 'Edit Score/Feedback' : 'Add Evaluation'}
                                 </Button>
                             )}
                         </div>
 
-                        {isEditingOverride ? (
-                            <div className="space-y-3 bg-surface p-4 rounded-lg border border-border">
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface mb-2">
-                                        Override Score (0-10) *
-                                    </label>
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        max="10"
-                                        step="0.1"
-                                        value={overrideScore}
-                                        onChange={(e) => setOverrideScore(e.target.value)}
-                                        placeholder="Enter score"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface mb-2">
-                                        Justification * <span className="text-error">(Required)</span>
-                                    </label>
-                                    <Textarea
-                                        value={overrideReasoning}
-                                        onChange={(e) => setOverrideReasoning(e.target.value)}
-                                        placeholder="Explain why you are overriding the AI score..."
-                                        rows={3}
-                                        required
-                                    />
-                                    <p className="text-xs text-on-surface-secondary mt-1">
-                                        This justification is required and will be logged with the override.
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={handleSaveOverride}
-                                        variant="primary"
-                                        disabled={!overrideReasoning.trim() || !overrideScore}
-                                    >
-                                        Save Override
-                                    </Button>
-                                    {report.managerOverallScore && (
-                                        <Button
-                                            onClick={handleRemoveOverride}
-                                            variant="danger"
-                                        >
-                                            Remove Override
-                                        </Button>
-                                    )}
-                                    <Button
-                                        onClick={() => {
-                                            setIsEditingOverride(false);
-                                            setOverrideScore(report.managerOverallScore?.toString() || '');
-                                            setOverrideReasoning(report.managerOverrideReasoning || '');
-                                        }}
-                                        variant="outline"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
+                        <div className="space-y-3 bg-surface p-4 rounded-lg border border-border">
+                            <div>
+                                <label className="block text-sm font-medium text-on-surface mb-2">
+                                    Override Score (0-10) *
+                                </label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    step="0.1"
+                                    value={overrideScore}
+                                    onChange={(e) => setOverrideScore(e.target.value)}
+                                    placeholder="Enter score"
+                                />
                             </div>
-                        ) : report.managerOverallScore ? (
-                            <div className="bg-surface p-4 rounded-lg border border-border">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="font-medium text-on-surface">Manager Override Score:</span>
-                                    <span className="text-xl font-bold text-primary">{report.managerOverallScore.toFixed(2)} / 10</span>
-                                </div>
-                                {report.managerOverrideReasoning && (
-                                    <div className="mt-2">
-                                        <p className="text-sm font-medium text-on-surface-secondary mb-1">Justification:</p>
-                                        <p className="text-sm text-on-surface-secondary italic">{report.managerOverrideReasoning}</p>
-                                    </div>
+                            <div>
+                                <label className="block text-sm font-medium text-on-surface mb-2">
+                                    Justification * <span className="text-error">(Required)</span>
+                                </label>
+                                <Textarea
+                                    value={overrideReasoning}
+                                    onChange={(e) => setOverrideReasoning(e.target.value)}
+                                    placeholder="Explain why you are overriding the Zevian score..."
+                                    rows={3}
+                                    required
+                                />
+                                <p className="text-xs text-on-surface-secondary mt-1">
+                                    This justification is required and will be logged with the override.
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={handleSaveOverride}
+                                    variant="primary"
+                                    disabled={!overrideReasoning.trim() || !overrideScore}
+                                >
+                                    Save Override
+                                </Button>
+                                {report.managerOverallScore && (
+                                    <Button
+                                        onClick={handleRemoveOverride}
+                                        variant="danger"
+                                    >
+                                        Remove Override
+                                    </Button>
                                 )}
+                                <Button
+                                    onClick={() => {
+                                        setIsEditingOverride(false);
+                                        setOverrideScore(report.managerOverallScore?.toString() || '');
+                                        setOverrideReasoning(report.managerOverrideReasoning || '');
+                                    }}
+                                    variant="outline"
+                                >
+                                    Cancel
+                                </Button>
                             </div>
-                        ) : (
-                            <p className="text-sm text-on-surface-secondary italic">No manager override applied.</p>
-                        )}
+                        </div>
                     </div>
                 )}
 
                 {!canOverride && viewMode === 'manager' && (
                     <div className="border-t border-border pt-4">
                         <p className="text-sm text-on-surface-secondary italic">
-                            Only the direct manager of this employee can override the AI score.
+                            Only the direct manager of this employee can override the Zevian score.
                         </p>
                     </div>
                 )}
@@ -297,7 +324,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
     const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
     const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>({});
 
-    // Clear AI analysis when date range changes to ensure manual re-analysis for new period
+    // Clear Zevian analysis when date range changes to ensure manual re-analysis for new period
     useEffect(() => {
         setSkillAnalysisScores({});
     }, [startDate, endDate]);
@@ -359,7 +386,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 return { id, name: def?.friendlyName || def?.name || id };
             });
 
-            // Get the AI context from the first project for now, or synthesize
+            // Get the Zevian context from the first project for now, or synthesize
             const primaryProjectId = goals.find(g => g.id === filteredReports[0].goalId)?.projectId;
             const primaryProject = projects.find(p => p.id === primaryProjectId);
             const knowledgeBase = primaryProject?.aiContext;
@@ -436,7 +463,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
             const existingIndex = combined.findIndex(s => s.name === metricName || s.name === metricDef?.name || s.name === metricId);
 
             if (existingIndex === -1) {
-                // Get current score (AI analysis takes precedence)
+                // Get current score (Zevian analysis takes precedence)
                 let score = skillAnalysisScores[metricId];
                 let count = 0;
 
@@ -447,7 +474,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 });
 
                 if (score === undefined) {
-                    // Fallback to manual average if AI hasn't analyzed it yet
+                    // Fallback to manual average if Zevian hasn't analyzed it yet
                     let total = 0;
                     filteredReports.forEach(report => {
                         const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
@@ -462,7 +489,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                     averageScore: score
                 });
             } else {
-                // If AI has a score for an existing metric, update the ranking score with it
+                // If Zevian has a score for an existing metric, update the ranking score with it
                 if (skillAnalysisScores[metricId] !== undefined) {
                     combined[existingIndex].averageScore = skillAnalysisScores[metricId];
                 }
@@ -579,7 +606,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
     // Prepare radar chart data
     const radarChartData = useMemo(() => {
-        // Show empty state if AI analysis hasn't been triggered yet
+        // Show empty state if Zevian analysis hasn't been triggered yet
         if (Object.keys(skillAnalysisScores).length === 0) return [];
 
         // If we have organization-selected metrics, use those
@@ -774,21 +801,19 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         };
     }, [filteredReports, projects, goals, startDate, endDate]);
 
+    const orgMetricsAverage = useMemo(() => {
+        if (selectedMetrics.length === 0 || !radarChartData.length) return 0;
+        const total = radarChartData.reduce((sum, d) => sum + d.current, 0);
+        return total / radarChartData.length;
+    }, [radarChartData, selectedMetrics]);
+
     const analytics = useMemo(() => {
         const reportAverage = filteredReports.length > 0
             ? filteredReports.reduce((sum, r) => sum + r.evaluationScore, 0) / filteredReports.length
             : 0;
 
-        // Holistic Score: Average of (Report Average + Organizational Metrics Average)
-        // This ensures both direct report feedback and organizational metrics are weighted equally
-        if (selectedMetrics.length > 0 && radarChartData.length > 0) {
-            const metricsAverage = radarChartData.reduce((sum, d) => sum + d.current, 0) / radarChartData.length;
-            const holisticScore = (reportAverage + metricsAverage) / 2;
-            return { overallScore: holisticScore };
-        }
-
         return { overallScore: reportAverage };
-    }, [filteredReports, radarChartData, selectedMetrics]);
+    }, [filteredReports]);
 
     const handleGenerateSummary = async () => {
         if (filteredReports.length === 0) return;
@@ -829,10 +854,10 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                     e.stopPropagation();
                     setSelectedReport(report);
                 }}
-                className="text-primary hover:text-primary-hover hover:underline transition-colors flex items-center gap-1 text-sm font-normal"
+                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                title="View Details"
             >
-                <Eye size={16} strokeWidth={2} className="text-primary" />
-                View Details
+                <Eye size={18} strokeWidth={2} />
             </button>
         ];
     });
@@ -840,11 +865,17 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
     return (
         <div className="w-full px-6 py-6 space-y-6">
             <div className="bg-surface-elevated p-4 rounded-lg  border border-border flex flex-col sm:flex-row gap-4 items-center">
-                <button onClick={onBack} className="flex items-center gap-2 text-on-surface-secondary hover:text-on-surface transition-colors">
-                    <ArrowLeft size={20} />
-                    Back
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 text-on-surface-secondary hover:text-primary group/back"
+                    title="Back"
+                >
+                    <div className="p-1 rounded-full bg-surface group-hover/back:bg-primary/10 transition-colors">
+                        <ArrowLeft size={16} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-sm font-medium pr-1">Back</span>
                 </button>
-                <div className="border-l border-border h-8 mx-4 hidden sm:block"></div>
+                <div className="border-l border-border h-6 mx-1 hidden sm:block"></div>
                 <h2 className="text-xl font-bold text-on-surface">Performance: {employee.name}</h2>
                 <div className="flex-grow"></div>
                 <div className="flex items-center gap-2 mr-2">
@@ -869,7 +900,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                             <h3 className="text-base font-semibold text-on-surface">Performance Summary</h3>
                         </div>
                         <p className="text-sm text-on-surface-secondary ml-7">
-                            Create an AI-powered performance summary for the selected date range based on all reports and evaluation criteria.
+                            Create a Zevian-powered performance summary for the selected date range based on all reports and evaluation criteria.
                         </p>
                     </div>
                     <Button
@@ -908,13 +939,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
                 <StatCard
                     title="Avg Score (Org Metrics)"
-                    value={(() => {
-                        if (radarChartData.length > 0) {
-                            const total = radarChartData.reduce((sum, item) => sum + item.current, 0);
-                            return (total / radarChartData.length).toFixed(2);
-                        }
-                        return analytics.overallScore.toFixed(2);
-                    })()}
+                    value={orgMetricsAverage > 0 ? orgMetricsAverage.toFixed(2) : "0.00"}
                     icon={<Target size={24} className="text-on-surface-secondary" />}
                 />
 
@@ -1022,7 +1047,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                     <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
                                         <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
                                             <Spinner size="lg" />
-                                            <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing AI Insights...</p>
+                                            <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
                                             <p className="text-[10px] text-on-surface-secondary mt-1">Analyzing historical performance records</p>
                                         </div>
                                     </div>
@@ -1118,7 +1143,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                         className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
                                         icon={Sparkles}
                                     >
-                                        {isAnalyzingSkills ? 'Generating...' : 'Generate AI Fingerprint'}
+                                        {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
                                     </Button>
                                 </div>
                             </div>

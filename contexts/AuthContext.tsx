@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { authService } from '../services/authService';
+import { invitationService } from '../services/invitationService';
 import { employeeService } from '../services/databaseService';
 import { Employee } from '../types';
 
@@ -83,9 +84,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
 
+
+            // 3. Fallback: Check for pending invitations (Invited User via Email Confirmation Flow)
+            // If user verified email but "SetPasswordPage" flow was interrupted, they are Auth User but no Employee yet.
+            if (!emp && email) {
+                try {
+                    const invites = await invitationService.getByEmail(email);
+                    // Find the most recent pending invitation
+                    const pendingInvite = invites.find(inv => inv.status === 'pending');
+
+                    if (pendingInvite) {
+                        console.log('[AuthContext] Found pending invitation. Attempting auto-claim:', pendingInvite.id);
+                        // Complete the flow using the RPC
+                        const { error: rpcError } = await supabase.rpc('complete_invitation_flow', {
+                            token_input: pendingInvite.token,
+                            user_name: 'Invited User' // Fallback name, ideally we'd get this from metadata if available
+                        });
+
+                        if (!rpcError) {
+                            console.log('[AuthContext] Successfully claimed invitation via auto-recovery. Retrying fetch...');
+                            emp = await employeeService.getByAuthId(authUserId);
+                        } else {
+                            console.error('[AuthContext] Failed to auto-claim invitation:', rpcError);
+                        }
+                    }
+                } catch (inviteError) {
+                    console.error('[AuthContext] Error checking invitations:', inviteError);
+                }
+            }
+
             setEmployee(emp);
 
-            // 3. Fetch Organization Name
+            // 4. Fetch Organization Name
             if (emp?.organizationId) {
                 try {
                     const { organizationService } = await import('../services/databaseService');

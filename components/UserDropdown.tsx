@@ -1,12 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Settings, CreditCard, LogOut, ChevronDown, Building2 } from 'lucide-react';
+import { User, LogOut, ChevronDown } from 'lucide-react';
 
 interface UserDropdownProps {
   userName?: string;
   userEmail?: string;
-  isCreator?: boolean;
-  onNavigateToSettings?: () => void;
   onNavigateToAccount?: () => void;
   onLogout?: () => void;
 }
@@ -14,8 +12,6 @@ interface UserDropdownProps {
 const UserDropdown: React.FC<UserDropdownProps> = ({
   userName = 'Current User',
   userEmail = 'user@example.com',
-  isCreator = false,
-  onNavigateToSettings,
   onNavigateToAccount,
   onLogout
 }) => {
@@ -34,12 +30,7 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
 
   const handleMenuItemClick = (action: string) => {
     setIsOpen(false);
-    if (action === 'settings' && onNavigateToSettings) {
-      onNavigateToSettings();
-    } else if (action === 'organization' && onNavigateToSettings) {
-      // For now, mapping organization to settings navigation if specifically for org settings
-      onNavigateToSettings();
-    } else if (action === 'account' && onNavigateToAccount) {
+    if (action === 'account' && onNavigateToAccount) {
       onNavigateToAccount();
     } else if (action === 'logout' && onLogout) {
       onLogout();
@@ -73,38 +64,12 @@ const UserDropdown: React.FC<UserDropdownProps> = ({
 
       {isOpen && (
         <div className="absolute right-0 mt-1.5 w-52 bg-white rounded-lg shadow-lg py-1.5 z-50 border border-border overflow-hidden">
-          {isCreator && (
-            <>
-              <button
-                onClick={() => handleMenuItemClick('organization')}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-on-surface hover:bg-surface-hover transition-colors"
-              >
-                <Building2 size={14} className="text-on-surface-secondary" />
-                <span>Organization</span>
-              </button>
-              <div className="border-t border-border my-0.5"></div>
-            </>
-          )}
           <button
             onClick={() => handleMenuItemClick('account')}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-on-surface hover:bg-surface-hover transition-colors"
           >
             <User size={14} className="text-on-surface-secondary" />
             <span>Account</span>
-          </button>
-          <button
-            onClick={() => handleMenuItemClick('billing')}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-on-surface hover:bg-surface-hover transition-colors"
-          >
-            <CreditCard size={14} className="text-on-surface-secondary" />
-            <span>Billing</span>
-          </button>
-          <button
-            onClick={() => handleMenuItemClick('settings')}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-on-surface hover:bg-surface-hover transition-colors"
-          >
-            <Settings size={14} className="text-on-surface-secondary" />
-            <span>Settings</span>
           </button>
           <div className="border-t border-border my-0.5"></div>
           <button

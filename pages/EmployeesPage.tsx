@@ -213,19 +213,18 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           <span className="capitalize text-on-surface-secondary">No reports</span>
         )}
       </div>,
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1">
         {/* View Details Action */}
         <button
           onClick={() => onSelectEmployee(employee.id)}
           disabled={!canViewDetails}
-          className={`flex items-center gap-1 text-sm font-medium transition-colors ${canViewDetails
-            ? "text-primary hover:text-primary-hover hover:underline"
+          className={`p-1.5 transition-all duration-200 rounded-lg ${canViewDetails
+            ? "text-primary hover:bg-primary/10"
             : "text-on-surface-tertiary cursor-not-allowed opacity-50"
             }`}
-          title={!canViewDetails ? "Add to team to view details" : ""}
+          title={!canViewDetails ? "Add to team to view details" : "View Details"}
         >
-          <Eye size={16} strokeWidth={2} />
-          View
+          <Eye size={18} strokeWidth={2} />
         </button>
 
         {/* Team Management Actions */}
@@ -233,20 +232,18 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           isInTeam ? (
             <button
               onClick={() => handleRemoveFromTeam(employee.id)}
-              className="text-red-500 hover:text-red-700 hover:underline font-medium text-sm flex items-center gap-1 transition-colors"
+              className="p-1.5 text-on-surface-secondary hover:text-error hover:bg-error/10 rounded-lg transition-all duration-200"
               title="Remove from my reporting team"
             >
-              <UserMinus size={16} strokeWidth={2} />
-              Remove
+              <UserMinus size={18} strokeWidth={2} />
             </button>
           ) : (
             <button
               onClick={() => handleAddToTeam(employee.id)}
-              className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors"
+              className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
               title="Add to my reporting team"
             >
-              <Plus size={16} strokeWidth={2} />
-              Add
+              <Plus size={18} strokeWidth={2} />
             </button>
           )
         )}

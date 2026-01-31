@@ -313,62 +313,62 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         )}
       </div>,
       <span className="capitalize text-on-surface-secondary">{project.reportFrequency?.replace('-', ' ') || 'N/A'}</span>,
-      <div className="flex items-center justify-start">
-        <Dropdown
-          buttonText=""
-          buttonClassName="p-1.5 border border-border bg-surface hover:bg-surface-hover hover:border-primary/30 rounded-lg transition-colors"
-          variant="ghost"
-          size="sm"
-          icon={<MoreHorizontal size={18} className="text-on-surface-secondary" />}
-          align="right"
-        >
-          {onSelectProject && (
-            <DropdownItem
-              onClick={() => {
-                onSelectProject(project.id);
-              }}
+      <div className="flex items-center gap-1">
+        {onSelectProject && (
+          <button
+            onClick={() => onSelectProject(project.id)}
+            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            title="View Details"
+          >
+            <Eye size={18} strokeWidth={2} />
+          </button>
+        )}
+        {viewMode === 'manager' && (
+          <>
+            <button
+              onClick={() => handleOpenAssignModal(project)}
+              className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+              title="Assign Members"
             >
-              <div className="flex items-center gap-2">
-                <Eye size={16} className="text-on-surface-secondary" />
-                <span>View Details</span>
-              </div>
-            </DropdownItem>
-          )}
-          <DropdownItem
-            onClick={() => handleOpenEditModal(project)}
-          >
-            <div className="flex items-center gap-2">
-              <Edit2 size={16} className="text-on-surface-secondary" />
-              <span>Edit Project</span>
-            </div>
-          </DropdownItem>
-          <DropdownItem
-            onClick={() => handleOpenAssignModal(project)}
-          >
-            <div className="flex items-center gap-2">
-              <UserPlus size={16} className="text-on-surface-secondary" />
-              <span>Assign Members</span>
-            </div>
-          </DropdownItem>
-          {deleteProject && (
-            <>
-              <DropdownDivider />
+              <UserPlus size={18} strokeWidth={2} />
+            </button>
+            <Dropdown
+              buttonText=""
+              buttonClassName="p-1.5 border border-border bg-surface hover:bg-surface-hover hover:border-primary/30 rounded-lg transition-colors"
+              variant="ghost"
+              size="sm"
+              icon={<MoreHorizontal size={18} className="text-on-surface-secondary" />}
+              align="right"
+            >
               <DropdownItem
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone.`)) {
-                    deleteProject(project.id);
-                  }
-                }}
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => handleOpenEditModal(project)}
               >
                 <div className="flex items-center gap-2">
-                  <Trash2 size={16} />
-                  <span>Delete</span>
+                  <Edit2 size={16} className="text-on-surface-secondary" />
+                  <span>Edit Project</span>
                 </div>
               </DropdownItem>
-            </>
-          )}
-        </Dropdown>
+              {deleteProject && (
+                <>
+                  <DropdownDivider />
+                  <DropdownItem
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone.`)) {
+                        deleteProject(project.id);
+                      }
+                    }}
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Trash2 size={16} />
+                      <span>Delete</span>
+                    </div>
+                  </DropdownItem>
+                </>
+              )}
+            </Dropdown>
+          </>
+        )}
       </div>
     ];
   });
@@ -381,13 +381,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-on-surface">Projects</h2>
           </div>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            variant="primary"
-            icon={Plus}
-          >
-            Create New Project
-          </Button>
+          {viewMode === 'manager' && (
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              variant="primary"
+              icon={Plus}
+            >
+              Create New Project
+            </Button>
+          )}
         </div>
 
         {/* Permission check for editing */}

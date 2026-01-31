@@ -79,24 +79,33 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
   const selectedProject = projects.find(p => p.id === projectId);
 
   // Filter goals by manager if in manager mode
-  const managerFilteredGoals = useMemo(() => {
+  const currentFilteredGoals = useMemo(() => {
     if (viewMode === 'manager' && currentManagerId) {
       return filterGoalsByManager(goals, projects, employees, currentManagerId);
     }
+    if (viewMode === 'employee' && currentEmployeeId) {
+      // Employees see goals for projects they are assigned to
+      const assignedProjectIds = new Set(
+        projects
+          .filter(p => p.assignees?.some(a => a.id === currentEmployeeId))
+          .map(p => p.id)
+      );
+      return goals.filter(g => assignedProjectIds.has(g.projectId));
+    }
     return goals;
-  }, [goals, projects, employees, currentManagerId, viewMode]);
+  }, [goals, projects, employees, currentManagerId, currentEmployeeId, viewMode]);
 
   // Filter goals based on search
   const filteredGoals = useMemo(() => {
     const query = (searchQuery || '').trim().toLowerCase();
-    if (!query) return managerFilteredGoals;
+    if (!query) return currentFilteredGoals;
 
-    return managerFilteredGoals.filter(goal => {
+    return currentFilteredGoals.filter(goal => {
       const project = projects.find(p => p.id === goal.projectId);
       return goal.name.toLowerCase().includes(query) ||
         project?.name.toLowerCase().includes(query);
     });
-  }, [managerFilteredGoals, projects, searchQuery]);
+  }, [currentFilteredGoals, projects, searchQuery]);
 
   const handleAddCriterion = () => {
     const weight = parseInt(criterionWeight, 10);
@@ -215,61 +224,55 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
 
 
-  const goalTableHeaders = ['Goal Name', 'Parent Project', 'Created By', 'Created', 'Actions'];
-  const goalTableRows = filteredGoals.map(goal => [
-    <div className="flex items-center gap-2">
-      {goal.status === 'completed' && <CheckCircle size={14} className="text-success" />}
-      <span className={`capitalize ${goal.status === 'completed' ? 'text-on-surface-tertiary line-through' : 'text-on-surface-secondary'}`}>{goal.name}</span>
-    </div>,
-    <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
-    <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
-    <span className="text-on-surface-secondary text-sm">
-      {goal.createdAt ? formatTableDate(goal.createdAt) : '—'}
-    </span>,
-    <div className="flex items-center justify-start">
-      <Dropdown
-        buttonText=""
-        buttonClassName="p-1.5 border border-border bg-surface hover:bg-surface-hover hover:border-primary/30 rounded-lg transition-colors"
-        variant="ghost"
-        size="sm"
-        icon={<MoreHorizontal size={18} className="text-on-surface-secondary" />}
-        align="right"
-      >
-        <DropdownItem
-          onClick={() => {
-            onSelectGoal(goal.id);
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <Eye size={16} className="text-on-surface-secondary" />
-            <span>View Details</span>
-          </div>
-        </DropdownItem>
-        <DropdownItem
-          onClick={() => handleEditGoal(goal)}
-        >
-          <div className="flex items-center gap-2">
-            <Edit2 size={16} className="text-on-surface-secondary" />
-            <span>Edit Goal</span>
-          </div>
-        </DropdownItem>
-        {deleteGoal && canDeleteGoal(goal) && (
-          <>
-            <DropdownDivider />
-            <DropdownItem
+  const goalTableHeaders = viewMode === 'manager'
+    ? ['Goal', 'Parent Project', 'Created By', 'Created', 'Actions']
+    : ['Goal', 'Parent Project', 'Created By', 'Created'];
+
+  const goalTableRows = filteredGoals.map(goal => {
+    const row = [
+      <div className="flex items-center gap-2">
+        {goal.status === 'completed' && <CheckCircle size={14} className="text-success" />}
+        <span className={`capitalize ${goal.status === 'completed' ? 'text-on-surface-tertiary line-through' : 'text-on-surface-secondary'}`}>{goal.name}</span>
+      </div>,
+      <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
+      <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
+      <span className="text-on-surface-secondary text-sm">
+        {goal.createdAt ? formatTableDate(goal.createdAt) : '—'}
+      </span>
+    ];
+
+    if (viewMode === 'manager') {
+      row.push(
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onSelectGoal(goal.id)}
+            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            title="View Details"
+          >
+            <Eye size={18} strokeWidth={2} />
+          </button>
+          <button
+            onClick={() => handleEditGoal(goal)}
+            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            title="Edit Goal"
+          >
+            <Edit2 size={18} strokeWidth={2} />
+          </button>
+          {deleteGoal && canDeleteGoal(goal) && (
+            <button
               onClick={() => handleDeleteGoal(goal)}
-              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="p-1.5 text-on-surface-secondary hover:text-error hover:bg-error/10 rounded-lg transition-all duration-200"
+              title="Delete Goal"
             >
-              <div className="flex items-center gap-2">
-                <Trash2 size={16} />
-                <span>Delete</span>
-              </div>
-            </DropdownItem>
-          </>
-        )}
-      </Dropdown>
-    </div>
-  ]);
+              <Trash2 size={18} strokeWidth={2} />
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return row;
+  });
 
   return (
     <>
@@ -278,21 +281,25 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-on-surface">Goals</h2>
-            <button
-              onClick={() => setShowInfoModal(true)}
-              className="text-on-surface-secondary hover:text-primary transition-colors p-1 rounded hover:bg-surface-hover"
-              title="Learn more about Goals"
-            >
-              <Info size={20} />
-            </button>
+            {viewMode === 'manager' && (
+              <button
+                onClick={() => setShowInfoModal(true)}
+                className="text-on-surface-secondary hover:text-primary transition-colors p-1 rounded hover:bg-surface-hover"
+                title="Learn more about Goals"
+              >
+                <Info size={20} />
+              </button>
+            )}
           </div>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            variant="primary"
-            icon={Plus}
-          >
-            Create New Goal
-          </Button>
+          {viewMode === 'manager' && (
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              variant="primary"
+              icon={Plus}
+            >
+              Create New Goal
+            </Button>
+          )}
         </div>
 
         {/* Search - Removed local search, now global */}
@@ -341,7 +348,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           <Input
             id="goalName"
             type="text"
-            label="Goal Name"
+            label="Goal"
             value={goalName}
             onChange={(e) => setGoalName(e.target.value)}
             placeholder="e.g., Improve Code Quality"
@@ -428,7 +435,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           <div className="border-t border-border pt-4">
             <h3 className="text-lg font-semibold mb-2 text-on-surface">Instructions</h3>
             <p className="text-sm text-on-surface-secondary mb-3">
-              Specific, objective instructions for the AI to follow during evaluation.
+              Specific, objective instructions for Zevian to follow during evaluation.
             </p>
             <Textarea
               value={instructions}
@@ -531,7 +538,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           <div className="border-t border-border pt-4">
             <h4 className="font-semibold text-on-surface mb-2">Instructions vs Criteria</h4>
             <p className="text-on-surface-secondary text-sm mb-3">
-              <strong className="text-on-surface">Instructions</strong> are specific, objective rules that the AI follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
+              <strong className="text-on-surface">Instructions</strong> are specific, objective rules that Zevian follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
             </p>
             <p className="text-on-surface-secondary text-sm">
               <strong className="text-on-surface">Criteria</strong> are the broad categories on which performance is scored (e.g., "Code Quality", "Creativity", "Speed") and given a weight.
@@ -539,7 +546,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           </div>
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mt-4">
             <p className="text-sm text-on-surface">
-              <strong>Tip:</strong> Use simple and clear instructions to get the best evaluation from the AI.
+              <strong>Tip:</strong> Use simple and clear instructions to get the best evaluation from Zevian.
             </p>
           </div>
         </div>

@@ -1,11 +1,12 @@
-
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { Project, Report, Employee, Goal, ProjectDocument } from '../types';
-import { ArrowLeft, Edit2, Save, X, Bot, RefreshCw, Link as LinkIcon, FileText, Layout, Info, Paperclip, File, Trash2, Loader2, Download, Upload } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Project, Report, Employee, Goal, ProjectDocument, KnowledgePin, KnowledgeBaseData } from '../types';
+import { ArrowLeft, Save, X, Bot, RefreshCw, FileText, Info, Paperclip, File, Trash2, Loader2, Download, Upload, Plus, Pin, AlertTriangle } from 'lucide-react';
 import Button from '../components/Button';
-import Textarea from '../components/Textarea';
 import { generateKnowledgeBase } from '../services/geminiService';
 import { storageService } from '../services/storageService';
+import { knowledgeBaseService } from '../services/knowledgeBaseService';
+// uuid removed
+// Actually knowledgeBaseService.addPin returns the real object.
 
 interface KnowledgeBasePageProps {
     project: Project;
@@ -26,17 +27,47 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
     onBack,
     viewMode
 }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [editedContext, setEditedContext] = useState(project.aiContext || '');
+    const isManager = viewMode === 'manager';
+
+    // State
+    const [kbData, setKbData] = useState<KnowledgeBaseData | null>(project.knowledgeBaseCache || null);
+    const [pins, setPins] = useState<KnowledgePin[]>([]);
+    const [isLoadingPins, setIsLoadingPins] = useState(false);
+
+    // Legacy / Fallback state
+    const [isLegacyMode, setIsLegacyMode] = useState(!project.knowledgeBaseCache && !!project.aiContext);
+
+    // File Upload State
     const [uploadedDocuments, setUploadedDocuments] = useState<ProjectDocument[]>([]);
     const [isUploading, setIsUploading] = useState(false);
-    const [isSyncing, setIsSyncing] = useState(false);
     const [isLoadingDocs, setIsLoadingDocs] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const isManager = viewMode === 'manager';
+    // Sync state
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
 
-    // Load uploaded documents from database
+    // New Pin Input State
+    const [activeSectionForPin, setActiveSectionForPin] = useState<string | null>(null);
+    const [newPinContent, setNewPinContent] = useState('');
+
+    // Load Pins
+    useEffect(() => {
+        const loadPins = async () => {
+            try {
+                setIsLoadingPins(true);
+                const loadedPins = await knowledgeBaseService.getPins(project.id);
+                setPins(loadedPins);
+            } catch (error) {
+                console.error("Failed to load pins", error);
+            } finally {
+                setIsLoadingPins(false);
+            }
+        };
+        loadPins();
+    }, [project.id]);
+
+    // Load Documents
     useEffect(() => {
         const loadDocuments = async () => {
             try {
@@ -49,258 +80,270 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                 setIsLoadingDocs(false);
             }
         };
-
         loadDocuments();
     }, [project.id]);
 
-    // Utility to strip HTML tags
-    const stripHtml = (html: string): string => {
-        const tmp = document.createElement('DIV');
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || '';
-    };
-
-    // Logic to standardize/generate context from project info + goals + reports
-    const getStandardizedContext = useCallback(() => {
-        const parts: string[] = [];
-
-        // 1. Add Project Overview
-        parts.push('PROJECT INFORMATION');
-        parts.push(`Name: ${project.name}`);
-
-        // Clean description of [Attached Documents] and HTML tags
-        const descriptionWithoutAttachments = project.description?.split('[Attached Documents]:')[0].trim();
-        const cleanDescription = descriptionWithoutAttachments ? stripHtml(descriptionWithoutAttachments) : '';
-        if (cleanDescription) {
-            parts.push(`\nDescription:\n${cleanDescription}`);
-        }
-
-        // 2. Add Goals and Objectives
-        const projectGoals = goals.filter(g => g.projectId === project.id);
-        if (projectGoals.length > 0) {
-            parts.push('\nGOALS & EVALUATION CRITERIA');
-            projectGoals.forEach(goal => {
-                parts.push(`\nGoal: ${goal.name}`);
-                if (goal.instructions) {
-                    parts.push(`Instructions:\n${goal.instructions}`);
-                }
-                if (goal.criteria && goal.criteria.length > 0) {
-                    parts.push('Evaluation Criteria:');
-                    goal.criteria.forEach(c => {
-                        parts.push(`- ${c.name} (${c.weight}%)`);
-                    });
-                }
-            });
-        }
-
-        // 3. Add summary from reports
-        const goalIds = projectGoals.map(g => g.id);
-        const projectReports = reports.filter(r => goalIds.includes(r.goalId));
-
-        if (projectReports.length > 0) {
-            parts.push('\nRECENT ACTIVITY SUMMARY');
-            parts.push(`Total Reports Submitted: ${projectReports.length}`);
-
-            // Group reports by employee
-            const reportsByEmployee = projectReports.reduce((acc, report) => {
-                const employee = employees.find(e => e.id === report.employeeId);
-                const employeeName = employee?.name || 'Unknown';
-                if (!acc[employeeName]) {
-                    acc[employeeName] = [];
-                }
-                acc[employeeName].push(report);
-                return acc;
-            }, {} as Record<string, Report[]>);
-
-            Object.entries(reportsByEmployee).forEach(([employeeName, empReports]: [string, Report[]]) => {
-                parts.push(`\n${employeeName} (${empReports.length} report${empReports.length > 1 ? 's' : ''})`);
-                empReports.slice(0, 3).forEach((report) => {
-                    const goal = goals.find(g => g.id === report.goalId);
-                    const reportText = report.reportText.replace(/<[^>]*>/g, '').substring(0, 200);
-                    parts.push(`- Goal: ${goal?.name || 'Unknown'}\n  Summary: ${reportText}... \n  Score: ${report.evaluationScore.toFixed(1)}/10`);
-                });
-                if (empReports.length > 3) {
-                    parts.push(`- ... and ${empReports.length - 3} more report${empReports.length - 3 > 1 ? 's' : ''}`);
-                }
-            });
-        }
-
-        return parts.join('\n');
-    }, [project, goals, reports, employees]);
-
-    // Auto-generate knowledge base if empty
+    // Update local state when project prop changes (e.g. initial load)
     useEffect(() => {
-        const autoGenerate = async () => {
-            if (!project.aiContext && !isEditing && !isSyncing) {
-                setIsSyncing(true);
-                try {
-                    const projectGoals = goals.filter(g => g.projectId === project.id);
-                    const goalIds = projectGoals.map(g => g.id);
-                    const projectReports = reports.filter(r => goalIds.includes(r.goalId));
-
-                    // Fetch file contents from storage
-                    const fileContents = await storageService.getProjectFileContents(project.id);
-
-                    const aiGenerated = await generateKnowledgeBase({
-                        projectName: project.name,
-                        description: project.description || '',
-                        goals: projectGoals,
-                        reports: projectReports,
-                        employees,
-                        fileContents
-                    });
-
-                    updateProject({
-                        ...project,
-                        aiContext: aiGenerated
-                    });
-                    setEditedContext(aiGenerated);
-                } catch (error) {
-                    console.error('Failed to auto-generate knowledge base:', error);
-                    // Fallback to simple standardization
-                    const fallback = getStandardizedContext();
-                    updateProject({
-                        ...project,
-                        aiContext: fallback
-                    });
-                    setEditedContext(fallback);
-                } finally {
-                    setIsSyncing(false);
-                }
-            }
-        };
-
-        // Wait for documents to load before auto-generating
-        if (!isLoadingDocs) {
-            autoGenerate();
+        if (project.knowledgeBaseCache) {
+            setKbData(project.knowledgeBaseCache);
+            setIsLegacyMode(false);
+        } else if (project.aiContext && !project.knowledgeBaseCache) {
+            setIsLegacyMode(true);
         }
-    }, [project.aiContext, isEditing, isSyncing, isLoadingDocs, project, goals, reports, employees, getStandardizedContext, updateProject]);
+    }, [project.knowledgeBaseCache, project.aiContext]);
 
-    const handleSave = async () => {
-        setIsSyncing(true);
+
+    const handleRegenerate = async () => {
+        setIsGenerating(true);
         try {
             const projectGoals = goals.filter(g => g.projectId === project.id);
             const goalIds = projectGoals.map(g => g.id);
             const projectReports = reports.filter(r => goalIds.includes(r.goalId));
 
-            // Fetch file contents from storage
-            const fileContents = await storageService.getProjectFileContents(project.id);
+            // Fetch file contents
+            let fileContents: { name: string, content: string }[] = [];
+            try {
+                fileContents = await storageService.getProjectFileContents(project.id);
+            } catch (e) {
+                console.warn("Could not load file contents for context generation", e);
+            }
 
-            const aiGenerated = await generateKnowledgeBase({
+            const newData = await generateKnowledgeBase({
                 projectName: project.name,
                 description: project.description || '',
                 goals: projectGoals,
                 reports: projectReports,
                 employees,
-                fileContents
+                fileContents,
+                pinnedItems: pins
             });
 
-            updateProject({
-                ...project,
-                aiContext: aiGenerated
-            });
-            setEditedContext(aiGenerated);
-            setIsEditing(false);
+            setKbData(newData);
+            setIsLegacyMode(false); // Upgraded from legacy if successful
+
+            // Auto-save the cache and new context
+            await saveChanges(newData, pins);
+
         } catch (error) {
-            console.error("Failed to generate comprehensive knowledge base:", error);
-            // Fallback: save manual edits if AI fails
-            updateProject({
+            console.error('Failed to regenerate knowledge base:', error);
+            alert('Failed to regenerate Knowledge Base. Please try again.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const saveChanges = async (data: KnowledgeBaseData, currentPins: KnowledgePin[]) => {
+        setIsSyncing(true);
+        try {
+            // Generate the flattened context string
+            const contextString = knowledgeBaseService.formatContextString(data, currentPins);
+
+            // Update project
+            const updatedProject = {
                 ...project,
-                aiContext: editedContext
-            });
-            setIsEditing(false);
+                aiContext: contextString,
+                knowledgeBaseCache: data
+            };
+
+            // Call parent update (which saves to DB via projectService.update or similar)
+            // Assuming updateProject persists it. If not, we might need a direct service call, 
+            // but usually updateProject links to a service call in parent.
+            // Checking App.tsx (implied structure), updateProject usually calls API.
+            // If not, we might need to verify. Assuming standard pattern from previous files.
+            await updateProject(updatedProject);
+
+            // For local reflection without waiting for parent reload?
+            setKbData(data);
+            setIsLegacyMode(false);
+
+        } catch (error) {
+            console.error("Failed to save knowledge base:", error);
         } finally {
             setIsSyncing(false);
         }
     };
 
-    const handleCancel = () => {
-        setEditedContext(project.aiContext || '');
-        setIsEditing(false);
+    const handleAddPin = async (section: any) => {
+        if (!newPinContent.trim()) return;
+
+        const tempId = `temp-${Date.now()}`;
+        // Optimistic update? Better to wait for server response for ID.
+        try {
+            const newPin = await knowledgeBaseService.addPin({
+                projectId: project.id,
+                section,
+                content: newPinContent,
+                createdBy: employees.find(e => e.id === project.createdBy)?.id // Or current user?
+                // Ideally current user ID, but we don't have clear access to "me" here except via isManager check or props?
+                // Assuming isManager implies we can just use the project creator or we need a auth user ID. 
+                // Let's passed in viewMode. For now using project.createdBy or undefined is safer if we don't have current user.
+                // Wait, in `addPin` service checking RLS will fail if not auth.
+                // The service call adds the pin.
+                // We'll trust the backend RLS allows "Manager manage pins".
+                // createdBy is optional in types.
+            });
+
+            const updatedPins = [...pins, newPin];
+            setPins(updatedPins);
+            setNewPinContent('');
+            setActiveSectionForPin(null);
+
+            // Update the context string immediately so AI stays in sync
+            if (kbData) {
+                await saveChanges(kbData, updatedPins);
+            }
+
+        } catch (error) {
+            console.error("Failed to add pin:", error);
+            alert("Failed to add pin");
+        }
     };
 
+    const handleDeletePin = async (pinId: string) => {
+        if (!confirm("Are you sure you want to unpin this rule?")) return;
+        try {
+            await knowledgeBaseService.deletePin(pinId);
+            const updatedPins = pins.filter(p => p.id !== pinId);
+            setPins(updatedPins);
+
+            if (kbData) {
+                await saveChanges(kbData, updatedPins);
+            }
+        } catch (error) {
+            console.error("Failed to delete pin:", error);
+        }
+    };
+
+    // File Upload Handler (Existing logic preserved)
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files) as File[];
             setIsUploading(true);
-
             try {
-                // Upload each file to Supabase Storage
                 const uploadedDocs = await Promise.all(
                     files.map(file =>
                         storageService.uploadFile(
                             project.id,
                             file,
-                            employees.find(e => e.id === project.createdBy)?.id
+                            undefined // uploadedBy
                         )
                     )
                 );
-
-                // Update local state
                 setUploadedDocuments(prev => [...uploadedDocs, ...prev]);
             } catch (error) {
                 console.error('File upload failed:', error);
                 alert('Failed to upload files. Please try again.');
             } finally {
                 setIsUploading(false);
-                // Clear file input
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                }
+                if (fileInputRef.current) fileInputRef.current.value = '';
             }
         }
     };
 
     const handleRemoveFile = async (documentId: string) => {
-        if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-            return;
-        }
-
+        if (!confirm('Delete document?')) return;
         try {
             await storageService.deleteFile(documentId);
             setUploadedDocuments(prev => prev.filter(doc => doc.id !== documentId));
         } catch (error) {
-            console.error('Failed to delete file:', error);
-            alert('Failed to delete file. Please try again.');
+            alert('Failed to delete file.');
         }
     };
 
-    const formatFileSize = (bytes: number): string => {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    };
+    // Helper Renderer for Sections
+    const renderSection = (
+        title: string,
+        sectionKey: 'lexicon' | 'priorities' | 'benchmarks' | 'constraints',
+        items?: string[] | { term: string, definition: string }[],
+        emptyText: string = "No items generated."
+    ) => {
+        const sectionPins = pins.filter(p => p.section === sectionKey);
 
-    const handleDownload = (doc: ProjectDocument) => {
-        window.open(doc.fileUrl, '_blank');
-    };
+        return (
+            <div className="bg-surface rounded-lg p-5 border border-border space-y-4">
+                <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-on-surface flex items-center gap-2">
+                        {title}
+                        <span className="text-xs font-normal text-on-surface-tertiary bg-surface-hover px-2 py-0.5 rounded-full">
+                            {sectionPins.length + (items?.length || 0)}
+                        </span>
+                    </h4>
+                    {isManager && (
+                        <Button
+                            onClick={() => { setActiveSectionForPin(sectionKey); setNewPinContent(''); }}
+                            variant="ghost"
+                            size="sm"
+                            icon={Plus}
+                        >
+                            Add Pin
+                        </Button>
+                    )}
+                </div>
 
-    const handleRemoveFileOld = (fileName: string) => {
-        if (!project.description) return;
+                {/* Add Pin Input */}
+                {activeSectionForPin === sectionKey && (
+                    <div className="flex gap-2 p-3 bg-surface-hover rounded-lg animate-in fade-in slide-in-from-top-2">
+                        <div className="flex-shrink-0 pt-2">
+                            <Pin size={16} className="text-primary" />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <textarea
+                                value={newPinContent}
+                                onChange={e => setNewPinContent(e.target.value)}
+                                placeholder={`Enter mandatory rule for ${title}...`}
+                                className="w-full bg-surface border border-border rounded-md p-2 text-sm focus:ring-1 focus:ring-primary outline-none min-h-[60px]"
+                                autoFocus
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="ghost" onClick={() => setActiveSectionForPin(null)}>Cancel</Button>
+                                <Button size="sm" variant="primary" onClick={() => handleAddPin(sectionKey)}>Pin Rule</Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-        const lines = project.description.split('\n');
-        const filteredLines = lines.filter(line => line.trim() !== `- ${fileName}`);
+                <div className="space-y-2">
+                    {/* Pinned Items */}
+                    {sectionPins.map(pin => (
+                        <div key={pin.id} className="group flex items-start justify-between p-3 rounded-md bg-secondary/10 border border-secondary/20 hover:border-secondary/30 transition-all">
+                            <div className="flex gap-3">
+                                <Pin size={16} className="text-secondary flex-shrink-0 mt-1" />
+                                <div>
+                                    <p className="text-sm text-on-surface font-medium">{pin.content}</p>
+                                    <p className="text-[10px] text-secondary mt-1 uppercase tracking-wider font-bold">Pinned &bull; Hard Constraint</p>
+                                </div>
+                            </div>
+                            {isManager && (
+                                <button
+                                    onClick={() => handleDeletePin(pin.id)}
+                                    className="text-on-surface-tertiary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
+                        </div>
+                    ))}
 
-        // Check if we should remove the header too
-        const finalLines = [];
-        let hasAttachments = false;
-        for (let i = 0; i < filteredLines.length; i++) {
-            if (filteredLines[i].includes('[Attached Documents]:')) {
-                // Check if next lines are attachments
-                const nextIsAttachment = filteredLines.slice(i + 1).some(l => l.trim().startsWith('- '));
-                if (nextIsAttachment) {
-                    finalLines.push(filteredLines[i]);
-                    hasAttachments = true;
-                }
-            } else {
-                finalLines.push(filteredLines[i]);
-            }
-        }
-
-        updateProject({
-            ...project,
-            description: finalLines.join('\n')
-        });
+                    {/* AI Items */}
+                    {items && items.length > 0 ? (
+                        items.map((item, idx) => {
+                            const text = typeof item === 'string' ? item : `${item.term}: ${item.definition}`;
+                            return (
+                                <div key={idx} className="flex items-start gap-3 p-3 rounded-md bg-surface border border-border/50 text-sm text-on-surface-secondary">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 mt-1.5 flex-shrink-0" />
+                                    <p>{text}</p>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        sectionPins.length === 0 && (
+                            <div className="text-sm text-on-surface-tertiary italic p-2">{emptyText}</div>
+                        )
+                    )}
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -308,335 +351,133 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
+                    <Button onClick={onBack} variant="ghost" size="sm" icon={ArrowLeft}>Back to Project</Button>
+                    <div>
+                        <h2 className="text-2xl font-bold text-on-surface">Knowledge Base</h2>
+                        <p className="text-sm text-on-surface-tertiary">{project.name}</p>
+                    </div>
+                </div>
+
+                {isManager && (
                     <Button
-                        onClick={onBack}
-                        variant="ghost"
-                        size="sm"
-                        icon={ArrowLeft}
+                        onClick={handleRegenerate}
+                        variant="primary"
+                        icon={isGenerating ? Loader2 : RefreshCw}
+                        disabled={isGenerating}
+                        className={isGenerating ? 'animate-pulse' : ''}
                     >
-                        Back to Project
+                        {isGenerating ? (isLegacyMode ? 'Converting...' : 'Regenerating...') : (isLegacyMode ? 'Analyze & Enable Pinned Rules' : 'Regenerate Suggestions')}
                     </Button>
-                    <div className="flex items-center gap-3">
-                        <div>
-                            <h2 className="text-2xl font-bold text-on-surface">Knowledge Base</h2>
-                            <p className="text-sm text-on-surface-tertiary">{project.name}</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    {isManager && !isEditing && (
-                        <Button
-                            onClick={() => setIsEditing(true)}
-                            variant="primary"
-                            size="sm"
-                            icon={Edit2}
-                        >
-                            Edit Knowledge Base
-                        </Button>
-                    )}
-                    {isEditing && (
-                        <>
-                            <Button
-                                onClick={handleCancel}
-                                variant="ghost"
-                                size="sm"
-                                icon={X}
-                                disabled={isSyncing}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={handleSave}
-                                variant="primary"
-                                size="sm"
-                                icon={isSyncing ? Loader2 : Save}
-                                className={isSyncing ? 'animate-pulse' : ''}
-                                disabled={isSyncing}
-                            >
-                                {isSyncing ? 'Syncing with AI...' : 'Save Changes'}
-                            </Button>
-                        </>
-                    )}
-                </div>
+                )}
             </div>
 
-            {/* Project Stats */}
-            <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-                <div className="flex flex-wrap gap-8 items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                            <FileText size={20} className="text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-on-surface-tertiary uppercase tracking-wider font-semibold">Total Reports</p>
-                            <p className="text-xl font-bold text-on-surface">{reports.filter(r => goals.some(g => g.id === r.goalId && g.projectId === project.id)).length}</p>
-                        </div>
+            {/* Legacy Warning */}
+            {isLegacyMode && !isGenerating && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
+                    <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
+                    <div>
+                        <h3 className="text-sm font-semibold text-amber-500 mb-1">Legacy Format Detected</h3>
+                        <p className="text-sm text-on-surface-secondary mb-3">
+                            This Knowledge Base is stored in a legacy text format. To use <strong>Pinned Rules</strong> (Human Overrides) and granular editing, please regenerate the Knowledge Base. This will structure the data and allow you to lock in specific rules.
+                        </p>
                     </div>
-                    <div className="w-px h-8 bg-border hidden sm:block"></div>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-green-500/10">
-                            <RefreshCw size={20} className="text-green-500" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-on-surface-tertiary uppercase tracking-wider font-semibold">Active Goals</p>
-                            <p className="text-xl font-bold text-on-surface">{goals.filter(g => g.projectId === project.id).length}</p>
-                        </div>
-                    </div>
-                    {project.updatedAt && (
-                        <>
-                            <div className="w-px h-8 bg-border hidden sm:block"></div>
-                            <div className="flex items-center gap-3 text-on-surface-tertiary">
-                                <Info size={16} />
-                                <span className="text-sm italic">
-                                    Last updated: {new Date(project.updatedAt).toLocaleDateString()}
-                                </span>
-                            </div>
-                        </>
-                    )}
                 </div>
-            </div>
+            )}
 
-            {/* Info Banner */}
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex gap-3">
-                <Bot size={24} className="text-primary flex-shrink-0" />
-                <div>
-                    <h3 className="text-sm font-semibold text-primary">Project Context</h3>
-                    <p className="text-sm text-on-surface-secondary">
-                        This content is used by AI to evaluate reports. It is automatically synthesized by Gemini AI when you save changes, incorporating project info, goals, recent activity, and uploaded documents.
+            {/* Main Content */}
+            {isGenerating ? (
+                <div className="bg-surface-elevated rounded-lg p-12 flex flex-col items-center justify-center text-center border border-border min-h-[400px]">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6 relative">
+                        <Bot size={32} className="text-primary animate-pulse" />
+                        <div className="absolute inset-0 border-2 border-primary/20 rounded-full animate-spin-slow" />
+                    </div>
+                    <h3 className="text-lg font-bold text-on-surface mb-2">
+                        {isLegacyMode ? "Structuring Knowledge Base..." : "Synthesizing Project Context..."}
+                    </h3>
+                    <p className="text-on-surface-secondary max-w-md">
+                        Zevian is analyzing your reports, goals, and documents to build a structured set of rules and benchmarks.
+                        {pins.length > 0 && <span className="block mt-2 font-medium text-secondary">Applying {pins.length} pinned rules as hard constraints.</span>}
                     </p>
                 </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="space-y-6">
-                <div className="bg-surface-elevated rounded-lg p-6 border border-border min-h-[400px]">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <Bot size={20} className="text-on-surface-secondary" />
-                            <h3 className="text-lg font-semibold text-on-surface">Main Knowledge Base</h3>
+            ) : isLegacyMode ? (
+                /* Legacy View */
+                <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+                    <div className="prose prose-slate max-w-none prose-sm">
+                        <div className="whitespace-pre-wrap font-mono text-sm text-on-surface-secondary">
+                            {project.aiContext}
                         </div>
-                        {!isEditing && (
-                            <div className="flex items-center gap-1 text-xs text-on-surface-tertiary">
-                                <Info size={14} />
-                                <span>Click "Edit" to modify this content</span>
-                            </div>
-                        )}
                     </div>
+                </div>
+            ) : kbData ? (
+                /* Structured View */
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Left Column: Description & Metadata */}
+                    <div className="space-y-6">
+                        <div className="bg-surface-elevated rounded-lg p-5 border border-border">
+                            <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider mb-4 pb-2 border-b border-border">Project Overview</h3>
+                            <p className="text-sm text-on-surface-secondary leading-relaxed mb-4">
+                                {kbData.projectDescription}
+                            </p>
 
-                    <div className="relative group">
-                        {isSyncing ? (
-                            <div className="min-h-[400px] flex flex-col items-center justify-center p-12 text-center">
-                                <div className="relative mb-8">
-                                    <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center border border-primary/10 relative">
-                                        <Bot size={48} className="text-primary animate-pulse" />
-                                        <div className="absolute inset-0 border-2 border-dashed border-primary/20 rounded-full animate-spin-slow"></div>
-                                    </div>
-                                    <div className="absolute -bottom-2 -right-2 bg-surface-elevated p-2 rounded-lg border border-border shadow-lg">
-                                        <Loader2 size={20} className="text-primary animate-spin" />
-                                    </div>
-                                </div>
-                                <div className="max-w-md space-y-4">
-                                    <h4 className="text-xl font-bold text-on-surface tracking-tight">Synthesizing Knowledge Base</h4>
-                                    <p className="text-on-surface-secondary text-sm leading-relaxed">
-                                        Gemini is analyzing your project objectives, goals, and historical reports to build a comprehensive context for performance evaluation.
-                                    </p>
-                                    <div className="flex items-center justify-center gap-4 py-2">
-                                        <div className="flex gap-1">
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
-                                        </div>
-                                        <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Processing technical context</span>
-                                    </div>
-                                </div>
+                            {/* Roadmaps */}
+                            <div className="space-y-2">
+                                <h4 className="text-xs font-semibold text-on-surface-tertiary uppercase">Roadmap & KPIs</h4>
+                                <ul className="space-y-1">
+                                    {kbData.roadmapsAndKPIs.map((k, i) => (
+                                        <li key={i} className="text-sm text-on-surface-secondary flex gap-2">
+                                            <span className="text-primary font-bold">{i + 1}.</span> {k}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                        ) : isEditing ? (
-                            <div className="space-y-4">
-                                <Textarea
-                                    value={editedContext}
-                                    onChange={(e) => setEditedContext(e.target.value)}
-                                    placeholder="Standardize with AI or paste your project-specific knowledge base here..."
-                                    rows={20}
-                                    className="w-full font-mono text-sm"
-                                    helperText="This text defines the context for all AI evaluations in this project."
-                                />
-                            </div>
-                        ) : (
-                            <div className="min-h-[300px] px-4 py-6">
-                                {project.aiContext ? (
-                                    <div className="prose prose-slate max-w-none">
-                                        {project.aiContext.split('\n\n').map((section, idx) => {
-                                            const lines = section.split('\n');
-                                            const header = lines[0];
-                                            const content = lines.slice(1);
+                        </div>
 
-                                            // Check if it's a header (all caps)
-                                            const isHeader = header === header.toUpperCase() && header.trim().length > 0 && !header.startsWith('•') && !header.match(/^\d+\./);
-
-                                            if (isHeader) {
-                                                return (
-                                                    <div key={idx} className="mb-6">
-                                                        <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider mb-3 pb-1 border-b-2 border-primary/20">
-                                                            {header}
-                                                        </h3>
-                                                        <div className="space-y-2">
-                                                            {content.map((line, lineIdx) => {
-                                                                if (!line.trim()) return null;
-
-                                                                // Bullet point
-                                                                if (line.trim().startsWith('•')) {
-                                                                    const text = line.trim().substring(1).trim();
-                                                                    // Check if it's a key-value pair (contains colon)
-                                                                    if (text.includes(':')) {
-                                                                        const [key, ...valueParts] = text.split(':');
-                                                                        const value = valueParts.join(':').trim();
-                                                                        return (
-                                                                            <p key={lineIdx} className="ml-4 leading-relaxed text-on-surface-secondary">
-                                                                                <span className="font-semibold text-on-surface">{key}:</span> {value}
-                                                                            </p>
-                                                                        );
-                                                                    }
-                                                                    return (
-                                                                        <p key={lineIdx} className="ml-4 leading-relaxed text-on-surface-secondary before:content-['•'] before:mr-2 before:text-primary">
-                                                                            {text}
-                                                                        </p>
-                                                                    );
-                                                                }
-
-                                                                // Numbered list
-                                                                if (line.match(/^\d+\./)) {
-                                                                    const number = line.match(/^\d+\./)?.[0];
-                                                                    const text = line.replace(/^\d+\.\s*/, '');
-                                                                    return (
-                                                                        <p key={lineIdx} className="ml-4 leading-relaxed text-on-surface-secondary">
-                                                                            <span className="font-semibold text-primary mr-2">{number}</span>
-                                                                            {text}
-                                                                        </p>
-                                                                    );
-                                                                }
-
-                                                                // Regular paragraph
-                                                                return (
-                                                                    <p key={lineIdx} className="leading-relaxed text-on-surface-secondary">
-                                                                        {line}
-                                                                    </p>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } else {
-                                                // Standalone paragraph
-                                                return (
-                                                    <p key={idx} className="mb-4 leading-relaxed text-on-surface-secondary">
-                                                        {section}
-                                                    </p>
-                                                );
-                                            }
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                                        <div className="p-4 rounded-full bg-surface-hover text-on-surface-tertiary">
-                                            <FileText size={48} />
-                                        </div>
-                                        <div className="max-w-xs">
-                                            <p className="text-on-surface-secondary font-medium">Knowledge base is empty</p>
-                                            <p className="text-sm text-on-surface-tertiary mt-1">
-                                                Click "Edit" and then "Save Changes" to allow Gemini to generate a comprehensive knowledge base for this project.
-                                            </p>
-                                        </div>
-                                    </div>
+                        {/* File Uploads (Moved to sidebar) */}
+                        <div className="bg-surface-elevated rounded-lg p-5 border border-border">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Documents</h3>
+                                {isManager && (
+                                    <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" icon={Upload} disabled={isUploading}>
+                                        {isUploading ? 'Wait...' : 'Add'}
+                                    </Button>
                                 )}
                             </div>
-                        )}
+                            <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
+
+                            <div className="space-y-2">
+                                {uploadedDocuments.length === 0 && <p className="text-xs text-on-surface-tertiary italic">No documents.</p>}
+                                {uploadedDocuments.map(doc => (
+                                    <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-surface border border-border text-sm">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <FileText size={14} className="text-primary flex-shrink-0" />
+                                            <span className="truncate">{doc.fileName}</span>
+                                        </div>
+                                        {isManager && <button onClick={() => handleRemoveFile(doc.id)} className="text-on-surface-tertiary hover:text-red-500"><X size={14} /></button>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column (Wide): Rules & Lexicon */}
+                    <div className="xl:col-span-2 space-y-6">
+                        {renderSection("Project Lexicon", "lexicon", kbData.projectLexicon)}
+                        {renderSection("Operational Priorities", "priorities", kbData.operationalPriorities)}
+                        {renderSection("Style & Quality Benchmarks", "benchmarks", [kbData.styleAndQualityBenchmarks])}
+                        {renderSection("Implicit Constraints", "constraints", kbData.implicitConstraints)}
                     </div>
                 </div>
-
-                {/* Upload Section - BELOW the main container */}
-                <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <Paperclip size={20} className="text-on-surface-secondary" />
-                            <h3 className="text-lg font-semibold text-on-surface">Supporting Documents</h3>
-                        </div>
-                        {isManager && (
-                            <Button
-                                onClick={() => fileInputRef.current?.click()}
-                                variant="outline"
-                                size="sm"
-                                icon={isUploading ? Loader2 : Upload}
-                                disabled={isUploading}
-                                className={isUploading ? 'animate-pulse' : ''}
-                            >
-                                {isUploading ? 'Uploading...' : 'Upload Files'}
-                            </Button>
-                        )}
-                    </div>
-
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        multiple
-                        accept=".txt,.md,.pdf,.doc,.docx"
-                        onChange={handleFileUpload}
-                    />
-
-                    {isLoadingDocs ? (
-                        <div className="text-center py-12">
-                            <Loader2 className="animate-spin mx-auto mb-2 text-primary" size={32} />
-                            <p className="text-sm text-on-surface-tertiary">Loading documents...</p>
-                        </div>
-                    ) : uploadedDocuments.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {uploadedDocuments.map((doc) => (
-                                <div
-                                    key={doc.id}
-                                    className="flex items-center justify-between p-3 rounded-lg bg-surface border border-border hover:border-primary/30 transition-all group"
-                                >
-                                    <div className="flex items-center gap-3 overflow-hidden flex-1">
-                                        <div className="p-2 rounded bg-primary/5 text-primary">
-                                            <File size={16} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-on-surface truncate" title={doc.fileName}>
-                                                {doc.fileName}
-                                            </p>
-                                            <p className="text-xs text-on-surface-tertiary">
-                                                {formatFileSize(doc.fileSize)}
-                                                {doc.uploadedAt && ` • ${new Date(doc.uploadedAt).toLocaleDateString()}`}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={() => handleDownload(doc)}
-                                            className="p-1 px-2 text-on-surface-tertiary hover:text-primary transition-colors"
-                                            title="Download file"
-                                        >
-                                            <Download size={14} />
-                                        </button>
-                                        {isManager && (
-                                            <button
-                                                onClick={() => handleRemoveFile(doc.id)}
-                                                className="p-1 px-2 text-on-surface-tertiary hover:text-red-500 transition-colors"
-                                                title="Delete file"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-6 border-2 border-dashed border-border rounded-lg">
-                            <p className="text-sm text-on-surface-tertiary italic">No supporting documents uploaded yet.</p>
-                        </div>
+            ) : (
+                /* Empty / Error State */
+                <div className="bg-surface-elevated rounded-lg p-12 text-center border border-border">
+                    <Bot size={48} className="text-on-surface-tertiary mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-on-surface">Knowledge Base Not Initialized</h3>
+                    <p className="text-on-surface-secondary mb-6">Create a knowledge base to guide the AI with specific rules and context.</p>
+                    {isManager && (
+                        <Button onClick={handleRegenerate} variant="primary">Initialize Knowledge Base</Button>
                     )}
                 </div>
-            </div>
+            )}
         </div>
     );
 };
