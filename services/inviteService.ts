@@ -8,7 +8,9 @@ interface InviteParams {
     invitedBy: string;
     invitedByText: string;
     token?: string;
-    initialProjectId?: string;
+    initialProjectId?: string; // Deprecated
+    initialProjectIds?: string[];
+    initialGoalIds?: string[];
     initialManagerId?: string;
 }
 

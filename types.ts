@@ -42,6 +42,7 @@ export interface Employee {
   onboardingCompleted?: boolean;
   joinDate?: string; // ISO 8601 format date string
   authUserId?: string; // Link to Supabase Auth User
+  skillAnalysis?: { [metricId: string]: number }; // Persisted AI skill analysis scores
 }
 
 export interface Project {
@@ -59,6 +60,13 @@ export interface Project {
   aiContext?: string; // Context for AI to keep track of project reports and updates
   knowledgeBaseCache?: KnowledgeBaseData; // Structured AI-generated content
   createdBy?: string; // ID of the employee/manager who created this project
+  createdAt?: string; // ISO 8601 format date string
+}
+
+export interface GoalAssignee {
+  id: string; // The ID of the employee assigned
+  type: 'employee' | 'manager';
+  assignedAt?: string;
 }
 
 export interface Goal {
@@ -72,6 +80,7 @@ export interface Goal {
   createdBy?: string; // ID of the employee/manager who created this goal (same as managerId for manager-created goals)
   createdAt?: string;
   status?: 'active' | 'completed';
+  assignees?: GoalAssignee[]; // Employees assigned to this specific goal
 }
 
 export interface ReportCriterionScore {
@@ -91,6 +100,7 @@ export interface Report {
   managerFeedback?: string; // Optional feedback from manager
   evaluationReasoning: string;
   criterionScores: ReportCriterionScore[]; // Renamed from evaluationCriteriaScores to match DB
+  reviewedBy?: string; // ID of the manager who reviewed/overrode the report
   isResolved?: boolean; // Explicitly marked as resolved by a manager
 }
 
@@ -108,7 +118,9 @@ export interface Invitation {
   expiresAt?: string; // ISO 8601 format date string (optional expiration)
   acceptedAt?: string; // ISO 8601 format date string (when invitation was accepted)
   status: 'pending' | 'accepted' | 'expired';
-  initialProjectId?: string;
+  initialProjectId?: string; // Deprecated in favor of initialProjectIds
+  initialProjectIds?: string[]; // Multiple projects
+  initialGoalIds?: string[]; // Specific goals assigned during invite
   initialManagerId?: string;
 }
 

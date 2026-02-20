@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Building2, Save, CheckCircle, BarChart3, Info,
-    Settings, Calendar, Users, Globe, FolderKanban, RotateCcw, AlertTriangle
+    Settings, Calendar, Users, Globe, FolderKanban, RotateCcw, AlertTriangle, Search
 } from 'lucide-react';
-import { Organization, ManagerSettings, Employee, Project } from '../types';
+import { Organization, ManagerSettings, Employee, Project, Invitation, Goal, EmployeeRole } from '../types';
 import { STANDARD_METRICS } from '../constants';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -12,6 +12,7 @@ import Select from '../components/Select';
 import MultiSelect from '../components/MultiSelect';
 import Table from '../components/Table';
 import { organizationService } from '../services/databaseService';
+import OrganizationUsersTab from '../components/OrganizationUsersTab';
 import { useToast } from '../context/ToastContext';
 import { canSetGlobalFrequency, canViewOrganizationWide, canManageSettings, isAccountOwner } from '../utils/managerPermissions';
 
@@ -25,9 +26,13 @@ interface OrganizationPageProps {
     updateEmployee?: (employee: Employee) => void;
     onRestartOnboarding?: () => void;
     currentManagerId?: string;
+    invitations?: Invitation[];
+    goals?: Goal[];
+    onInvite?: (email: string, role: EmployeeRole, projectIds?: string[], goalIds?: string[], managerId?: string) => Promise<Invitation | null | void>;
+    onDeleteInvitation?: (invitationId: string) => Promise<void>;
 }
 
-type TabType = 'general' | 'reporting' | 'hierarchy' | 'danger';
+type TabType = 'general' | 'users' | 'reporting' | 'hierarchy' | 'danger';
 
 const OrganizationPage: React.FC<OrganizationPageProps> = ({
     organization,
@@ -38,7 +43,11 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
     updateSettings,
     updateEmployee,
     onRestartOnboarding,
-    currentManagerId
+    currentManagerId,
+    invitations = [],
+    goals = [],
+    onInvite,
+    onDeleteInvitation
 }) => {
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<TabType>('general');
@@ -157,6 +166,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
 
     const tabs: { id: TabType; label: string; icon: React.ReactNode; hidden?: boolean }[] = [
         { id: 'general', label: 'Organization', icon: <Building2 size={18} /> },
+        { id: 'users', label: 'Users', icon: <Users size={18} /> },
         { id: 'reporting', label: 'Reporting', icon: <Calendar size={18} /> },
         { id: 'hierarchy', label: 'Hierarchy', icon: <Users size={18} />, hidden: !isOwnerFlag },
         { id: 'danger', label: 'Advanced', icon: <RotateCcw size={18} />, hidden: !isOwnerFlag },
@@ -269,6 +279,19 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                             </Button>
                         </div>
                     </div>
+                )}
+
+                {/* Tab: Users */}
+                {activeTab === 'users' && (
+                    <OrganizationUsersTab
+                        employees={employees}
+                        invitations={invitations}
+                        projects={projects}
+                        goals={goals}
+                        onInvite={onInvite}
+                        onDeleteInvitation={onDeleteInvitation}
+                        organizationName={orgName}
+                    />
                 )}
 
                 {/* Tab: Reporting */}
@@ -537,8 +560,27 @@ const PermissionsTable: React.FC<{
     const managers = employees.filter(emp => emp.role === 'manager' || emp.isAccountOwner);
     const managerOptions = managers.map(e => ({ value: e.id, label: e.name }));
 
-    const headers = ['Manager', 'Reports To', 'View Org', 'Settings', 'Global Freq', 'Actions'];
-    const rows = managers.map(emp => {
+    const [searchQuery, setSearchQuery] = useState('');
+    // Show all employees in hierarchy management, but allow toggling
+    const [showAll, setShowAll] = useState(false);
+    const displayedEmployees = useMemo(() => {
+        let list = showAll
+            ? employees.filter(e => !e.isAccountOwner)
+            : managers.filter(e => !e.isAccountOwner);
+
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase().trim();
+            list = list.filter(e =>
+                e.name.toLowerCase().includes(query) ||
+                e.email.toLowerCase().includes(query) ||
+                e.title?.toLowerCase().includes(query)
+            );
+        }
+        return list;
+    }, [employees, managers, showAll, searchQuery]);
+
+    const headers = ['Employee', 'Reports To', 'View Org', 'Settings', 'Global Freq', 'Role'];
+    const rows = displayedEmployees.map(emp => {
         // Helper to check permission or if owner
         const hasPerm = (p: keyof import('../types').EmployeePermissions) => emp.isAccountOwner || emp.permissions?.[p];
 
@@ -555,23 +597,21 @@ const PermissionsTable: React.FC<{
                 <span className="text-[10px] text-on-surface-tertiary uppercase font-bold">{emp.title || 'No Title'}</span>
             </div>,
             <div key="manager" className="w-32">
-                {!emp.isAccountOwner ? (
-                    <Select
-                        value={emp.managerId || ''}
-                        onChange={(e) => updateEmployee({ ...emp, managerId: e.target.value })}
-                        options={[{ value: '', label: 'None' }, ...managerOptions.filter(o => o.value !== emp.id)]}
-                        className="text-xs h-8"
-                    />
-                ) : <span className="text-xs text-primary font-bold">Organization Owner</span>}
+                <Select
+                    value={emp.managerId || ''}
+                    onChange={(e) => updateEmployee({ ...emp, managerId: e.target.value })}
+                    options={[{ value: '', label: 'None' }, ...managerOptions.filter(o => o.value !== emp.id)]}
+                    className="text-xs h-8"
+                />
             </div>,
             // View Org Permission
             <div key="view" className="flex justify-center">
                 <input
                     type="checkbox"
                     checked={!!hasPerm('canViewOrganizationWide')}
-                    disabled={emp.isAccountOwner}
+                    disabled={emp.role === 'employee'}
                     onChange={() => togglePerm('canViewOrganizationWide')}
-                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-50"
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-30"
                 />
             </div>,
             // Manage Settings Permission
@@ -579,9 +619,9 @@ const PermissionsTable: React.FC<{
                 <input
                     type="checkbox"
                     checked={!!hasPerm('canManageSettings')}
-                    disabled={emp.isAccountOwner}
+                    disabled={emp.role === 'employee'}
                     onChange={() => togglePerm('canManageSettings')}
-                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-50"
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-30"
                 />
             </div>,
             // Global Frequency Permission
@@ -589,20 +629,70 @@ const PermissionsTable: React.FC<{
                 <input
                     type="checkbox"
                     checked={!!hasPerm('canSetGlobalFrequency')}
-                    disabled={emp.isAccountOwner}
+                    disabled={emp.role === 'employee'}
                     onChange={() => togglePerm('canSetGlobalFrequency')}
-                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-50"
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary disabled:opacity-30"
                 />
             </div>,
-            <div key="status" className="text-[10px] text-on-surface-secondary">
-                {emp.id === currentManagerId ? '(You)' : ''}
+            <div key="status" className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${emp.role === 'manager' ? 'bg-primary/10 text-primary' : 'bg-surface-secondary text-on-surface-tertiary'
+                    }`}>
+                    {emp.role}
+                </span>
+                {emp.id === currentManagerId && <span className="text-[10px] text-on-surface-tertiary">(You)</span>}
             </div>
         ];
     });
 
+    // Separate row for Owner as it's static
+    const owner = employees.find(e => e.isAccountOwner);
+    const ownerRow = owner ? [
+        <div key="owner-name" className="flex flex-col">
+            <span className="font-bold text-sm text-primary">{owner.name}</span>
+            <span className="text-[10px] text-primary/70 uppercase font-bold">{owner.title || 'Organization Owner'}</span>
+        </div>,
+        <div key="owner-manager" className="text-xs font-bold text-primary italic">Root (Owner)</div>,
+        <div key="owner-view" className="flex justify-center"><CheckCircle size={14} className="text-primary" /></div>,
+        <div key="owner-settings" className="flex justify-center"><CheckCircle size={14} className="text-primary" /></div>,
+        <div key="owner-freq" className="flex justify-center"><CheckCircle size={14} className="text-primary" /></div>,
+        <div key="owner-status" className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded">Owner</div>
+    ] : null;
+
     return (
-        <div className="border border-border rounded-xl overflow-hidden bg-surface">
-            <Table headers={headers} rows={rows} />
+        <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
+                <div className="flex items-center gap-6">
+                    <button
+                        onClick={() => setShowAll(false)}
+                        className={`text-sm font-bold transition-colors ${!showAll ? 'text-primary' : 'text-on-surface-tertiary hover:text-on-surface'}`}
+                    >
+                        Management Team ({managers.length})
+                    </button>
+                    <button
+                        onClick={() => setShowAll(true)}
+                        className={`text-sm font-bold transition-colors ${showAll ? 'text-primary' : 'text-on-surface-tertiary hover:text-on-surface'}`}
+                    >
+                        All Employees ({employees.length})
+                    </button>
+                </div>
+
+                <div className="relative flex-1 max-w-xs">
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" />
+                    <input
+                        type="text"
+                        placeholder="Search hierarchy..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-1.5 bg-surface border border-border rounded-lg text-sm text-on-surface placeholder-on-surface-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    />
+                </div>
+            </div>
+            <div className="border border-border rounded-xl overflow-hidden bg-surface shadow-sm">
+                <Table
+                    headers={headers}
+                    rows={ownerRow ? [ownerRow, ...rows] : rows}
+                />
+            </div>
         </div>
     );
 };

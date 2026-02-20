@@ -17,6 +17,7 @@ interface TableProps {
   sortColumn?: string | null;
   sortDirection?: SortDirection;
   onSort?: (column: string, direction: SortDirection) => void;
+  onRowClick?: (rowIndex: number) => void;
 }
 
 const Table: React.FC<TableProps> = ({
@@ -25,7 +26,8 @@ const Table: React.FC<TableProps> = ({
   sortable = false,
   sortColumn = null,
   sortDirection = null,
-  onSort
+  onSort,
+  onRowClick
 }) => {
   const handleSort = (columnKey: string, isSortable: boolean) => {
     if (!isSortable || !onSort) return;
@@ -93,10 +95,24 @@ const Table: React.FC<TableProps> = ({
           {rows.map((row, rowIndex) => (
             <tr
               key={rowIndex}
-              className="bg-surface-elevated hover:bg-surface-hover transition-colors"
+              onClick={() => onRowClick && onRowClick(rowIndex)}
+              className={`
+                bg-surface-elevated transition-colors
+                ${onRowClick ? 'cursor-pointer hover:bg-surface-hover/80' : 'hover:bg-surface-hover/30'}
+              `}
             >
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-4 py-3.5 align-top text-on-surface-secondary">
+                <td
+                  key={cellIndex}
+                  className="px-4 py-3.5 align-top text-on-surface-secondary"
+                  onClick={(e) => {
+                    // Prevent row click if clicking a button, link, or input
+                    const target = e.target as HTMLElement;
+                    if (target.closest('button') || target.closest('a') || target.closest('input') || target.closest('select')) {
+                      e.stopPropagation();
+                    }
+                  }}
+                >
                   {cell}
                 </td>
               ))}

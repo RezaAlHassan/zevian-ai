@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import type { Project, Goal, Report, Employee, Organization, Notification } from '../types';
+import { isReportLate } from '../utils/reportDueDate';
 
 // ============================================================================
 // ORGANIZATIONS SERVICE (Multi-Tenancy)
@@ -78,6 +79,7 @@ function dbProjectToProject(dbProject: any): Project {
         aiContext: dbProject.ai_context,
         knowledgeBaseCache: dbProject.knowledge_base_cache,
         createdBy: dbProject.created_by,
+        createdAt: dbProject.created_at,
         assignees: [], // Assignees are loaded separately
     };
 }
@@ -114,7 +116,7 @@ export const projectService = {
         };
     },
 
-    async create(project: Omit<Project, 'createdAt' | 'updatedAt'>) {
+    async create(project: Omit<Project, 'updatedAt'>) {
         console.log("projectService.create called with:", project);
         const { error } = await supabase
             .from('projects')
@@ -128,6 +130,7 @@ export const projectService = {
                 knowledge_base_link: project.knowledgeBaseLink,
                 ai_context: project.aiContext,
                 created_by: project.createdBy,
+                created_at: project.createdAt || new Date().toISOString(),
             });
         // Removed .select() to avoid RLS 403 race condition
 
@@ -263,6 +266,11 @@ function dbGoalToGoal(dbGoal: any): Goal {
         createdBy: dbGoal.created_by,
         createdAt: dbGoal.created_at,
         status: dbGoal.status || 'active',
+        assignees: dbGoal.goal_assignees?.map((ga: any) => ({
+            id: ga.assignee_id,
+            type: ga.assignee_type,
+            assignedAt: ga.assigned_at
+        })) || [],
     };
 }
 
@@ -270,7 +278,7 @@ export const goalService = {
     async getAll() {
         const { data, error } = await supabase
             .from('goals')
-            .select('*, projects(*), criteria(*)')
+            .select('*, projects(*), criteria(*), goal_assignees(assignee_id, assignee_type, assigned_at)')
             .order('created_at', { ascending: false });
         if (error) throw error;
         return data ? data.map(dbGoalToGoal) : [];
@@ -279,7 +287,7 @@ export const goalService = {
     async getById(id: string) {
         const { data, error } = await supabase
             .from('goals')
-            .select('*, projects(*), criteria(*)')
+            .select('*, projects(*), criteria(*), goal_assignees(assignee_id, assignee_type, assigned_at)')
             .eq('id', id)
             .single();
         if (error) throw error;
@@ -289,7 +297,7 @@ export const goalService = {
     async getByProjectId(projectId: string) {
         const { data, error } = await supabase
             .from('goals')
-            .select('*, criteria(*)')
+            .select('*, criteria(*), goal_assignees(assignee_id, assignee_type, assigned_at)')
             .eq('project_id', projectId)
             .order('created_at', { ascending: false });
         if (error) throw error;
@@ -330,9 +338,22 @@ export const goalService = {
             if (criteriaError) throw criteriaError;
         }
 
+        if (goal.assignees && goal.assignees.length > 0) {
+            const assigneesToInsert = goal.assignees.map(a => ({
+                goal_id: goal.id,
+                assignee_id: a.id,
+                assignee_type: a.type
+            }));
+            const { error: assigneesError } = await supabase
+                .from('goal_assignees')
+                .insert(assigneesToInsert);
+            if (assigneesError) throw assigneesError;
+        }
+
         return {
             ...goal,
-            criteria: goal.criteria || []
+            criteria: goal.criteria || [],
+            assignees: goal.assignees || []
         } as Goal;
     },
 
@@ -374,6 +395,25 @@ export const goalService = {
             }
         }
 
+        // Update assignees if provided
+        if (updates.assignees) {
+            // Delete existing assignees
+            await supabase.from('goal_assignees').delete().eq('goal_id', id);
+
+            // Insert new assignees
+            if (updates.assignees.length > 0) {
+                const assigneesToInsert = updates.assignees.map(a => ({
+                    goal_id: id,
+                    assignee_id: a.id,
+                    assignee_type: a.type
+                }));
+                const { error: assigneesError } = await supabase
+                    .from('goal_assignees')
+                    .insert(assigneesToInsert);
+                if (assigneesError) throw assigneesError;
+            }
+        }
+
         return this.getById(id);
     },
 
@@ -407,6 +447,7 @@ function dbReportToReport(dbReport: any): Report {
             criterionName: s.criterion_name,
             score: s.score
         })) : [],
+        reviewedBy: dbReport.reviewed_by
     };
 }
 
@@ -550,6 +591,7 @@ export const reportService = {
         if (updates.managerOverrideReasoning !== undefined) dbUpdates.manager_override_reasoning = updates.managerOverrideReasoning;
         if (updates.managerFeedback !== undefined) dbUpdates.manager_feedback = updates.managerFeedback;
         if (updates.evaluationReasoning !== undefined) dbUpdates.evaluation_reasoning = updates.evaluationReasoning;
+        if (updates.reviewedBy !== undefined) dbUpdates.reviewed_by = updates.reviewedBy;
 
         const { data, error } = await supabase
             .from('reports')
@@ -596,6 +638,7 @@ function dbEmployeeToEmployee(dbEmployee: any): Employee {
             canViewOrganizationWide: dbEmployee.employee_permissions.can_view_organization_wide,
             canManageSettings: dbEmployee.employee_permissions.can_manage_settings,
         } : undefined,
+        skillAnalysis: dbEmployee.skill_analysis || undefined,
     };
 }
 
@@ -707,6 +750,7 @@ export const employeeService = {
         if (updates.onboardingCompleted !== undefined) dbUpdates.onboarding_completed = updates.onboardingCompleted;
         if (updates.joinDate !== undefined) dbUpdates.join_date = updates.joinDate;
         if (updates.authUserId !== undefined) dbUpdates.auth_user_id = updates.authUserId;
+        if (updates.skillAnalysis !== undefined) dbUpdates.skill_analysis = updates.skillAnalysis;
 
         const { data, error } = await supabase
             .from('employees')
@@ -839,7 +883,7 @@ export const notificationService = {
         const { error } = await supabase
             .from('notifications')
             .insert({
-                user_id: notification.userId,
+                user_id: notification.userId, // This should be the employee.id (string)
                 type: notification.type,
                 title: notification.title,
                 message: notification.message,
@@ -847,6 +891,58 @@ export const notificationService = {
             });
 
         if (error) throw error;
+    },
+
+    async checkAndNotifyLateReports(employeeId: string) {
+        // 1. Get all active goals for this employee
+        const { data: goals, error: goalsError } = await supabase
+            .from('goals')
+            .select('*, projects(report_frequency), goal_assignees!inner(assignee_id)')
+            .eq('goal_assignees.assignee_id', employeeId)
+            .eq('status', 'active');
+
+        if (goalsError) throw goalsError;
+        if (!goals || goals.length === 0) return;
+
+        // 2. For each goal, check the latest report
+        for (const goal of goals) {
+            const frequency = goal.projects?.report_frequency || 'weekly';
+
+            const { data: recentReports, error: reportsError } = await supabase
+                .from('reports')
+                .select('submission_date')
+                .eq('goal_id', goal.id)
+                .order('submission_date', { ascending: false })
+                .limit(1);
+
+            if (reportsError) continue;
+
+            const lastReportDate = recentReports && recentReports.length > 0 ? recentReports[0].submission_date : null;
+
+            if (isReportLate(lastReportDate, frequency)) {
+                // 3. Check if a late report notification already exists for this goal in the last 24h
+                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: existingNotif, error: notifError } = await supabase
+                    .from('notifications')
+                    .select('id')
+                    .eq('user_id', employeeId)
+                    .eq('type', 'alert')
+                    .eq('link_url', `/goals/${goal.id}`)
+                    .gt('created_at', oneDayAgo)
+                    .maybeSingle();
+
+                if (!notifError && !existingNotif) {
+                    // 4. Create notification
+                    await this.create({
+                        userId: employeeId,
+                        type: 'alert',
+                        title: 'Late Report Due',
+                        message: `Your report for "${goal.name}" is overdue. Please submit it as soon as possible.`,
+                        linkUrl: `/goals/${goal.id}`,
+                    });
+                }
+            }
+        }
     }
 };
 

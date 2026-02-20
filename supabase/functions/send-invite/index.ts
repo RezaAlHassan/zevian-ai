@@ -19,7 +19,8 @@ interface InviteRequest {
     invitedBy: string; // User ID
     invitedByText: string;
     token?: string; // Optional, can be generated here
-    initialProjectId?: string;
+    initialProjectIds?: string[];
+    initialGoalIds?: string[];
     initialManagerId?: string;
 }
 
@@ -30,7 +31,7 @@ serve(async (req) => {
 
     try {
         const payload: InviteRequest = await req.json();
-        const { email, role, organizationName, organizationId, invitedBy, invitedByText, initialProjectId, initialManagerId } = payload;
+        const { email, role, organizationName, organizationId, invitedBy, invitedByText, initialProjectIds, initialGoalIds, initialManagerId } = payload;
 
         let token = payload.token;
         if (!token) {
@@ -50,7 +51,8 @@ serve(async (req) => {
             invited_at: new Date().toISOString(),
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
             status: 'pending',
-            initial_project_id: initialProjectId,
+            initial_project_ids: initialProjectIds,
+            initial_goal_ids: initialGoalIds,
             initial_manager_id: initialManagerId,
         };
 
@@ -73,12 +75,12 @@ serve(async (req) => {
         const inviteLink = `${origin}/invite/${token}`;
 
         console.log(`Attempting to send email via Resend...`);
-        console.log(`From: Performance Tracker <onboarding@resend.dev>`);
+        console.log(`From: Performance Tracker <invite@alosystem.com>`);
         console.log(`To: ${email}`);
         console.log(`Resend API Key present: ${!!Deno.env.get("RESEND_API_KEY")}`);
 
         const { data: emailData, error: emailError } = await resend.emails.send({
-            from: "Performance Tracker <onboarding@resend.dev>", // Change this if you have a verified domain
+            from: "Performance Tracker <invite@alosystem.com>", // Change this if you have a verified domain
             to: [email],
             subject: `Join ${organizationName} on Performance Tracker`,
             html: `

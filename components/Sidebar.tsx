@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Page, ViewMode, EmployeeRole, Invitation, Project, Employee } from '../types';
+import { Page, ViewMode, EmployeeRole, Invitation, Project, Employee, Goal } from '../types';
 import { Target, FileText, Users, User, LayoutDashboard, List, Search, FolderKanban, UserPlus, Building2 } from 'lucide-react';
 import InviteUserModal from './InviteUserModal';
 
@@ -9,9 +9,10 @@ interface SidebarProps {
   currentPage: Page;
   setCurrentPage: (page: Page) => void;
   viewMode: ViewMode;
-  onInvite?: (email: string, role: EmployeeRole) => Promise<Invitation | null | void>;
+  onInvite?: (email: string, role: EmployeeRole, projectIds?: string[], goalIds?: string[], managerId?: string) => Promise<Invitation | null | void>;
   organizationName?: string;
   projects?: Project[];
+  goals?: Goal[];
   employees?: Employee[];
 }
 
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onInvite,
   organizationName,
   projects = [],
+  goals = [],
   employees = []
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -67,21 +69,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="w-64 bg-white border-r border-border flex flex-col fixed top-0 left-0 h-full text-on-surface z-20">
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-border">
-        <img src="/logo-full.png" alt="Performance Tracker Logo" className="h-9 object-contain" />
+      <div className="px-6 h-16 flex items-center border-b border-border">
+        <img src="/logo-full.png" alt="Zevian Logo" className="h-8 object-contain" />
       </div>
 
-      {/* Search */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" />
-          <input
-            type="text"
-            placeholder="Search"
-            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface placeholder-on-surface-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-          />
-        </div>
-      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
@@ -164,6 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           onInvite={onInvite}
           organizationName={organizationName}
           projects={projects}
+          goals={goals}
           managers={managers}
         />
       )}

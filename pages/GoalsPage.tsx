@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Goal, Criterion, Project, Employee } from '../types';
-import { Plus, Trash2, AlertTriangle, CheckCircle, Search, Eye, Target, MoreHorizontal, Edit2, Info, Calendar, User } from 'lucide-react';
+import { Goal, Criterion, Project, Employee, Report } from '../types';
+import { Plus, Trash2, AlertTriangle, CheckCircle, Search, Eye, Target, MoreHorizontal, Edit2, Info, Calendar, User, UserPlus, Users } from 'lucide-react';
 import Table from '../components/Table';
+import { StackedAvatars, ProfilePicture } from '../components/Avatar';
 import Input from '../components/Input';
+import Select from '../components/Select';
+import MultiSelect from '../components/MultiSelect';
 import Textarea from '../components/Textarea';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
@@ -11,11 +14,13 @@ import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown'
 import { filterGoalsByManager } from '../utils/goalFilter';
 import { isAccountOwner } from '../utils/managerPermissions';
 import { formatTableDate } from '../utils/dateFormat';
+import { calculateNextReportDate, getReportStatusLabel } from '../utils/reportDueDate';
 
 interface GoalsPageProps {
   goals: Goal[];
   projects: Project[];
   employees: Employee[];
+  reports: Report[];
   addGoal: (goal: Goal) => void;
   updateGoal: (goal: Goal) => void;
   deleteGoal?: (goalId: string) => void;
@@ -31,6 +36,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
   goals,
   projects,
   employees,
+  reports,
   addGoal,
   updateGoal,
   deleteGoal,
@@ -47,6 +53,11 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [assignProjectModal, setAssignProjectModal] = useState<{ goal: Goal | null; isOpen: boolean }>({ goal: null, isOpen: false });
   const [selectedProjectForAssign, setSelectedProjectForAssign] = useState<string>('');
+
+  const [assignEmployeeModal, setAssignEmployeeModal] = useState<{ goal: Goal | null; isOpen: boolean }>({ goal: null, isOpen: false });
+  const [tempAssigneeIds, setTempAssigneeIds] = useState<string[]>([]);
+  const [viewingAssigneesGoal, setViewingAssigneesGoal] = useState<Goal | null>(null);
+
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Form state
@@ -84,13 +95,18 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
       return filterGoalsByManager(goals, projects, employees, currentManagerId);
     }
     if (viewMode === 'employee' && currentEmployeeId) {
-      // Employees see goals for projects they are assigned to
+      // Employees see:
+      // 1. Goals for projects they are assigned to
       const assignedProjectIds = new Set(
         projects
           .filter(p => p.assignees?.some(a => a.id === currentEmployeeId))
           .map(p => p.id)
       );
-      return goals.filter(g => assignedProjectIds.has(g.projectId));
+
+      return goals.filter(g =>
+        assignedProjectIds.has(g.projectId) ||
+        g.assignees?.some(a => a.id === currentEmployeeId)
+      );
     }
     return goals;
   }, [goals, projects, employees, currentManagerId, currentEmployeeId, viewMode]);
@@ -212,6 +228,32 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
     setSelectedProjectForAssign('');
   };
 
+  const handleOpenAssignEmployees = (goal: Goal) => {
+    setTempAssigneeIds(goal.assignees?.map(a => a.id) || []);
+    setAssignEmployeeModal({ goal, isOpen: true });
+  };
+
+  const handleSaveAssignEmployees = () => {
+    if (assignEmployeeModal.goal) {
+      const newAssignees = tempAssigneeIds.map(id => {
+        const emp = employees.find(e => e.id === id);
+        return {
+          id,
+          type: (emp?.role === 'manager' ? 'manager' : 'employee') as 'manager' | 'employee',
+          assignedAt: new Date().toISOString()
+        };
+      });
+      updateGoal({ ...assignEmployeeModal.goal, assignees: newAssignees });
+      setAssignEmployeeModal({ goal: null, isOpen: false });
+      setTempAssigneeIds([]);
+    }
+  };
+
+  const handleCloseAssignEmployeesModal = () => {
+    setAssignEmployeeModal({ goal: null, isOpen: false });
+    setTempAssigneeIds([]);
+  };
+
   const handleDeleteGoal = (goal: Goal) => {
     if (deleteGoal && window.confirm(`Are you sure you want to delete "${goal.name}"? This action cannot be undone.`)) {
       deleteGoal(goal.id);
@@ -225,21 +267,61 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
 
   const goalTableHeaders = viewMode === 'manager'
-    ? ['Goal', 'Parent Project', 'Created By', 'Created', 'Actions']
-    : ['Goal', 'Parent Project', 'Created By', 'Created'];
+    ? ['Goal', 'Parent Project', 'Assignees', 'Next Report', 'Created By', 'Created', 'Actions']
+    : ['Goal', 'Parent Project', 'Assignees', 'Next Report', 'Created By', 'Created'];
 
   const goalTableRows = filteredGoals.map(goal => {
+    const assignedEmployees = goal.assignees
+      ?.map(a => employees.find(e => e.id === a.id))
+      .filter((e): e is Employee => !!e) || [];
+
     const row = [
       <div className="flex items-center gap-2">
         {goal.status === 'completed' && <CheckCircle size={14} className="text-success" />}
         <span className={`capitalize ${goal.status === 'completed' ? 'text-on-surface-tertiary line-through' : 'text-on-surface-secondary'}`}>{goal.name}</span>
       </div>,
       <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
+      <div className="flex items-center">
+        {assignedEmployees.length > 0 ? (
+          <StackedAvatars
+            employees={assignedEmployees}
+            maxVisible={3}
+            size={32}
+            onSeeMore={() => setViewingAssigneesGoal(goal)}
+          />
+        ) : (
+          <span className="text-on-surface-tertiary text-sm">Unassigned</span>
+        )}
+      </div>,
       <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
       <span className="text-on-surface-secondary text-sm">
         {goal.createdAt ? formatTableDate(goal.createdAt) : '—'}
       </span>
     ];
+
+    // Calculate Next Report for this goal
+    const project = projects.find(p => p.id === goal.projectId);
+    const frequency = project?.reportFrequency || 'weekly';
+    const goalReports = reports
+      .filter(r => r.goalId === goal.id && (viewMode === 'employee' ? String(r.employeeId) === String(currentEmployeeId) : true))
+      .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime());
+
+    const lastReport = goalReports[0];
+    const status = getReportStatusLabel(lastReport?.submissionDate || null, frequency);
+
+    const nextReportCell = (
+      <div className="flex flex-col">
+        <span className={`text-xs font-bold ${status.isOverdue ? 'text-red-500' : status.isImminent ? 'text-amber-500' : 'text-primary'}`}>
+          {status.label}
+        </span>
+        <span className="text-[10px] text-on-surface-tertiary">
+          Freq: {frequency}
+        </span>
+      </div>
+    );
+
+    // Insert Next Report cell at index 3
+    row.splice(3, 0, nextReportCell);
 
     if (viewMode === 'manager') {
       row.push(
@@ -250,6 +332,13 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             title="View Details"
           >
             <Eye size={18} strokeWidth={2} />
+          </button>
+          <button
+            onClick={() => handleOpenAssignEmployees(goal)}
+            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            title="Assign Members"
+          >
+            <UserPlus size={18} strokeWidth={2} />
           </button>
           <button
             onClick={() => handleEditGoal(goal)}
@@ -307,14 +396,18 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         {/* Goals Table */}
         <div className="bg-surface-elevated rounded-lg p-6 border border-border">
           {filteredGoals.length > 0 ? (
-            <Table headers={goalTableHeaders} rows={goalTableRows} />
+            <Table
+              headers={goalTableHeaders}
+              rows={goalTableRows}
+              onRowClick={(index) => onSelectGoal(filteredGoals[index].id)}
+            />
           ) : (
             <div className="text-center py-12">
               <Target size={48} className="text-on-surface-tertiary mx-auto mb-4" />
               <p className="text-lg text-on-surface-secondary mb-2">
                 {searchQuery ? 'No goals found matching your search' : 'No goals created yet'}
               </p>
-              {!searchQuery && (
+              {viewMode === 'manager' && !searchQuery && (
                 <Button
                   onClick={() => setShowCreateModal(true)}
                   variant="primary"
@@ -343,8 +436,12 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           setEditingGoal(null);
         }}
         title={editingGoal ? "Edit Goal" : "Create New Goal"}
+        maxWidth="xl"
+        maxHeight="95vh"
+        closeOnOutsideClick={false}
+        scrollable={true}
       >
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="space-y-4 pr-2">
           <Input
             id="goalName"
             type="text"
@@ -517,6 +614,87 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
               variant="primary"
             >
               Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Assign Employees to Goal Modal */}
+      <Modal
+        isOpen={assignEmployeeModal.isOpen}
+        onClose={handleCloseAssignEmployeesModal}
+        title={`Assign Members to ${assignEmployeeModal.goal?.name}`}
+        scrollable={false}
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-on-surface-secondary">
+            Select members to assign to this goal. Only assigned members (and managers) will see this goal during reporting.
+          </p>
+
+          <MultiSelect
+            label="Select Members"
+            options={employees
+              .filter(emp => emp.role === 'employee')
+              .map(emp => ({
+                value: emp.id,
+                label: emp.name,
+                sublabel: emp.title || 'Employee'
+              }))}
+            selectedValues={tempAssigneeIds}
+            onChange={setTempAssigneeIds}
+            placeholder="Search and select members..."
+            searchable
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={handleCloseAssignEmployeesModal}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveAssignEmployees}
+            >
+              Save Assignments
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* View Assignees Modal */}
+      <Modal
+        isOpen={!!viewingAssigneesGoal}
+        onClose={() => setViewingAssigneesGoal(null)}
+        title={`Assigned Members - ${viewingAssigneesGoal?.name}`}
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {viewingAssigneesGoal?.assignees && viewingAssigneesGoal.assignees.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2">
+              {viewingAssigneesGoal.assignees
+                .map(a => employees.find(e => e.id === a.id))
+                .filter((e): e is Employee => !!e)
+                .map(employee => (
+                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-lg border border-transparent hover:border-border transition-colors">
+                    <ProfilePicture name={employee.name} size={40} />
+                    <div>
+                      <div className="font-medium text-on-surface">{employee.name}</div>
+                      <div className="text-xs text-on-surface-secondary capitalize">{employee.role}</div>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          ) : (
+            <p className="text-on-surface-secondary text-center py-4">No members assigned.</p>
+          )}
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setViewingAssigneesGoal(null)}
+            >
+              Close
             </Button>
           </div>
         </div>

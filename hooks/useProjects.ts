@@ -31,7 +31,7 @@ export function useProjects(organizationId?: string) {
         fetchProjects();
     }, [fetchProjects]);
 
-    const createProject = useCallback(async (project: Omit<Project, 'createdAt' | 'updatedAt'>) => {
+    const createProject = useCallback(async (project: Omit<Project, 'updatedAt'>) => {
         try {
             const newProject = await projectService.create(project);
             setProjects(prev => [...prev, newProject]);

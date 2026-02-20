@@ -6,81 +6,10 @@ import Button from '../components/Button';
 import Textarea from '../components/Textarea';
 import Table from '../components/Table';
 import Modal from '../components/Modal';
+import { ProfilePicture, StackedAvatars } from '../components/Avatar';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
 
-// Profile Picture Component (Discord style)
-const ProfilePicture: React.FC<{ name: string; size?: number; className?: string }> = ({ name, size = 32, className = '' }) => {
-  const initials = name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
 
-  // Generate a color based on name (consistent color for same name)
-  const colors = [
-    'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
-    'bg-lime-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500',
-    'bg-cyan-500', 'bg-sky-500', 'bg-blue-500', 'bg-indigo-500',
-    'bg-violet-500', 'bg-purple-500', 'bg-fuchsia-500', 'bg-pink-500',
-    'bg-rose-500'
-  ];
-  const colorIndex = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-  const bgColor = colors[colorIndex];
-
-  return (
-    <div
-      className={`rounded-full ${bgColor} flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
-    >
-      {initials}
-    </div>
-  );
-};
-
-// Stacked Profile Pictures Component (Discord style - overlapping)
-const StackedAvatars: React.FC<{
-  employees: Employee[];
-  maxVisible?: number;
-  size?: number;
-  onSeeMore?: () => void;
-}> = ({ employees, maxVisible = 5, size = 32, onSeeMore }) => {
-  const visible = employees.slice(0, maxVisible);
-  const remaining = employees.length - maxVisible;
-
-  return (
-    <div className="flex items-center" style={{ gap: size * -0.25 }}>
-      {visible.map((employee, index) => (
-        <div
-          key={employee.id}
-          className="relative"
-          style={{ zIndex: maxVisible - index }}
-        >
-          <ProfilePicture
-            name={employee.name}
-            size={size}
-            className="border-2 border-white shadow-sm"
-          />
-        </div>
-      ))}
-      {remaining > 0 && (
-        <button
-          onClick={onSeeMore}
-          className="relative rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white font-semibold hover:bg-blue-600 transition-colors cursor-pointer shadow-sm"
-          style={{
-            width: size,
-            height: size,
-            fontSize: size * 0.35,
-            zIndex: 0,
-            marginLeft: size * -0.25 > 0 ? `${size * -0.25}px` : '0px'
-          }}
-        >
-          +{remaining}
-        </button>
-      )}
-    </div>
-  );
-};
 
 interface ProjectDetailPageProps {
   project: Project;
@@ -238,336 +167,240 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       </div>
 
       {/* Project Info */}
-      <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <h3 className="text-sm font-medium text-on-surface-secondary mb-2">Category</h3>
-            <p className="text-on-surface">{project.category || '—'}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Project Goals Section */}
+          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Target size={20} className="text-on-surface-secondary" />
+                <h3 className="text-lg font-semibold text-on-surface">Project Goals</h3>
+                <span className="text-sm text-on-surface-secondary">({projectGoals.length})</span>
+              </div>
+            </div>
+
+            {projectGoals.length > 0 ? (
+              <div className="space-y-2">
+                {projectGoals.map(goal => {
+                  const isExpanded = expandedGoals.has(goal.id);
+                  const showObjectives = showObjectivePoints.has(goal.id);
+                  const goalReports = projectReports.filter(r => r.goalId === goal.id);
+                  const goalAvgScore = goalReports.length > 0
+                    ? goalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / goalReports.length
+                    : 0;
+
+                  return (
+                    <div key={goal.id} className="bg-surface rounded-lg border border-border overflow-hidden">
+                      {/* Goal Header - Always Visible */}
+                      <button
+                        onClick={() => {
+                          const newExpanded = new Set(expandedGoals);
+                          if (isExpanded) {
+                            newExpanded.delete(goal.id);
+                          } else {
+                            newExpanded.add(goal.id);
+                          }
+                          setExpandedGoals(newExpanded);
+                        }}
+                        className="w-full flex items-center justify-between p-4 hover:bg-surface-hover transition-colors"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Target size={18} className="text-on-surface-secondary flex-shrink-0" />
+                          <div className="flex-1 min-w-0 text-left">
+                            <h4 className="font-semibold text-on-surface truncate">{goal.name}</h4>
+                            <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-on-surface-secondary">
+                              <span>{goal.criteria.length} criteria</span>
+                              {goalReports.length > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span>{goalReports.length} report{goalReports.length !== 1 ? 's' : ''}</span>
+                                  <span>•</span>
+                                  <span>Avg: {goalAvgScore.toFixed(1)}/10</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp size={20} className="text-on-surface-secondary flex-shrink-0" />
+                        ) : (
+                          <ChevronDown size={20} className="text-on-surface-secondary flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Expanded Content */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
+                          {/* Goal Details in Sidebar style */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <h5 className="text-sm font-medium text-on-surface-secondary mb-3">Scoring Criteria</h5>
+                              <div className="space-y-2">
+                                {goal.criteria.map((criterion) => (
+                                  <div key={criterion.id} className="flex items-center justify-between bg-white p-2 rounded border border-border text-sm">
+                                    <span className="text-on-surface">{criterion.name}</span>
+                                    <span className="font-semibold text-primary">{criterion.weight}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {goal.instructions && (
+                              <div>
+                                <h5 className="text-sm font-medium text-on-surface-secondary mb-3">Instructions</h5>
+                                <div className="bg-white p-3 rounded border border-border whitespace-pre-line text-sm text-on-surface max-h-[200px] overflow-y-auto">
+                                  {goal.instructions}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-surface/50 rounded-lg border border-dashed border-border">
+                <Target size={32} className="mx-auto mb-3 text-on-surface-tertiary opacity-50" />
+                <p className="text-on-surface-secondary">No goals defined for this project.</p>
+              </div>
+            )}
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-on-surface-secondary mb-2">Assigned To</h3>
-            <div className="flex items-center gap-3">
+
+          {/* Reports Section */}
+          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <FileText size={20} className="text-on-surface-secondary" />
+                <h3 className="text-lg font-semibold text-on-surface">Recent Reports</h3>
+                <span className="text-sm text-on-surface-secondary">({projectReports.length})</span>
+              </div>
+            </div>
+
+            {projectReports.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table
+                  headers={reportTableHeaders}
+                  rows={reportTableRows}
+                  sortable
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-surface/50 rounded-lg border border-dashed border-border">
+                <FileText size={32} className="mx-auto mb-3 text-on-surface-tertiary opacity-50" />
+                <p className="text-on-surface-secondary">No reports submitted yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Project Details */}
+          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+            <h3 className="text-lg font-semibold mb-4 text-on-surface flex items-center gap-2">
+              <FolderKanban size={20} className="text-on-surface-secondary" />
+              Project Info
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-tertiary">Category</label>
+                <p className="text-sm font-medium text-on-surface mt-0.5">{project.category || 'Standard'}</p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-tertiary">Frequency</label>
+                <p className="text-sm font-medium text-on-surface mt-0.5 capitalize">{project.reportFrequency.replace('-', ' ')}</p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-tertiary">Created</label>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Calendar size={14} className="text-on-surface-tertiary" />
+                  <span className="text-sm font-medium text-on-surface">
+                    {project.createdAt ? formatTableDate(project.createdAt) : '—'}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-tertiary">Created By</label>
+                <div className="flex items-center gap-2 mt-1">
+                  {project.createdBy ? (() => {
+                    const creator = employees.find(e => e.id === project.createdBy);
+                    return creator ? (
+                      <>
+                        <ProfilePicture name={creator.name} size={24} />
+                        <span className="text-sm font-medium text-on-surface">{creator.name}</span>
+                      </>
+                    ) : <span className="text-sm text-on-surface">—</span>;
+                  })() : <span className="text-sm text-on-surface">—</span>}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-border">
+              <Button
+                onClick={() => navigate(`/projects/${project.id}/knowledge-base`)}
+                variant="outline"
+                size="sm"
+                icon={ExternalLink}
+                className="w-full justify-center"
+              >
+                Access Knowledge Base
+              </Button>
+            </div>
+          </div>
+
+          {/* Project Assignees */}
+          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+                <Users size={20} className="text-on-surface-secondary" />
+                Team Members
+              </h3>
+              {assigneeEmployees.length > 5 && (
+                <button
+                  onClick={() => setShowAssigneesModal(true)}
+                  className="text-xs text-primary hover:text-primary-hover font-medium"
+                >
+                  View All
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
               {assigneeEmployees.length > 0 ? (
-                <>
-                  <StackedAvatars
-                    employees={assigneeEmployees}
-                    maxVisible={5}
-                    size={32}
-                    onSeeMore={() => setShowAssigneesModal(true)}
-                  />
-                  {assigneeEmployees.length > 5 && (
-                    <button
-                      onClick={() => setShowAssigneesModal(true)}
-                      className="text-sm text-primary hover:text-primary-hover hover:underline"
-                    >
-                      See all {assigneeEmployees.length} assignees
-                    </button>
-                  )}
-                </>
+                assigneeEmployees.slice(0, 10).map(employee => {
+                  const assignment = project.assignees?.find(a => a.id === employee.id);
+                  return (
+                    <div key={employee.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors border border-transparent hover:border-border group">
+                      <ProfilePicture name={employee.name} size={32} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-on-surface truncate group-hover:text-primary transition-colors">
+                          {employee.name}
+                        </div>
+                        {employee.title && (
+                          <div className="text-[10px] text-on-surface-secondary font-medium truncate">
+                            {employee.title}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
-                <div className="flex items-center gap-2">
-                  <User size={18} className="text-on-surface-tertiary" />
-                  <span className="text-on-surface-tertiary">Unassigned</span>
+                <div className="flex flex-col items-center justify-center py-6 text-on-surface-tertiary bg-surface/50 rounded-lg border border-dashed border-border text-center">
+                  <User size={24} className="mb-2 opacity-50" />
+                  <p className="text-xs">No team members assigned</p>
                 </div>
               )}
             </div>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-on-surface-secondary mb-2">Report Frequency</h3>
-            <p className="text-on-surface capitalize">{project.reportFrequency.replace('-', ' ')}</p>
-          </div>
-        </div>
-
-        {/* Complete Knowledge Base Section */}
-        <div className="border-t border-border pt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bot size={20} className="text-primary" />
-              <h3 className="text-lg font-semibold text-on-surface">Complete Knowledge Base</h3>
-            </div>
-            <Button
-              onClick={() => navigate(`/projects/${project.id}/knowledge-base`)}
-              variant="outline"
-              size="sm"
-              icon={ExternalLink}
-            >
-              View Knowledge Base
-            </Button>
-          </div>
-          <p className="text-sm text-on-surface-secondary max-w-2xl">
-            Access the full project context, including project documentation, recent report summaries,
-            technical nuances, and external resources used by Zevian for evaluation.
-          </p>
         </div>
       </div>
-
-      {/* Goals Section - At the top */}
-      {projectGoals.length > 0 && (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Target size={20} className="text-on-surface-secondary" />
-              <h3 className="text-lg font-semibold text-on-surface">Project Goals</h3>
-              <span className="text-sm text-on-surface-secondary">({projectGoals.length})</span>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {projectGoals.map(goal => {
-              const isExpanded = expandedGoals.has(goal.id);
-              const showObjectives = showObjectivePoints.has(goal.id);
-              const goalReports = projectReports.filter(r => r.goalId === goal.id);
-              const goalAvgScore = goalReports.length > 0
-                ? goalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / goalReports.length
-                : 0;
-
-              return (
-                <div key={goal.id} className="bg-surface rounded-lg border border-border overflow-hidden">
-                  {/* Goal Header - Always Visible */}
-                  <button
-                    onClick={() => {
-                      const newExpanded = new Set(expandedGoals);
-                      if (isExpanded) {
-                        newExpanded.delete(goal.id);
-                      } else {
-                        newExpanded.add(goal.id);
-                      }
-                      setExpandedGoals(newExpanded);
-                    }}
-                    className="w-full flex items-center justify-between p-4 hover:bg-surface-hover transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Target size={18} className="text-on-surface-secondary flex-shrink-0" />
-                      <div className="flex-1 min-w-0 text-left">
-                        <h4 className="font-semibold text-on-surface truncate">{goal.name}</h4>
-                        <div className="flex items-center gap-4 mt-2 flex-wrap">
-                          <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
-                            <span>{goal.criteria.length} criteria</span>
-                            {goalReports.length > 0 && (
-                              <>
-                                <span>•</span>
-                                <span>{goalReports.length} report{goalReports.length !== 1 ? 's' : ''}</span>
-                                <span>•</span>
-                                <span>Avg: {goalAvgScore.toFixed(1)}/10</span>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Creator */}
-                          {goal.createdBy && (() => {
-                            const creator = employees.find(e => e.id === goal.createdBy);
-                            return creator ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-on-surface-tertiary">Creator:</span>
-                                <ProfilePicture name={creator.name} size={20} />
-                                <span className="text-xs text-on-surface-secondary">{creator.name}</span>
-                              </div>
-                            ) : null;
-                          })()}
-
-                          {/* Employees Reporting */}
-                          {(() => {
-                            const reportingEmployees = goalReports
-                              .map(r => employees.find(e => e.id === r.employeeId))
-                              .filter((emp): emp is Employee => emp !== undefined);
-                            const uniqueEmployees = Array.from(
-                              new Map(reportingEmployees.map(emp => [emp.id, emp])).values()
-                            );
-
-                            return uniqueEmployees.length > 0 ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-on-surface-tertiary">Employees:</span>
-                                <StackedAvatars
-                                  employees={uniqueEmployees}
-                                  maxVisible={5}
-                                  size={20}
-                                />
-                                {uniqueEmployees.length > 5 && (
-                                  <span className="text-xs text-on-surface-secondary">
-                                    +{uniqueEmployees.length - 5}
-                                  </span>
-                                )}
-                              </div>
-                            ) : null;
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronUp size={20} className="text-on-surface-secondary flex-shrink-0" />
-                    ) : (
-                      <ChevronDown size={20} className="text-on-surface-secondary flex-shrink-0" />
-                    )}
-                  </button>
-
-                  {/* Expanded Content */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
-                      {/* Goal Creator and Reporting Employees */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Creator */}
-                        {goal.createdBy && (() => {
-                          const creator = employees.find(e => e.id === goal.createdBy);
-                          return creator ? (
-                            <div>
-                              <h5 className="text-sm font-medium text-on-surface-secondary mb-2">Created By</h5>
-                              <div className="flex items-center gap-2">
-                                <ProfilePicture name={creator.name} size={32} />
-                                <span className="text-on-surface font-medium">{creator.name}</span>
-                              </div>
-                            </div>
-                          ) : null;
-                        })()}
-
-                        {/* Employees Reporting to This Goal */}
-                        {(() => {
-                          const reportingEmployees = goalReports
-                            .map(r => employees.find(e => e.id === r.employeeId))
-                            .filter((emp): emp is Employee => emp !== undefined);
-                          const uniqueEmployees = Array.from(
-                            new Map(reportingEmployees.map(emp => [emp.id, emp])).values()
-                          );
-
-                          return uniqueEmployees.length > 0 ? (
-                            <div>
-                              <h5 className="text-sm font-medium text-on-surface-secondary mb-2">
-                                Employees Reporting ({uniqueEmployees.length})
-                              </h5>
-                              <div className="flex items-center gap-3">
-                                <StackedAvatars
-                                  employees={uniqueEmployees}
-                                  maxVisible={5}
-                                  size={32}
-                                  onSeeMore={() => {
-                                    // Could open a modal here if needed
-                                  }}
-                                />
-                                {uniqueEmployees.length > 5 && (
-                                  <span className="text-xs text-on-surface-secondary">
-                                    +{uniqueEmployees.length - 5} more
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ) : null;
-                        })()}
-                      </div>
-
-                      {/* Managers Using This Goal */}
-                      {(() => {
-                        const managersUsingGoal = new Set<string>();
-                        goalReports.forEach(report => {
-                          const employee = employees.find(e => e.id === report.employeeId);
-                          if (employee?.managerId) {
-                            managersUsingGoal.add(employee.managerId);
-                          }
-                        });
-                        const managerEmployees = Array.from(managersUsingGoal)
-                          .map(managerId => employees.find(e => e.id === managerId))
-                          .filter((emp): emp is Employee => emp !== undefined);
-
-                        return managerEmployees.length > 0 ? (
-                          <div>
-                            <h5 className="text-sm font-medium text-on-surface-secondary mb-2">
-                              Managers Using This Goal ({managerEmployees.length})
-                            </h5>
-                            <div className="flex items-center gap-3">
-                              <StackedAvatars
-                                employees={managerEmployees}
-                                maxVisible={5}
-                                size={32}
-                                onSeeMore={() => {
-                                  // Could open a modal here if needed
-                                }}
-                              />
-                              {managerEmployees.length > 5 && (
-                                <span className="text-xs text-on-surface-secondary">
-                                  +{managerEmployees.length - 5} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ) : null;
-                      })()}
-
-                      {/* Criteria */}
-                      <div>
-                        <h5 className="text-sm font-medium text-on-surface-secondary mb-3">Scoring Criteria</h5>
-                        <div className="space-y-2">
-                          {goal.criteria.map((criterion, idx) => (
-                            <div key={criterion.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-border">
-                              <span className="text-on-surface">{criterion.name}</span>
-                              <span className="font-semibold text-primary">{criterion.weight}%</span>
-                            </div>
-                          ))}
-                          <div className="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/20">
-                            <span className="font-medium text-on-surface">Total Weight</span>
-                            <span className="font-bold text-primary">
-                              {goal.criteria.reduce((sum, c) => sum + c.weight, 0)}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Instructions - Collapsible */}
-                      {goal.instructions && (
-                        <div>
-                          <button
-                            onClick={() => {
-                              const newShow = new Set(showObjectivePoints);
-                              if (showObjectives) {
-                                newShow.delete(goal.id);
-                              } else {
-                                newShow.add(goal.id);
-                              }
-                              setShowObjectivePoints(newShow);
-                            }}
-                            className="flex items-center gap-2 text-sm font-medium text-on-surface-secondary hover:text-on-surface transition-colors mb-3"
-                          >
-                            {showObjectives ? (
-                              <ChevronUp size={16} />
-                            ) : (
-                              <ChevronDown size={16} />
-                            )}
-                            <span>Instructions</span>
-                          </button>
-                          {showObjectives && (
-                            <div className="bg-white p-3 rounded-lg border border-border whitespace-pre-line text-sm text-on-surface">
-                              {goal.instructions}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Reports Section */}
-      {projectReports.length > 0 && (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <FileText size={20} className="text-on-surface-secondary" />
-              <h3 className="text-lg font-semibold text-on-surface">Project Reports</h3>
-              <span className="text-sm text-on-surface-secondary">({projectReports.length})</span>
-            </div>
-          </div>
-          <div className="max-h-[600px] overflow-y-auto">
-            <Table
-              headers={reportTableHeaders}
-              rows={reportTableRows}
-              sortable
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Report Detail Modal */}
       {selectedReport && (

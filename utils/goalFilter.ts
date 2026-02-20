@@ -22,13 +22,21 @@ export const filterGoalsByManager = (
       .map(emp => emp.id)
   );
 
-  // Get all project IDs that are assigned to managed employees
+  // Get all project IDs that are assigned to managed employees OR the manager themselves
   const relevantProjectIds = new Set(
     projects
       .filter(project => {
-        return project.assignees?.some(assignee => 
+        // 1. Check if any managed employee is assigned
+        const hasManagedEmployee = project.assignees?.some(assignee =>
           assignee.type === 'employee' && managedEmployeeIds.has(assignee.id)
-        ) || false;
+        );
+
+        // 2. Check if the manager themselves is assigned
+        const isManagerAssigned = project.assignees?.some(assignee =>
+          assignee.id === managerId
+        );
+
+        return hasManagedEmployee || isManagerAssigned;
       })
       .map(project => project.id)
   );
