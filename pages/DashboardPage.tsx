@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Report, Goal, Employee, Project } from '../types';
 import { summarizePerformance, summarizeTeamPerformance, analyzeSkillMetrics } from '../services/geminiService';
+import { employeeService } from '../services/databaseService';
 import Spinner from '../components/Spinner';
 import StatCard from '../components/StatCard';
 import Input from '../components/Input';
@@ -11,10 +12,11 @@ import {
     FileText, Star, Activity, Trophy, Award, Calendar,
     Sparkles, AlertTriangle, TrendingUp, TrendingDown,
     ChevronRight, Sliders, ArrowUpDown, List, User, Target, Layers,
-    Eye, BarChart3, Clock, FolderKanban, Users
+    Eye, BarChart3, Clock, FolderKanban, Users, X, AlertCircle, ExternalLink, Info, Building2, CheckCircle2
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip, BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip, BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ComposedChart, Area, ReferenceLine } from 'recharts';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
+import { calculateNextReportDate, getReportStatusLabel } from '../utils/reportDueDate';
 import { filterGoalsByManager } from '../utils/goalFilter';
 import { getScopedEmployeeIds, getDirectReportIds } from '../utils/employeeFilter';
 import { getReportingChainIds } from '../utils/scopeUtils';
@@ -26,6 +28,7 @@ import { STANDARD_METRICS } from '../constants';
 import OnboardingStepper from '../components/OnboardingStepper';
 import ReportDetailModal from '../components/ReportDetailModal';
 import { useAuth } from '../contexts/AuthContext';
+import ProjectGoalsModal from '../components/ProjectGoalsModal';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -41,14 +44,22 @@ interface DashboardPageProps {
     onNavigate?: (page: string) => void;
     onSelectEmployee?: (employeeId: string) => void;
     onSelectProject?: (projectId: string) => void;
+    checkLateReports?: (employeeId: string) => void;
     viewMode?: 'manager' | 'employee';
     scopeFilter?: 'direct-reports' | 'organization' | 'reporting-chain';
 }
 
 
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects, employees, updateReport, currentEmployeeId, currentManagerId, isEmployeeView = false, onNavigate, onSelectEmployee, onSelectProject, viewMode = 'employee', scopeFilter = 'direct-reports' }) => {
+const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects, employees, updateReport, currentEmployeeId, currentManagerId, isEmployeeView = false, onNavigate, onSelectEmployee, onSelectProject, checkLateReports, viewMode = 'employee', scopeFilter = 'direct-reports' }) => {
     const { employee: authEmployee } = useAuth();
+
+    // Trigger late report check for employees
+    useEffect(() => {
+        if (isEmployeeView && currentEmployeeId && checkLateReports) {
+            checkLateReports(currentEmployeeId);
+        }
+    }, [isEmployeeView, currentEmployeeId, checkLateReports]);
 
     // Helper to normalize strings for robust matching
     const normalize = (s: string) => s.toLowerCase().trim();
@@ -85,33 +96,57 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         }
     }, [employees, currentManagerId, scopeFilter, canViewOrgWide, isEmployeeView]);
 
-    // Filter goals by manager based on the selected scope
-    const filteredGoals = useMemo(() => {
-        if (!isEmployeeView && currentManagerId) {
-            // Use scopedEmployeeIds which correctly handles Org/Chain/Direct logic
-            // Include:
-            // 1. Goals created by currentManager (or where managerId is currentManager)
-            // 2. Goals for projects assigned to any employee in scopedEmployeeIds
-
-            const relevantProjectIds = new Set(
-                projects
-                    .filter(project => {
-                        return project.assignees?.some(assignee =>
-                            assignee.type === 'employee' && scopedEmployeeIds.has(assignee.id)
-                        ) || false;
-                    })
-                    .map(project => project.id)
+    // Filter projects based on user access and scope
+    const accessibleProjects = useMemo(() => {
+        if (isEmployeeView && currentEmployeeId) {
+            return projects.filter(project =>
+                project.assignees?.some(a => a.id === currentEmployeeId)
             );
+        }
 
+        if (!isEmployeeView && currentManagerId) {
+            // If viewing organization scope with permissions, show all
+            if (scopeFilter === 'organization' && canViewOrgWide) {
+                return projects;
+            }
+
+            // Otherwise, show projects where manager is assigned, created, or has scoped reports assigned
+            return projects.filter(project => {
+                const isCreator = project.createdBy === currentManagerId;
+                const isAssigned = project.assignees?.some(a => a.id === currentManagerId);
+                const hasScopedReports = project.assignees?.some(a => scopedEmployeeIds.has(a.id));
+
+                return isCreator || isAssigned || hasScopedReports;
+            });
+        }
+
+        return projects;
+    }, [projects, isEmployeeView, currentEmployeeId, currentManagerId, scopeFilter, canViewOrgWide, scopedEmployeeIds]);
+
+    // Filter goals based on accessible projects and manager context
+    const filteredGoals = useMemo(() => {
+        const accessibleProjectIds = new Set(accessibleProjects.map(p => p.id));
+
+        if (!isEmployeeView && currentManagerId) {
             return goals.filter(goal => {
+                // Goal belongs to an accessible project
+                if (accessibleProjectIds.has(goal.projectId)) return true;
+
+                // Or goal was created by/for the manager specifically (fallback)
                 if (goal.createdBy === currentManagerId || goal.managerId === currentManagerId) {
                     return true;
                 }
-                return relevantProjectIds.has(goal.projectId);
+                return false;
             });
         }
+
+        // For employee view, only show goals for accessible projects
+        if (isEmployeeView) {
+            return goals.filter(goal => accessibleProjectIds.has(goal.projectId));
+        }
+
         return goals;
-    }, [goals, projects, scopedEmployeeIds, currentManagerId, isEmployeeView]);
+    }, [goals, accessibleProjects, currentManagerId, isEmployeeView]);
 
     // Filter reports to only include scoped employees based on selected scope
     const scopedReports = useMemo(() => {
@@ -170,26 +205,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         }
     }, [scopedReports.length, earliestReportDate, startDate, endDate]);
 
-    const [summary, setSummary] = useState('');
-    const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'redFlag' | 'recent' | 'topContributors'>('redFlag');
-    const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>({});
-
-
-    // Clear AI analysis when date range changes to ensure manual re-analysis for new period
-    useEffect(() => {
-        setSkillAnalysisScores({});
-    }, [startDate, endDate]);
-    const [isAnalyzingSkills, setIsAnalyzingSkills] = useState(false);
-    const [skillSortOrder, setSkillSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
-    const [chartTimePeriod, setChartTimePeriod] = useState<'weekly' | 'monthly'>('weekly');
-    const [showRedFlagLine, setShowRedFlagLine] = useState(true);
-    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-    const [sortColumn, setSortColumn] = useState<string | null>('date');
-    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-    const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
-    const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
-
     // Get current employee from context (assuming it's passed or find it)
     const currentUserProfile = useMemo(() => {
         const id = isEmployeeView ? currentEmployeeId : currentManagerId;
@@ -199,6 +214,27 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         }
         return employees.find(e => e.id === id);
     }, [employees, isEmployeeView, currentEmployeeId, currentManagerId, authEmployee]);
+
+    const [summary, setSummary] = useState('');
+    const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState<'redFlag' | 'recent' | 'topContributors'>('redFlag');
+    const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>(currentUserProfile?.skillAnalysis || {});
+    const [isSkillListModalOpen, setIsSkillListModalOpen] = useState(false);
+
+
+    // Clear AI analysis when date range changes to ensure manual re-analysis for new period
+    useEffect(() => {
+        // Keeping persisted scores available even if range changes
+    }, [startDate, endDate]);
+    const [isAnalyzingSkills, setIsAnalyzingSkills] = useState(false);
+    const [chartTimePeriod, setChartTimePeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+    const [showRedFlagLine, setShowRedFlagLine] = useState(true);
+    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+    const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+    const [selectedProjectForGoals, setSelectedProjectForGoals] = useState<Project | null>(null); // New state for modal
+    const [sortColumn, setSortColumn] = useState<string | null>('date');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
 
     const { organization, updateOrganizationMetrics } = useOrganization(currentUserProfile?.organizationId);
     const selectedMetrics = useMemo(() => organization?.selectedMetrics || [], [organization]);
@@ -217,12 +253,24 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         });
     }, [scopedReports, startDate, endDate]);
 
+    // Memoized breakdown of selected goal reports (for drill-down modal)
+    const selectedGoalReports = useMemo(() => {
+        if (!selectedGoalId) return [];
+        return (filteredReports || []).filter(r => r.goalId === selectedGoalId)
+            .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime());
+    }, [selectedGoalId, filteredReports]);
+
+    const selectedGoalDetails = useMemo(() => {
+        if (!selectedGoalId) return null;
+        return (goals || []).find(g => g.id === selectedGoalId);
+    }, [selectedGoalId, goals]);
+
 
 
 
     // Get ongoing projects and their goals
     const ongoingProjects = useMemo(() => {
-        return projects.map(project => {
+        return accessibleProjects.map(project => {
             const projectGoals = filteredGoals.filter(g => g.projectId === project.id);
             const projectReports = reports.filter(r => {
                 const goalIds = projectGoals.map(g => g.id);
@@ -238,7 +286,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     : 0
             };
         });
-    }, [projects, goals, reports]);
+    }, [accessibleProjects, filteredGoals, reports]);
 
 
     // Calculate top contributors across all reports (for manager view)
@@ -302,13 +350,51 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         // Group reports by project and calculate expected vs actual
         const projectStats = new Map<string, { expected: number; actual: number }>();
 
-        projects.forEach(project => {
-            const projectGoals = filteredGoals.filter(g => g.projectId === project.id);
+        accessibleProjects.forEach(project => {
+            // Filter goals to only those where the current scoped employees are assigned
+            // or if unassigned, any goal in the project (if project is assigned to them)
+            const projectGoals = filteredGoals.filter(g => {
+                if (g.projectId !== project.id) return false;
+
+                if (isEmployeeView && currentEmployeeId) {
+                    // Employee View: Only count goals assigned to them
+                    if (g.assignees && g.assignees.length > 0) {
+                        return g.assignees.some(a => String(a.id) === String(currentEmployeeId));
+                    }
+                    // Unassigned goals: They must be in the project
+                    return project.assignees?.some(a => String(a.id) === String(currentEmployeeId));
+                }
+
+                // Manager View: Count all goals assigned to the scoped team members
+                // or unassigned goals in projects assigned to the manager/team
+                if (g.assignees && g.assignees.length > 0) {
+                    return g.assignees.some(a => scopedEmployeeIds.has(String(a.id)));
+                }
+
+                // Unassigned goals: Count if manager has access to project
+                return true;
+            });
+
             if (projectGoals.length === 0) return;
 
-            const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
             const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
-            const expectedForProject = Math.ceil(daysDiff * multiplier * projectGoals.length);
+            let expectedForProject = 0;
+
+            // Use the earlier of end date or current time for expected calculations
+            const now = new Date();
+            const calculationEnd = end > now ? now : end;
+
+            projectGoals.forEach(goal => {
+                // Determine active window for this goal within the selected range
+                // Fallback to start date if createdAt is missing
+                const goalCreated = goal.createdAt ? new Date(goal.createdAt) : start;
+                const effectiveStart = new Date(Math.max(start.getTime(), goalCreated.getTime()));
+
+                if (effectiveStart < calculationEnd) {
+                    const goalDays = Math.ceil((calculationEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24));
+                    expectedForProject += Math.ceil(goalDays * multiplier);
+                }
+            });
 
             const actualForProject = filteredReports.filter(r => {
                 const goalIds = projectGoals.map(g => g.id);
@@ -346,13 +432,39 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             let weekExpected = 0;
             let weekActual = 0;
 
-            projects.forEach(project => {
-                const projectGoals = filteredGoals.filter(g => g.projectId === project.id);
+            accessibleProjects.forEach(project => {
+                const projectGoals = filteredGoals.filter(g => {
+                    if (g.projectId !== project.id) return false;
+
+                    if (isEmployeeView && currentEmployeeId) {
+                        if (g.assignees && g.assignees.length > 0) {
+                            return g.assignees.some(a => String(a.id) === String(currentEmployeeId));
+                        }
+                        return project.assignees?.some(a => String(a.id) === String(currentEmployeeId));
+                    }
+
+                    if (g.assignees && g.assignees.length > 0) {
+                        return g.assignees.some(a => scopedEmployeeIds.has(String(a.id)));
+                    }
+                    return true;
+                });
+
                 if (projectGoals.length === 0) return;
 
                 const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
-                const weekExpectedForProject = Math.ceil(7 * multiplier * projectGoals.length);
-                weekExpected += weekExpectedForProject;
+
+                // Calculate week expected
+                projectGoals.forEach(goal => {
+                    const goalCreated = goal.createdAt ? new Date(goal.createdAt) : start;
+                    const effectiveStart = new Date(Math.max(weekStart.getTime(), goalCreated.getTime()));
+
+                    if (effectiveStart < weekEnd) {
+                        const daysInWeek = Math.ceil((weekEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24));
+                        // Limit to max 7 days if the range somehow overlaps
+                        const boundedDays = Math.min(7, daysInWeek);
+                        weekExpected += Math.ceil(boundedDays * multiplier);
+                    }
+                });
 
                 const weekActualForProject = filteredReports.filter(r => {
                     const goalIds = projectGoals.map(g => g.id);
@@ -374,7 +486,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             actual: totalActual,
             trend: trendData
         };
-    }, [filteredReports, projects, goals, startDate, endDate, isEmployeeView]);
+    }, [filteredReports, accessibleProjects, filteredGoals, startDate, endDate, isEmployeeView]);
 
     // Get Red Flag reports (scores < 6.0) for manager view
     const redFlagReports = useMemo(() => {
@@ -403,6 +515,38 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         }
     }, [redFlagReports.length, recentReports.length, isEmployeeView]);
 
+    // Calculate Next Report Due for Employee
+    const nextReportDue = useMemo(() => {
+        if (!isEmployeeView || !currentEmployeeId) return null;
+
+        const employeeGoals = goals.filter(g =>
+            g.status === 'active' &&
+            (g.assignees?.some(a => String(a.id) === String(currentEmployeeId)) ||
+                projects.find(p => p.id === g.projectId)?.assignees?.some(a => String(a.id) === String(currentEmployeeId)))
+        );
+
+        if (employeeGoals.length === 0) return null;
+
+        const dueDates = employeeGoals.map(goal => {
+            const project = projects.find(p => p.id === goal.projectId);
+            const frequency = project?.reportFrequency || 'weekly';
+            const lastReport = reports
+                .filter(r => r.goalId === goal.id && String(r.employeeId) === String(currentEmployeeId))
+                .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime())[0];
+
+            const dueDate = calculateNextReportDate(lastReport?.submissionDate || null, frequency);
+            return { goal, dueDate, frequency, lastReport };
+        }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+        const mostUrgent = dueDates[0];
+        const status = getReportStatusLabel(mostUrgent.lastReport?.submissionDate || null, mostUrgent.frequency);
+
+        return {
+            ...mostUrgent,
+            status
+        };
+    }, [isEmployeeView, currentEmployeeId, goals, projects, reports]);
+
     const handleUpdateReport = async (report: Report) => {
         if (!updateReport) return;
         updateReport(report);
@@ -427,14 +571,48 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         start.setHours(0, 0, 0, 0);
         end.setHours(23, 59, 59, 999);
 
-        const dataMap = new Map<string, { total: number; redFlag: number }>();
+        const dataMap = new Map<string, { total: number; redFlag: number; totalScore: number; expected: number }>();
         const threshold = 6.0;
 
         // Initialize all periods in the range
         const periods: { key: string; label: string; start: Date; end: Date }[] = [];
         const current = new Date(start);
 
-        if (chartTimePeriod === 'weekly') {
+        const frequencyMultipliers: { [key: string]: number } = {
+            'daily': 1,
+            'weekly': 1 / 7,
+            'bi-weekly': 1 / 14,
+            'monthly': 1 / 30
+        };
+
+        if (chartTimePeriod === 'daily') {
+            while (current <= end) {
+                const dayStart = new Date(current);
+                dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(current);
+                dayEnd.setHours(23, 59, 59, 999);
+
+                const dayKey = dayStart.toISOString().split('T')[0];
+                const dayLabel = dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                // Calculate expected reports for this day
+                let expectedForPeriod = 0;
+                if (!isEmployeeView) {
+                    accessibleProjects.forEach(project => {
+                        const projectGoals = filteredGoals.filter(g => g.projectId === project.id && g.deadline && new Date(g.deadline) >= dayStart);
+                        if (projectGoals.length > 0) {
+                            const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
+                            expectedForPeriod += multiplier * projectGoals.length;
+                        }
+                    });
+                }
+
+                periods.push({ key: dayKey, label: dayLabel, start: new Date(dayStart), end: new Date(dayEnd) });
+                dataMap.set(dayKey, { total: 0, redFlag: 0, totalScore: 0, expected: expectedForPeriod });
+
+                current.setDate(current.getDate() + 1);
+            }
+        } else if (chartTimePeriod === 'weekly') {
             // Start from the beginning of the first week
             const firstWeekStart = new Date(start);
             const dayOfWeek = firstWeekStart.getDay(); // 0 = Sunday, 6 = Saturday
@@ -452,8 +630,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 const weekKey = `${weekStart.toISOString().split('T')[0]}`;
                 const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
+                // Calculate expected reports for this week
+                let expectedForPeriod = 0;
+                if (!isEmployeeView) {
+                    accessibleProjects.forEach(project => {
+                        const projectGoals = filteredGoals.filter(g => g.projectId === project.id && g.deadline && new Date(g.deadline) >= weekStart);
+                        if (projectGoals.length > 0) {
+                            const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
+                            // Approximate 7 days for a week
+                            expectedForPeriod += Math.ceil(7 * multiplier * projectGoals.length);
+                        }
+                    });
+                }
+
+
                 periods.push({ key: weekKey, label: weekLabel, start: new Date(weekStart), end: new Date(weekEnd) });
-                dataMap.set(weekKey, { total: 0, redFlag: 0 });
+                dataMap.set(weekKey, { total: 0, redFlag: 0, totalScore: 0, expected: expectedForPeriod });
 
                 current.setDate(current.getDate() + 7);
             }
@@ -467,8 +659,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
                 const monthLabel = monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
+                // Calculate expected reports for this month
+                let expectedForPeriod = 0;
+                if (!isEmployeeView) {
+                    const daysInMonth = monthEnd.getDate();
+                    accessibleProjects.forEach(project => {
+                        const projectGoals = filteredGoals.filter(g => g.projectId === project.id && g.deadline && new Date(g.deadline) >= monthStart);
+                        if (projectGoals.length > 0) {
+                            const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
+                            expectedForPeriod += Math.ceil(daysInMonth * multiplier * projectGoals.length);
+                        }
+                    });
+                }
+
                 periods.push({ key: monthKey, label: monthLabel, start: new Date(monthStart), end: new Date(monthEnd) });
-                dataMap.set(monthKey, { total: 0, redFlag: 0 });
+                dataMap.set(monthKey, { total: 0, redFlag: 0, totalScore: 0, expected: expectedForPeriod });
 
                 current.setMonth(current.getMonth() + 1);
             }
@@ -482,6 +687,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 if (reportDate >= period.start && reportDate <= period.end) {
                     const data = dataMap.get(period.key)!;
                     data.total++;
+                    data.totalScore += report.evaluationScore;
                     if (report.evaluationScore < threshold) {
                         data.redFlag++;
                     }
@@ -496,10 +702,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             return {
                 period: period.label,
                 total: data.total,
-                redFlag: data.redFlag
+                redFlag: data.redFlag,
+                averageScore: data.total > 0 ? data.totalScore / data.total : 0,
+                expected: data.expected
             };
         });
-    }, [filteredReports, startDate, endDate, chartTimePeriod]);
+    }, [filteredReports, startDate, endDate, chartTimePeriod, accessibleProjects, filteredGoals, isEmployeeView]);
 
     // Calculate Goal Alignment Matrix data (stacked by performance bands for scalability)
     const goalAlignmentData = useMemo(() => {
@@ -509,10 +717,35 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         const goalIds = new Set(filteredReports.map(r => r.goalId));
         const relevantGoals = filteredGoals.filter(g => goalIds.has(g.id));
 
+        const frequencyMultipliers: { [key: string]: number } = {
+            'daily': 1,
+            'weekly': 1 / 7,
+            'bi-weekly': 1 / 14,
+            'monthly': 1 / 30
+        };
+
         // For each goal, count reports by performance bands
         const goalData = relevantGoals.map(goal => {
             const goalReports = filteredReports.filter(r => r.goalId === goal.id);
             const project = projects.find(p => p.id === goal.projectId);
+
+            // Calculate expected reports
+            // Use goal creation date or start date of filter, whichever is later
+            const filterStart = new Date(startDate);
+            const goalCreated = new Date(goal.createdAt || filterStart);
+            const effectiveStart = goalCreated > filterStart ? goalCreated : filterStart;
+
+            // Use goal deadline or end date of filter, whichever is earlier
+            const filterEnd = new Date(endDate);
+            const goalDeadline = goal.deadline ? new Date(goal.deadline) : filterEnd;
+            const effectiveEnd = goalDeadline < filterEnd ? goalDeadline : filterEnd;
+
+            let expectedReports = 1; // Avoid division by zero
+            if (project && effectiveEnd > effectiveStart) {
+                const daysDiff = Math.ceil((effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24));
+                const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
+                expectedReports = Math.max(1, Math.ceil(daysDiff * multiplier));
+            }
 
             // Categorize reports by performance bands
             let highPerformance = 0; // 8.0 - 10.0
@@ -530,25 +763,42 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 }
             });
 
+            const total = goalReports.length;
+            const completionPct = Math.min(100, (total / expectedReports) * 100);
+
+            // Use raw counts for segments instead of normalized %
+            const highPct = highPerformance;
+            const mediumPct = mediumPerformance;
+            const lowPct = lowPerformance;
+
+
             // Create data object with goal name (truncate for display)
             const dataPoint: any = {
-                goal: goal.name.length > 20 ? goal.name.substring(0, 20) + '...' : goal.name,
+                goalId: goal.id,
+                goal: goal.name.length > 35 ? goal.name.substring(0, 35) + '...' : goal.name,
                 goalFull: goal.name,
                 project: project?.name || 'Unknown',
-                total: goalReports.length,
-                'High (8.0+)': highPerformance,
-                'Medium (6.0-7.9)': mediumPerformance,
-                'Low (<6.0)': lowPerformance
+                total: total,
+                expected: expectedReports,
+                completion: completionPct,
+                // Raw counts for tooltip
+                highCount: highPerformance,
+                mediumCount: mediumPerformance,
+                lowCount: lowPerformance,
+                // Normalized % values for stacked bar
+                'High (8.0+)': highPct,
+                'Medium (6.0-7.9)': mediumPct,
+                'Low (<6.0)': lowPct
             };
 
             return dataPoint;
         });
 
-        // Sort by total reports (descending) and limit to top 15 goals for better visibility
+        // Sort by completion % (descending) and limit to top 15 goals for better visibility
         return goalData
-            .sort((a, b) => b.total - a.total)
+            .sort((a, b) => b.completion - a.completion)
             .slice(0, 15);
-    }, [filteredReports, goals, projects, isEmployeeView]);
+    }, [filteredReports, goals, projects, isEmployeeView, startDate, endDate]);
 
     // Performance bands for the chart
     const performanceBands = [
@@ -657,14 +907,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             }
         });
 
-        return combined.sort((a, b) => {
-            if (skillSortOrder === 'high-to-low') {
-                return b.averageScore - a.averageScore;
-            } else {
-                return a.averageScore - b.averageScore;
-            }
-        });
-    }, [keySkills, selectedMetrics, skillAnalysisScores, filteredReports, skillSortOrder]);
+        return combined.sort((a, b) => b.averageScore - a.averageScore);
+    }, [keySkills, selectedMetrics, skillAnalysisScores, filteredReports]);
 
     // Calculate previous period for comparison
     const previousPeriodReports = useMemo(() => {
@@ -690,32 +934,63 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         });
     }, [scopedReports, startDate, endDate, isEmployeeView, currentEmployeeId]);
 
-    const previousPeriodKeySkills = useMemo(() => {
-        if (!showPreviousPeriod || previousPeriodReports.length === 0) return []; // Removed !isEmployeeView check
 
-        const relevantGoalIds = new Set(previousPeriodReports.map(r => r.goalId));
-        const relevantGoals = filteredGoals.filter(g => relevantGoalIds.has(g.id));
+    // Calculate team averages for comparison
+    const teamAverages = useMemo(() => {
+        // If we are in manager view, "team" depends on scope. 
+        // For individual employee view, team is others in the same projects.
 
-        const criteriaMap = new Map<string, { count: number; totalScore: number }>();
-        previousPeriodReports.forEach(report => {
-            const goal = relevantGoals.find(g => g.id === report.goalId);
-            if (goal) {
-                report.criterionScores.forEach(score => {
-                    const existing = criteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
-                    existing.count += 1;
-                    existing.totalScore += score.score;
-                    criteriaMap.set(score.criterionName, existing);
-                });
-            }
+        let teamMemberIds = new Set<string>();
+        let relevantGoalIds = new Set<string>();
+
+        if (isEmployeeView && currentEmployeeId) {
+            // Find team members: employees working on same goals or projects
+            const employeeGoalIds = new Set<string>(filteredReports.map(r => r.goalId));
+            const employeeGoals = goals.filter(g => employeeGoalIds.has(g.id));
+            const employeeProjectIds = new Set<string>(employeeGoals.map(g => g.projectId));
+            relevantGoalIds = employeeGoalIds;
+
+            reports.forEach(report => {
+                if (String(report.employeeId) === String(currentEmployeeId)) return;
+                const reportGoal = goals.find(g => g.id === report.goalId);
+                if (reportGoal && (employeeGoalIds.has(report.goalId) || employeeProjectIds.has(reportGoal.projectId))) {
+                    teamMemberIds.add(report.employeeId);
+                }
+            });
+        } else {
+            // In manager view, "team" average is the average of everyone in the current scope
+            teamMemberIds = scopedEmployeeIds;
+            relevantGoalIds = new Set(filteredGoals.map(g => g.id));
+        }
+
+        if (teamMemberIds.size === 0) return new Map<string, { count: number; totalScore: number }>();
+
+        // Get team reports in the same date range
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const teamReports = reports.filter(r => {
+            const reportDate = new Date(r.submissionDate);
+            return teamMemberIds.has(r.employeeId) &&
+                reportDate >= start &&
+                reportDate <= end &&
+                relevantGoalIds.has(r.goalId);
         });
 
-        return Array.from(criteriaMap.entries())
-            .map(([name, data]) => ({
-                name,
-                frequency: data.count,
-                averageScore: data.totalScore / data.count
-            }));
-    }, [previousPeriodReports, goals, showPreviousPeriod, isEmployeeView]);
+        const teamCriteriaMap = new Map<string, { count: number; totalScore: number }>();
+        teamReports.forEach(report => {
+            report.criterionScores.forEach(score => {
+                const existing = teamCriteriaMap.get(score.criterionName) || { count: 0, totalScore: 0 };
+                existing.count += 1;
+                existing.totalScore += score.score;
+                teamCriteriaMap.set(score.criterionName, existing);
+            });
+        });
+
+        return teamCriteriaMap;
+    }, [filteredReports, reports, goals, currentEmployeeId, startDate, endDate, isEmployeeView, scopedEmployeeIds, filteredGoals]);
 
     // Calculate radar chart data based on selected metrics OR dynamic goal criteria
     const radarChartData = useMemo(() => {
@@ -783,10 +1058,19 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     }
                 });
 
+                // Calculate team average
+                let teamTotal = 0;
+                let teamCount = 0;
+                const teamData = teamAverages.get(metricDef?.name || metricId) || teamAverages.get(metricDef?.friendlyName || '');
+                if (teamData) {
+                    teamTotal = teamData.totalScore;
+                    teamCount = teamData.count;
+                }
+
                 return {
                     skill: metricName.length > 15 ? metricName.substring(0, 15) + '...' : metricName,
                     current: score,
-                    previous: prevCount > 0 ? prevTotal / prevCount : 0
+                    team: teamCount > 0 ? teamTotal / teamCount : 0
                 };
             });
         }
@@ -795,15 +1079,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         if (keySkills.length === 0) return [];
 
         const topSkills = keySkills.slice(0, 6);
-        return topSkills.map(skill => {
-            const prevSkill = previousPeriodKeySkills.find(s => s.name === skill.name);
+
+        const data = topSkills.map(skill => {
+            const teamData = teamAverages.get(skill.name);
+            const teamAverage = teamData && teamData.count > 0 ? teamData.totalScore / teamData.count : 0;
+
             return {
                 skill: skill.name.length > 15 ? skill.name.substring(0, 15) + '...' : skill.name,
                 current: skill.averageScore,
-                previous: prevSkill ? prevSkill.averageScore : 0
+                team: teamAverage
             };
         });
-    }, [selectedMetrics, filteredReports, previousPeriodReports, keySkills, previousPeriodKeySkills, skillAnalysisScores]);
+
+        return data;
+    }, [selectedMetrics, filteredReports, teamAverages, keySkills, skillAnalysisScores]);
 
     const orgMetricsAverage = useMemo(() => {
         if (selectedMetrics.length === 0) return 0;
@@ -1006,6 +1295,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
             const scores = await analyzeSkillMetrics(filteredReports, metrics, knowledgeBase);
             setSkillAnalysisScores(scores);
+
+            // Persist the scores to the database
+            if (currentEmployeeId) {
+                await employeeService.update(currentEmployeeId, {
+                    skillAnalysis: scores
+                });
+            }
         } catch (error) {
             console.error("Failed to perform skill analysis:", error);
         } finally {
@@ -1124,7 +1420,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
     return (
         <div className="w-full px-6 py-6 space-y-6">
             {/* Header with Date Selection */}
-            <div className="bg-surface p-4 rounded-lg border border-border">
+            <div className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md p-4 rounded-lg border border-border -mx-4 mb-6 shadow-sm">
                 <div className="flex items-center justify-between flex-wrap gap-4">
                     <h2 className="text-lg font-bold text-on-surface">Dashboard</h2>
                     <div className="flex items-center gap-4 flex-wrap">
@@ -1154,6 +1450,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     onOpenMetricsModal={() => setIsMetricsModalOpen(true)}
                 />
             )}
+
 
             {/* Generate Summary Banner (Manager View Only) */}
             {!isEmployeeView && (
@@ -1270,872 +1567,832 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             {/* Employee View Content */}
             {isEmployeeView && (
                 <>
-                    {/* Key Skills and Skill Spider Section */}
-                    <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden mb-8">
-                        <div className="p-6 border-b border-border bg-surface/30">
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
-                                    <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across missions and targets</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {viewMode === 'manager' && (
-                                        <Button
-                                            variant="primary"
-                                            size="sm"
-                                            onClick={() => setIsMetricsModalOpen(true)}
-                                            className="flex items-center gap-2 shadow-sm"
-                                            icon={Sliders}
-                                        >
-                                            Customize Metrics
-                                        </Button>
-                                    )}
+                    {/* Skill Analysis and Score Trend Section */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden flex flex-col">
+                            <div className="p-6 border-b border-border bg-surface/30">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
+                                        <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across missions</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {viewMode === 'manager' && (
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={() => setIsMetricsModalOpen(true)}
+                                                className="flex items-center gap-2 shadow-sm"
+                                                icon={Sliders}
+                                            >
+                                                Customize Metrics
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-                            {/* Skills List Column */}
-                            <div className="lg:col-span-6 p-6 border-r border-border">
+                            <div className="flex-1 flex flex-col p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-2 text-on-surface">
                                         <List size={18} />
-                                        <span className="font-semibold">Skill Rankings</span>
-                                        <span className="px-2 py-0.5 bg-surface rounded-full text-xs font-medium text-on-surface-tertiary">
-                                            {keySkills.length}
-                                        </span>
+                                        <span className="font-semibold">Skill List</span>
                                     </div>
-                                    <button
-                                        onClick={() => setSkillSortOrder(prev => prev === 'high-to-low' ? 'low-to-high' : 'high-to-low')}
-                                        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1.5 rounded-lg transition-colors border border-primary/20"
-                                    >
-                                        <ArrowUpDown size={14} />
-                                        {skillSortOrder === 'high-to-low' ? 'High to Low' : 'Low to High'}
-                                    </button>
-                                </div>
-
-                                {sortedSkills.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {sortedSkills.map((skill) => {
-                                            const isLow = skill.averageScore < 6.0;
-                                            return (
-                                                <div
-                                                    key={skill.name}
-                                                    className={`
-                                                        flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-200 group
-                                                        ${isLow
-                                                            ? 'bg-red-50/50 border-red-100 hover:border-red-200'
-                                                            : 'bg-surface border-border hover:border-primary/30'}
-                                                    `}
-                                                >
-                                                    <div className="flex flex-col">
-                                                        <span className={`text-sm font-medium leading-none mb-1 ${isLow ? 'text-red-700' : 'text-on-surface'}`}>
-                                                            {skill.name}
-                                                        </span>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-16 h-1 bg-surface-elevated rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={`h-full rounded-full ${isLow ? 'bg-red-500' : 'bg-primary'}`}
-                                                                    style={{ width: `${skill.averageScore * 10}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className={`text-[10px] font-bold ${isLow ? 'text-red-600' : 'text-on-surface-tertiary'}`}>
-                                                                {skill.averageScore.toFixed(1)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    {isLow ? <TrendingDown size={14} className="text-red-400" /> : <TrendingUp size={14} className="text-primary/40 group-hover:text-primary/60 transition-colors" />}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
-                                        <Star size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
-                                        <p className="text-sm text-on-surface-secondary">No skill data available yet</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Chart Column */}
-                            <div className="lg:col-span-6 p-6 bg-surface/10">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-2 text-on-surface">
-                                        <Activity size={18} />
-                                        <span className="font-semibold">Skill Fingerprint</span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setIsSkillListModalOpen(true)}
+                                            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1.5 rounded-lg transition-colors border border-primary/20"
+                                        >
+                                            <List size={14} />
+                                            Skill List
+                                        </button>
                                     </div>
                                 </div>
 
                                 {radarChartData.length > 0 ? (
-                                    <div className="relative">
-                                        {isAnalyzingSkills && (
-                                            <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
-                                                <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
-                                                    <Spinner size="lg" />
-                                                    <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
-                                                    <p className="text-[10px] text-on-surface-secondary mt-1">Analyzing historical performance records</p>
+                                    <>
+                                        <div className="relative flex-1">
+                                            {isAnalyzingSkills && (
+                                                <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
+                                                    <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
+                                                        <Spinner size="lg" />
+                                                        <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                        <div className="bg-surface rounded-2xl p-4 border border-border">
-                                            <ResponsiveContainer width="100%" height={400}>
-                                                <RadarChart data={radarChartData}>
-                                                    <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-                                                    <PolarAngleAxis
-                                                        dataKey="skill"
-                                                        tick={({ x, y, payload }) => (
-                                                            <g transform={`translate(${x},${y})`}>
-                                                                <text
-                                                                    x={0}
-                                                                    y={0}
-                                                                    dy={4}
-                                                                    textAnchor="middle"
-                                                                    fill="#6b7280"
-                                                                    fontSize={10}
-                                                                    fontWeight={600}
-                                                                >
-                                                                    {payload.value}
-                                                                </text>
-                                                            </g>
-                                                        )}
-                                                    />
-                                                    <PolarRadiusAxis
-                                                        angle={90}
-                                                        domain={[0, 10]}
-                                                        tick={{ fill: '#9ca3af', fontSize: 9 }}
-                                                    />
-                                                    <Radar
-                                                        name="Current Proficiency"
-                                                        dataKey="current"
-                                                        stroke="#2563eb"
-                                                        fill="#2563eb"
-                                                        fillOpacity={0.25}
-                                                        strokeWidth={3}
-                                                        animationDuration={1500}
-                                                    />
-                                                    <Tooltip
-                                                        content={({ active, payload }) => {
-                                                            if (active && payload && payload.length) {
-                                                                return (
-                                                                    <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
-                                                                        <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
-                                                                        <div className="space-y-1.5">
-                                                                            {payload.map((entry: any) => (
-                                                                                <div key={entry.name} className="flex items-center justify-between gap-4">
-                                                                                    <div className="flex items-center gap-1.5">
-                                                                                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                                                                                        <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
-                                                                                    </div>
-                                                                                    <span className="text-[10px] font-bold text-on-surface">{Number(entry.value).toFixed(1)}</span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            }
-                                                            return null;
-                                                        }}
-                                                    />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center p-12">
-                                        <div className="text-center max-w-xs">
-                                            <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
-                                                <Target size={40} className="text-primary/20" />
-                                                <div className="absolute inset-0 border-2 border-dashed border-primary/10 rounded-full animate-spin-slow"></div>
-                                            </div>
-                                            <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Ready</h4>
-                                            <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
-                                                Generate your Zevian Proficiency Fingerprint to visualize performance across key metrics.
-                                            </p>
-                                            {(isEmployeeView || viewMode === 'manager') && (
-                                                <Button
-                                                    variant="primary"
-                                                    size="md"
-                                                    onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
-                                                    disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
-                                                    className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
-                                                    icon={Sparkles}
-                                                >
-                                                    {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
-                                                </Button>
                                             )}
+                                            <div className="bg-surface rounded-2xl p-4 border border-border h-full min-h-[400px]">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <RadarChart data={radarChartData}>
+                                                        <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                                                        <PolarAngleAxis
+                                                            dataKey="skill"
+                                                            tick={({ x, y, payload }) => (
+                                                                <g transform={`translate(${x},${y})`}>
+                                                                    <text
+                                                                        x={0}
+                                                                        y={0}
+                                                                        dy={4}
+                                                                        textAnchor="middle"
+                                                                        fill="#6b7280"
+                                                                        fontSize={10}
+                                                                        fontWeight={600}
+                                                                    >
+                                                                        {payload.value}
+                                                                    </text>
+                                                                </g>
+                                                            )}
+                                                        />
+                                                        <PolarRadiusAxis
+                                                            angle={90}
+                                                            domain={[0, 10]}
+                                                            tick={{ fill: '#9ca3af', fontSize: 9 }}
+                                                        />
+                                                        <Radar
+                                                            name="Current Proficiency"
+                                                            dataKey="current"
+                                                            stroke="#2563eb"
+                                                            fill="#2563eb"
+                                                            fillOpacity={0.25}
+                                                            strokeWidth={3}
+                                                            animationDuration={1500}
+                                                        />
+                                                        <Tooltip
+                                                            content={({ active, payload }) => {
+                                                                if (active && payload && payload.length) {
+                                                                    return (
+                                                                        <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
+                                                                            <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
+                                                                            <div className="space-y-1.5">
+                                                                                {payload.map((entry: any) => (
+                                                                                    <div key={entry.name} className="flex items-center justify-between gap-4">
+                                                                                        <div className="flex items-center gap-1.5">
+                                                                                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                                                                            <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
+                                                                                        </div>
+                                                                                        <span className="text-[10px] font-bold text-on-surface">{Number(entry.value).toFixed(1)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return null;
+                                                            }}
+                                                        />
+                                                    </RadarChart>
+                                                </ResponsiveContainer>
+                                            </div>
                                         </div>
+
+                                        {/* Detailed Skills List */}
+                                        <div className="mt-8 border-t border-border pt-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="text-sm font-bold text-on-surface uppercase tracking-wider">All Measured Skills</h4>
+                                                <span className="text-xs text-on-surface-secondary">{sortedSkills.length} Skills</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {sortedSkills.map((skill, index) => (
+                                                    <div key={index} className="bg-surface p-3 rounded-xl border border-border flex flex-col gap-2 hover:border-primary/30 transition-colors">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm font-semibold text-on-surface line-clamp-1">{skill.name}</span>
+                                                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                                {skill.averageScore.toFixed(1)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-full bg-surface-elevated rounded-full h-1.5 overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-primary rounded-full"
+                                                                style={{ width: `${(skill.averageScore / 10) * 100}%` }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center justify-between text-[10px] text-on-surface-secondary">
+                                                            <span>{skill.frequency} Mentions</span>
+                                                            <div className="flex items-center gap-1">
+                                                                {skill.averageScore >= 8 ? (
+                                                                    <span className="text-green-500 font-bold uppercase tracking-tighter">Expert</span>
+                                                                ) : skill.averageScore >= 6 ? (
+                                                                    <span className="text-primary font-bold uppercase tracking-tighter">Advanced</span>
+                                                                ) : (
+                                                                    <span className="text-amber-500 font-bold uppercase tracking-tighter">Developing</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
+                                        <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
+                                            <Target size={40} className="text-primary/20" />
+                                            <div className="absolute inset-0 border-2 border-dashed border-primary/10 rounded-full animate-spin-slow"></div>
+                                        </div>
+                                        <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Ready</h4>
+                                        <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
+                                            Generate your Zevian Proficiency Fingerprint to visualize performance across key metrics.
+                                        </p>
+                                        {(isEmployeeView || viewMode === 'manager') && (
+                                            <Button
+                                                variant="primary"
+                                                size="md"
+                                                onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
+                                                disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
+                                                className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
+                                                icon={Sparkles}
+                                            >
+                                                {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </section>
+                        </section>
 
-                    {/* Score Trend and Report History Section */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Score Trend Line Chart */}
-                        {filteredReports.length > 1 && (
-                            <div className="bg-surface-elevated p-6 rounded-lg border border-border col-span-2">
-                                <h3 className="text-lg font-semibold mb-4 text-on-surface">Score Trend</h3>
-                                <ResponsiveContainer width="100%" height={400}>
-                                    <LineChart data={filteredReports
-                                        .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
-                                        .map(r => ({
-                                            date: formatReportDate(r.submissionDate),
-                                            score: r.evaluationScore
-                                        }))}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                        <XAxis dataKey="date" tick={{ fill: '#111827', fontSize: 12 }} />
-                                        <YAxis domain={[0, 10]} tick={{ fill: '#6b7280' }} />
-                                        <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
-                                        <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2} dot={{ fill: '#2563eb', r: 4 }} name="Score" />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                        <div className="bg-surface-elevated p-6 rounded-xl border border-border flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-on-surface">Score Trend</h3>
+                                    <p className="text-sm text-on-surface-secondary mt-1">Performance trajectory over time</p>
+                                </div>
+                            </div>
+                            {filteredReports.length > 1 ? (
+                                <div className="flex-1 min-h-[400px] mt-6">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={filteredReports
+                                            .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
+                                            .map(r => ({
+                                                date: formatReportDate(r.submissionDate),
+                                                score: r.evaluationScore
+                                            }))}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                                            <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis domain={[0, 10]} tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
+                                            <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} dot={{ fill: '#2563eb', r: 4, strokeWidth: 2, stroke: '#fff' }} name="Score" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border mt-6">
+                                    <TrendingUp size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
+                                    <p className="text-sm text-on-surface-secondary">Multiple reports needed to show trend line</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Report History */}
+                    <div className="bg-surface-elevated p-6 rounded-xl border border-border mb-8">
+                        <div className="flex items-center gap-2 mb-6">
+                            <Clock size={24} className="text-on-surface-secondary" />
+                            <h3 className="text-xl font-bold text-on-surface">Report History ({filteredReports.length})</h3>
+                        </div>
+                        {filteredReports.length > 0 ? (
+                            <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
+                                <Table
+                                    headers={[
+                                        { key: 'date', label: 'Date', sortable: true },
+                                        { key: 'goal', label: 'Goal', sortable: true },
+                                        { key: 'score', label: 'Score', sortable: true },
+                                        { key: 'actions', label: 'Actions', sortable: false },
+                                    ]}
+                                    rows={filteredReports.map(report => {
+                                        const goal = goals.find(g => g.id === report.goalId);
+                                        return [
+                                            <div className="flex items-center gap-2">
+                                                <Calendar size={14} className="text-on-surface-tertiary" />
+                                                <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
+                                            </div>,
+                                            <div className="max-w-[150px] lg:max-w-[250px] truncate capitalize text-on-surface-secondary" title={goal?.name}>
+                                                {goal?.name || 'N/A'}
+                                            </div>,
+                                            <span className="capitalize text-on-surface-secondary">{(report.evaluationScore ?? 0).toFixed(2)}</span>,
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedReport(report);
+                                                }}
+                                                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                                                title="View Details"
+                                            >
+                                                <Eye size={18} strokeWidth={2} />
+                                            </button>
+                                        ];
+                                    })}
+                                    sortable
+                                    sortColumn={sortColumn}
+                                    sortDirection={sortDirection}
+                                    onSort={handleSort}
+                                    onRowClick={(index) => setSelectedReport(filteredReports[index])}
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
+                                <FileText size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
+                                <p className="text-on-surface-secondary">No reports in selected date range.</p>
                             </div>
                         )}
                     </div>
                 </>
             )}
 
-            {/* Reports Over Time Chart and Reports & Contributors (Manager View Only) */}
-            {!isEmployeeView && filteredReports.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Reports Over Time Chart */}
-                    <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <BarChart3 size={24} className="text-on-surface-secondary" />
-                                <h3 className="text-lg font-semibold text-on-surface">Reports Over Time</h3>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 bg-surface rounded-lg border border-border p-1">
-                                    <button
-                                        onClick={() => setChartTimePeriod('weekly')}
-                                        className={`px-3 py-1 text-sm font-medium rounded transition-colors ${chartTimePeriod === 'weekly'
-                                            ? 'bg-primary text-white'
-                                            : 'text-on-surface-secondary hover:text-on-surface'
-                                            }`}
-                                    >
-                                        Weekly
-                                    </button>
-                                    <button
-                                        onClick={() => setChartTimePeriod('monthly')}
-                                        className={`px-3 py-1 text-sm font-medium rounded transition-colors ${chartTimePeriod === 'monthly'
-                                            ? 'bg-primary text-white'
-                                            : 'text-on-surface-secondary hover:text-on-surface'
-                                            }`}
-                                    >
-                                        Monthly
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Custom Legend */}
-                        <div className="flex items-center justify-center gap-6 mb-2">
-                            <div className="flex items-center gap-2">
-                                <div className="w-4 h-0.5 bg-primary"></div>
-                                <span className="text-sm text-on-surface">Total Reports</span>
-                            </div>
-                            <button
-                                onClick={() => setShowRedFlagLine(!showRedFlagLine)}
-                                className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
-                            >
-                                <svg width="16" height="2" className={showRedFlagLine ? '' : 'opacity-50'}>
-                                    <line
-                                        x1="0"
-                                        y1="1"
-                                        x2="16"
-                                        y2="1"
-                                        stroke="#ef4444"
-                                        strokeWidth="2"
-                                        strokeDasharray="4 4"
-                                    />
-                                </svg>
-                                <span
-                                    className={`text-sm ${showRedFlagLine ? 'text-on-surface' : 'text-on-surface-secondary line-through'}`}
-                                >
-                                    Red Flag Reports
-                                </span>
-                            </button>
-                        </div>
-
-                        {chartData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={450}>
-                                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                    <XAxis
-                                        dataKey="period"
-                                        tick={{ fill: '#6b7280', fontSize: 11 }}
-                                        tickFormatter={(value) => {
-                                            if (value.length > 15) {
-                                                return value.substring(0, 15) + '...';
-                                            }
-                                            return value;
-                                        }}
-                                        interval={0}
-                                        height={20}
-                                    />
-                                    <YAxis
-                                        tick={{ fill: '#6b7280', fontSize: 12 }}
-                                        label={{ value: 'Number of Reports', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: '#ffffff',
-                                            border: '1px solid #e5e7eb',
-                                            color: '#111827',
-                                            borderRadius: '0.5rem',
-                                            padding: '0.5rem'
-                                        }}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="total"
-                                        stroke="#2563eb"
-                                        strokeWidth={2}
-                                        dot={{ fill: '#2563eb', r: 4 }}
-                                        name="Total Reports"
-                                        activeDot={{ r: 6 }}
-                                    />
-                                    {showRedFlagLine && (
-                                        <Line
-                                            type="monotone"
-                                            dataKey="redFlag"
-                                            stroke="#ef4444"
-                                            strokeWidth={2}
-                                            dot={{ fill: '#ef4444', r: 4 }}
-                                            name="Red Flag Reports"
-                                            strokeDasharray="5 5"
-                                            activeDot={{ r: 6 }}
-                                        />
-                                    )}
-                                </LineChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="text-center py-8 text-on-surface-secondary">
-                                <BarChart3 size={32} className="mx-auto mb-2 text-on-surface-tertiary" />
-                                <p>No data available for the selected time period</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Combined Reports Section */}
-                    {!isEmployeeView && (filteredReports.length > 0 || recentReports.length > 0 || redFlagReports.length > 0) && (
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                            <div className="flex items-center justify-between mb-4">
+            {/* Manager Dashboard Content */}
+            {!isEmployeeView && (
+                <div className="space-y-6">
+                    {/* Top Row: Performance Velocity (3) & Reports (1) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        {/* Performance Velocity Section (Span 3) */}
+                        <div className="lg:col-span-3 bg-surface-elevated p-6 rounded-lg border border-border flex flex-col">
+                            <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <FileText size={24} className="text-on-surface-secondary" />
-                                    <h3 className="text-lg font-semibold text-on-surface">Reports & Contributors</h3>
-                                    {activeTab === 'redFlag' && redFlagReports.length > 0 && (
-                                        <span className="px-2 py-1 text-xs bg-red-500/20 text-red-700 rounded-full font-semibold">
-                                            {redFlagReports.length} red flag{redFlagReports.length !== 1 ? 's' : ''}
-                                        </span>
-                                    )}
+                                    <Activity size={24} className="text-on-surface-secondary" />
+                                    <h3 className="text-lg font-semibold text-on-surface">Performance Velocity</h3>
                                 </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 bg-surface rounded-lg border border-border p-1">
+                                        <button
+                                            onClick={() => setChartTimePeriod('daily')}
+                                            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartTimePeriod === 'daily'
+                                                ? 'bg-primary text-white'
+                                                : 'text-on-surface-secondary hover:text-on-surface'
+                                                }`}
+                                        >
+                                            Daily
+                                        </button>
+                                        <button
+                                            onClick={() => setChartTimePeriod('weekly')}
+                                            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartTimePeriod === 'weekly'
+                                                ? 'bg-primary text-white'
+                                                : 'text-on-surface-secondary hover:text-on-surface'
+                                                }`}
+                                        >
+                                            Weekly
+                                        </button>
+                                        <button
+                                            onClick={() => setChartTimePeriod('monthly')}
+                                            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartTimePeriod === 'monthly'
+                                                ? 'bg-primary text-white'
+                                                : 'text-on-surface-secondary hover:text-on-surface'
+                                                }`}
+                                        >
+                                            Monthly
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-sm text-on-surface-secondary mb-6">
+                                Tracking weighted AI evaluation scores and report volume trends.
+                            </p>
+
+                            <div className="flex-1 min-h-[400px]">
+                                {chartData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                <filter id="blue-glow" height="200%">
+                                                    <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
+                                                    <feOffset in="blur" dx="0" dy="4" result="offsetBlur" />
+                                                    <feFlood floodColor="#2563eb" floodOpacity="0.5" result="offsetColor" />
+                                                    <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur" />
+                                                    <feMerge>
+                                                        <feMergeNode in="offsetBlur" />
+                                                        <feMergeNode in="SourceGraphic" />
+                                                    </feMerge>
+                                                </filter>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                            <XAxis
+                                                dataKey="period"
+                                                tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 500 }}
+                                                axisLine={{ stroke: '#e5e7eb' }}
+                                                tickLine={false}
+                                                padding={{ left: 10, right: 10 }}
+                                            />
+                                            <YAxis
+                                                yAxisId="left"
+                                                tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 500 }}
+                                                domain={[0, 10]}
+                                                axisLine={false}
+                                                tickLine={false}
+                                            />
+                                            <YAxis
+                                                yAxisId="right"
+                                                orientation="right"
+                                                tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: '#ffffff',
+                                                    border: '1px solid #e5e7eb',
+                                                    color: '#111827',
+                                                    borderRadius: '0.5rem',
+                                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                                    fontSize: '12px'
+                                                }}
+                                            />
+                                            {/* Report Volume Line (Secondary) */}
+                                            <Line
+                                                yAxisId="right"
+                                                type="monotone"
+                                                dataKey="total"
+                                                name="Report Volume"
+                                                stroke="#94a3b8"
+                                                strokeWidth={2}
+                                                dot={false}
+                                                activeDot={{ r: 4, fill: '#94a3b8' }}
+                                                strokeOpacity={0.5}
+                                            />
+                                            {/* Weighted AI Score Line (Primary with Glow) */}
+                                            <Line
+                                                yAxisId="left"
+                                                type="monotone"
+                                                dataKey="averageScore"
+                                                name="Weighted AI Score"
+                                                stroke="#2563eb"
+                                                strokeWidth={4}
+                                                dot={{ fill: '#2563eb', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                                                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+                                                filter="url(#blue-glow)"
+                                            />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-on-surface-secondary">
+                                        <BarChart3 size={32} className="mb-2 opacity-20" />
+                                        <p>No data available for selected period</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Recent Reports & Contributors (Span 1) */}
+                        <div className="lg:col-span-1 bg-surface-elevated p-6 rounded-lg border border-border flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+                                    <FileText size={20} className="text-on-surface-secondary" />
+                                    Reports
+                                </h3>
                                 {onNavigate && (
                                     <a
                                         href="#"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            onNavigate('all-reports');
-                                        }}
-                                        className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
+                                        onClick={(e) => { e.preventDefault(); onNavigate('all-reports'); }}
+                                        className="text-xs text-primary hover:underline hover:text-primary-hover font-medium"
                                     >
-                                        View Reports
-                                        <ChevronRight size={16} />
+                                        See All
                                     </a>
                                 )}
                             </div>
 
-                            {/* Tabs */}
-                            <div className="flex gap-2 mb-4 border-b border-border">
-                                <button
-                                    onClick={() => setActiveTab('redFlag')}
-                                    className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === 'redFlag'
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-on-surface-secondary hover:text-on-surface'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle size={16} />
-                                        Red Flag
-                                        {redFlagReports.length > 0 && (
-                                            <span className="px-1.5 py-0.5 text-xs bg-red-500/20 text-red-700 rounded-full">
-                                                {redFlagReports.length}
-                                            </span>
-                                        )}
-                                    </div>
-                                </button>
+                            {/* Simplified Tabs */}
+                            <div className="flex p-1 bg-surface rounded-lg mb-4 text-xs font-medium border border-border">
                                 <button
                                     onClick={() => setActiveTab('recent')}
-                                    className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === 'recent'
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-on-surface-secondary hover:text-on-surface'
-                                        }`}
+                                    className={`flex-1 py-1.5 rounded-md transition-colors ${activeTab === 'recent' ? 'bg-primary/10 text-primary shadow-sm' : 'text-on-surface-secondary hover:text-on-surface'}`}
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <Clock size={16} />
-                                        Recent
-                                    </div>
+                                    Recent
                                 </button>
                                 <button
-                                    onClick={() => setActiveTab('topContributors')}
-                                    className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === 'topContributors'
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-on-surface-secondary hover:text-on-surface'
-                                        }`}
+                                    onClick={() => setActiveTab('redFlag')}
+                                    className={`flex-1 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1 ${activeTab === 'redFlag' ? 'bg-red-50 text-red-600 shadow-sm' : 'text-on-surface-secondary hover:text-on-surface'}`}
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <Trophy size={16} />
-                                        Top Contributors
-                                    </div>
+                                    Red Flag
+                                    {redFlagReports.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>}
                                 </button>
                             </div>
 
-                            {/* Tab Content */}
-                            <div className="max-h-[500px] overflow-y-auto">
-                                {/* Red Flag Tab */}
-                                {activeTab === 'redFlag' && (
-                                    <div>
-                                        {redFlagReports.length > 0 ? (
-                                            <div className="space-y-2">
-                                                {redFlagReports.map((report) => {
-                                                    const goal = filteredGoals.find(g => g.id === report.goalId);
-                                                    const project = goal ? projects.find(p => p.id === goal.projectId) : null;
-                                                    const employee = employees.find(e => e.id === report.employeeId);
-                                                    const previewText = report.reportText.replace(/<[^>]*>/g, '').substring(0, 100);
-
-                                                    return (
-                                                        <div
-                                                            key={report.id}
-                                                            className="bg-surface p-3 rounded-lg border border-red-500/30 hover:border-red-500/50 transition-colors cursor-pointer"
-                                                            onClick={() => setSelectedReport(report)}
-                                                        >
-                                                            <div className="flex items-start justify-between">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                                        {onSelectEmployee && employee ? (
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    onSelectEmployee(employee.id);
-                                                                                }}
-                                                                                className="font-semibold text-sm text-primary hover:underline truncate"
-                                                                            >
-                                                                                {employee.name}
-                                                                            </button>
-                                                                        ) : (
-                                                                            <span className="font-semibold text-sm text-on-surface truncate">{employee?.name || 'Unknown'}</span>
-                                                                        )}
-                                                                        <span className="text-xs text-on-surface-secondary">•</span>
-                                                                        <span className="text-xs text-on-surface-secondary truncate">{goal?.name || 'Unknown Goal'}</span>
-                                                                        {project && (
-                                                                            <>
-                                                                                <span className="text-xs text-on-surface-secondary">•</span>
-                                                                                {onSelectProject ? (
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            onSelectProject(project.id);
-                                                                                        }}
-                                                                                        className="text-xs text-primary hover:underline truncate"
-                                                                                    >
-                                                                                        {project.name}
-                                                                                    </button>
-                                                                                ) : (
-                                                                                    <span className="text-xs text-on-surface-secondary truncate">{project.name}</span>
-                                                                                )}
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className="text-xs text-on-surface-secondary line-clamp-1 mb-1">{previewText}...</p>
-                                                                    <div className="text-xs text-on-surface-tertiary">
-                                                                        {formatReportDate(report.submissionDate)}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="ml-3 text-right flex-shrink-0">
-                                                                    <div className="text-sm font-bold text-red-600 mb-1">
-                                                                        {report.evaluationScore.toFixed(1)}/10
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleResolveReport(report);
-                                                                        }}
-                                                                        className="mt-2 text-[10px] font-semibold text-on-surface-tertiary hover:text-primary border border-border px-1.5 py-0.5 rounded transition-colors"
-                                                                        title="Mark as resolved and remove from red flags"
-                                                                    >
-                                                                        Resolve
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-8 text-on-surface-secondary">
-                                                <AlertTriangle size={32} className="mx-auto mb-2 text-on-surface-tertiary" />
-                                                <p>No red flag reports found</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Recent Tab */}
-                                {activeTab === 'recent' && (
-                                    <div>
-                                        {recentReports.length > 0 ? (
-                                            <div className="space-y-2">
-                                                {recentReports.map((report) => {
-                                                    const goal = filteredGoals.find(g => g.id === report.goalId);
-                                                    const project = goal ? projects.find(p => p.id === goal.projectId) : null;
-                                                    const employee = employees.find(e => e.id === report.employeeId);
-                                                    const previewText = report.reportText.replace(/<[^>]*>/g, '').substring(0, 100);
-
-                                                    return (
-                                                        <div
-                                                            key={report.id}
-                                                            className="bg-surface p-3 rounded-lg border border-border hover:border-primary/50 transition-colors cursor-pointer"
-                                                            onClick={() => setSelectedReport(report)}
-                                                        >
-                                                            <div className="flex items-start justify-between">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                                        {onSelectEmployee && employee ? (
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    onSelectEmployee(employee.id);
-                                                                                }}
-                                                                                className="font-medium text-sm text-primary hover:underline truncate"
-                                                                            >
-                                                                                {employee.name}
-                                                                            </button>
-                                                                        ) : (
-                                                                            <span className="font-medium text-sm text-on-surface truncate">{employee?.name || 'Unknown'}</span>
-                                                                        )}
-                                                                        <span className="text-xs text-on-surface-secondary">•</span>
-                                                                        <span className="text-xs text-on-surface-secondary truncate">{goal?.name || 'Unknown Goal'}</span>
-                                                                        {project && (
-                                                                            <>
-                                                                                <span className="text-xs text-on-surface-secondary">•</span>
-                                                                                {onSelectProject ? (
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            onSelectProject(project.id);
-                                                                                        }}
-                                                                                        className="text-xs text-primary hover:underline truncate"
-                                                                                    >
-                                                                                        {project.name}
-                                                                                    </button>
-                                                                                ) : (
-                                                                                    <span className="text-xs text-on-surface-secondary truncate">{project.name}</span>
-                                                                                )}
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className="text-xs text-on-surface-secondary line-clamp-1 mb-1">{previewText}...</p>
-                                                                    <div className="text-xs text-on-surface-tertiary">
-                                                                        {formatReportDate(report.submissionDate)}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="ml-3 text-right flex-shrink-0">
-                                                                    <div className="text-sm font-semibold text-on-surface">
-                                                                        {report.evaluationScore.toFixed(1)}/10
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-8 text-on-surface-secondary">
-                                                <Clock size={32} className="mx-auto mb-2 text-on-surface-tertiary" />
-                                                <p>No recent reports found</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Top Contributors Tab */}
-                                {activeTab === 'topContributors' && (
-                                    <div>
-                                        {topContributors.length > 0 ? (
-                                            <div className="space-y-3">
-                                                {topContributors.map((contributor, index) => (
+                            <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar min-h-[300px]">
+                                {activeTab === 'recent' ? (
+                                    recentReports.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {recentReports.slice(0, 6).map((report) => {
+                                                const employee = employees.find(e => e.id === report.employeeId);
+                                                return (
                                                     <div
-                                                        key={contributor.employeeId}
-                                                        className={`p-4 rounded-lg border ${index === 0
-                                                            ? 'bg-primary/10 border-primary/30'
-                                                            : 'bg-surface border-border'
-                                                            }`}
+                                                        key={report.id}
+                                                        className="p-3 bg-surface rounded-lg border border-border hover:border-primary/30 cursor-pointer transition-colors"
+                                                        onClick={() => setSelectedReport(report)}
                                                     >
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <div className="flex items-center gap-3">
-                                                                {index === 0 && <Award size={18} className="text-primary" />}
-                                                                <div>
-                                                                    {onSelectEmployee && contributor.employee ? (
-                                                                        <button
-                                                                            onClick={() => onSelectEmployee(contributor.employeeId)}
-                                                                            className={`font-semibold text-sm hover:underline truncate block max-w-[150px] ${index === 0 ? 'text-primary' : 'text-on-surface'
-                                                                                }`}
-                                                                            title={contributor.employee.name}
-                                                                        >
-                                                                            {contributor.employee.name}
-                                                                        </button>
-                                                                    ) : (
-                                                                        <span className={`font-semibold text-sm truncate block max-w-[150px] ${index === 0 ? 'text-primary' : 'text-on-surface'
-                                                                            }`} title={contributor.employee?.name || 'Unknown'}>
-                                                                            {contributor.employee?.name || 'Unknown'}
-                                                                        </span>
-                                                                    )}
-                                                                    <div className="text-xs text-on-surface-secondary mt-0.5">
-                                                                        {contributor.reportCount} report{contributor.reportCount !== 1 ? 's' : ''}
-                                                                    </div>
-                                                                </div>
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <div className="font-medium text-sm text-on-surface truncate pr-2">
+                                                                {employee?.name || 'Unknown'}
                                                             </div>
-                                                            <div className="text-right">
-                                                                <div className={`text-lg font-bold ${index === 0 ? 'text-primary' : 'text-on-surface'
-                                                                    }`}>
-                                                                    {contributor.averageScore.toFixed(1)}/10
-                                                                </div>
-                                                                <div className="text-xs text-on-surface-secondary">
-                                                                    Avg Score
-                                                                </div>
+                                                            <div className={`text-xs font-bold ${report.evaluationScore >= 8 ? 'text-primary' : report.evaluationScore < 6 ? 'text-red-500' : 'text-amber-500'}`}>
+                                                                {report.evaluationScore.toFixed(1)}
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center justify-between text-xs text-on-surface-secondary pt-2 border-t border-border">
-                                                            <span>Total Score: {contributor.totalScore.toFixed(1)}</span>
-                                                            {index === 0 && (
-                                                                <span className="text-primary font-medium">Top Performer</span>
-                                                            )}
+                                                        <div className="text-[10px] text-on-surface-secondary mb-1">
+                                                            {formatReportDate(report.submissionDate)}
+                                                        </div>
+                                                        <p className="text-xs text-on-surface-secondary line-clamp-1 opacity-80">
+                                                            {report.reportText.replace(/<[^>]*>/g, '')}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-on-surface-tertiary">
+                                            <Clock size={24} className="mx-auto mb-2 opacity-30" />
+                                            <p className="text-xs">No recent reports</p>
+                                        </div>
+                                    )
+                                ) : (
+                                    redFlagReports.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {redFlagReports.map((report) => {
+                                                const employee = employees.find(e => e.id === report.employeeId);
+                                                return (
+                                                    <div
+                                                        key={report.id}
+                                                        className="p-3 bg-red-50/20 rounded-lg border border-red-200 hover:border-red-300 cursor-pointer transition-colors"
+                                                        onClick={() => setSelectedReport(report)}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <div className="font-medium text-sm text-on-surface truncate pr-2">
+                                                                {employee?.name || 'Unknown'}
+                                                            </div>
+                                                            <div className="text-xs font-bold text-red-600">
+                                                                {report.evaluationScore.toFixed(1)}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-[10px] text-red-700/70 mb-1">
+                                                            Critical Issue
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-8 text-on-surface-secondary">
-                                                <Trophy size={32} className="mx-auto mb-2 text-on-surface-tertiary" />
-                                                <p>No contributors found in the selected date range</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-on-surface-tertiary">
+                                            <CheckCircle2 size={24} className="mx-auto mb-2 opacity-30 text-emerald-500" />
+                                            <p className="text-xs">No red flags</p>
+                                        </div>
+                                    )
                                 )}
                             </div>
                         </div>
-                    )}
-                </div>
-            )
-            }
+                    </div>
 
-            {/* Goal Alignment Matrix and Ongoing Projects (Manager View Only) */}
-            {
-                !isEmployeeView && (goalAlignmentData.length > 0 || ongoingProjects.length > 0) && (
+                    {/* Bottom Row: Goal Matrix (1) & Projects (1) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Goal Alignment Matrix */}
-                        {goalAlignmentData.length > 0 && (
-                            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <Target size={24} className="text-on-surface-secondary" />
-                                        <h3 className="text-lg font-semibold text-on-surface">Goal Alignment Matrix</h3>
-                                    </div>
-                                    {onNavigate && (
-                                        <a
-                                            href="#"
-                                            onClick={(e) => { e.preventDefault(); onNavigate('goals'); }}
-                                            className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
-                                        >
-                                            View All Goals
-                                            <ChevronRight size={16} />
-                                        </a>
-                                    )}
+                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Target size={24} className="text-on-surface-secondary" />
+                                    <h3 className="text-lg font-semibold text-on-surface">Goal Alignment</h3>
                                 </div>
-                                <p className="text-sm text-on-surface-secondary mb-4">
-                                    Shows how much work is actually linking to specific goals/OKRs. Stacked bars represent performance quality distribution (High: 8.0+, Medium: 6.0-7.9, Low: &lt;6.0).
-                                </p>
-                                <ResponsiveContainer width="100%" height={500}>
-                                    <BarChart
-                                        data={goalAlignmentData}
-                                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                {onNavigate && (
+                                    <a
+                                        href="#"
+                                        onClick={(e) => { e.preventDefault(); onNavigate('goals'); }}
+                                        className="text-sm text-primary hover:text-primary-hover font-medium"
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                        <XAxis
-                                            dataKey="goal"
-                                            tick={{ fill: '#6b7280', fontSize: 10 }}
-                                            tickFormatter={(value) => {
-                                                if (value.length > 20) {
-                                                    return value.substring(0, 20) + '...';
-                                                }
-                                                return value;
-                                            }}
-                                            interval={0}
-                                            height={30}
-                                        />
-                                        <YAxis
-                                            tick={{ fill: '#6b7280', fontSize: 12 }}
-                                            label={{ value: 'Number of Reports', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#ffffff',
-                                                border: '1px solid #e5e7eb',
-                                                color: '#111827',
-                                                borderRadius: '0.5rem',
-                                                padding: '0.5rem'
-                                            }}
-                                            formatter={(value: number) => [value, 'Reports']}
-                                            labelFormatter={(label) => {
-                                                const dataPoint = goalAlignmentData.find(d => d.goal === label);
-                                                return dataPoint ? `${dataPoint.goalFull} (${dataPoint.project})` : label;
-                                            }}
-                                        />
-                                        <Legend
-                                            wrapperStyle={{ paddingTop: '10px' }}
-                                        />
-                                        {performanceBands.map((band) => (
-                                            <Bar
-                                                key={band.key}
-                                                dataKey={band.key}
-                                                stackId="a"
-                                                fill={band.color}
-                                                name={band.name}
-                                            />
-                                        ))}
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                        See All
+                                    </a>
+                                )}
                             </div>
-                        )}
-
-                        {/* Ongoing Projects Section */}
-                        {ongoingProjects.length > 0 && (
-                            <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <FolderKanban size={24} className="text-on-surface-secondary" />
-                                        <h3 className="text-lg font-semibold text-on-surface">Ongoing Projects</h3>
-                                    </div>
-                                    {onNavigate && (
-                                        <a
-                                            href="#"
-                                            onClick={(e) => { e.preventDefault(); onNavigate('projects'); }}
-                                            className="text-sm text-primary hover:text-primary-hover font-medium flex items-center gap-1"
+                            <p className="text-sm text-on-surface-secondary mb-6">
+                                Quality distribution across key organizational goals.
+                            </p>
+                            {goalAlignmentData.length > 0 ? (
+                                <div className="h-[400px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={goalAlignmentData}
+                                            layout="vertical"
+                                            margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
                                         >
-                                            View All Projects
-                                            <ChevronRight size={16} />
-                                        </a>
-                                    )}
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+                                            <XAxis type="number" hide />
+                                            <YAxis
+                                                type="category"
+                                                dataKey="goal"
+                                                tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 500 }}
+                                                width={140}
+                                                axisLine={false}
+                                                tickLine={false}
+                                            />
+                                            <Tooltip
+                                                cursor={{ fill: 'transparent' }}
+                                                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                                            />
+                                            {performanceBands.map((band) => (
+                                                <Bar
+                                                    key={band.key}
+                                                    dataKey={band.key}
+                                                    stackId="a"
+                                                    fill={band.color}
+                                                    radius={[0, 4, 4, 0]}
+                                                    barSize={24}
+                                                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                                                    onClick={(data) => {
+                                                        if (data && data.goalId) {
+                                                            setSelectedGoalId(data.goalId);
+                                                        }
+                                                    }}
+                                                />
+                                            ))}
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
-                                <div className="space-y-4">
-                                    {ongoingProjects.map((project) => (
+                            ) : (
+                                <div className="h-[400px] flex items-center justify-center text-center text-on-surface-secondary">
+                                    <p>No goal data available</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Ongoing Projects (Cards) */}
+                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <FolderKanban size={24} className="text-on-surface-secondary" />
+                                    <h3 className="text-lg font-semibold text-on-surface">Ongoing Projects</h3>
+                                </div>
+                                {onNavigate && (
+                                    <a
+                                        href="#"
+                                        onClick={(e) => { e.preventDefault(); onNavigate('projects'); }}
+                                        className="text-sm text-primary hover:text-primary-hover font-medium"
+                                    >
+                                        View All
+                                    </a>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {ongoingProjects.slice(0, 4).map((project) => {
+                                    const isHealthy = project.averageScore >= 7.0;
+                                    const daysInStage = Math.floor((new Date().getTime() - new Date(project.startDate).getTime()) / (1000 * 3600 * 24));
+
+                                    return (
                                         <div
                                             key={project.id}
-                                            className={`bg-surface p-4 rounded-lg border border-border ${onSelectProject ? 'cursor-pointer hover:border-primary/50 transition-colors' : ''}`}
+                                            className="bg-surface p-4 rounded-xl border border-border hover:border-primary/40 transition-all cursor-pointer group shadow-sm hover:shadow"
                                             onClick={onSelectProject ? () => onSelectProject(project.id) : undefined}
                                         >
-                                            <div className="flex items-start justify-between mb-3">
-                                                <div className="flex-1">
-                                                    <h4 className="font-semibold text-on-surface mb-1 truncate" title={project.name}>{project.name}</h4>
-                                                    {project.description && (
-                                                        <p className="text-sm text-on-surface-secondary mb-2 line-clamp-2" title={project.description}>{project.description}</p>
-                                                    )}
-                                                    <div className="flex items-center gap-4 text-xs text-on-surface-secondary">
-                                                        {project.category && (
-                                                            <span className="px-2 py-1 bg-primary/10 text-primary rounded">
-                                                                {project.category}
-                                                            </span>
-                                                        )}
-                                                        <span>{project.reportFrequency} reports</span>
-                                                        {project.reportCount > 0 && (
-                                                            <span>Avg Score: {project.averageScore.toFixed(1)}/10</span>
-                                                        )}
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <h4 className="font-bold text-on-surface text-sm truncate max-w-[120px]" title={project.name}>
+                                                        {project.name}
+                                                    </h4>
+                                                    <div className="flex items-center gap-1.5 text-xs text-on-surface-secondary mt-0.5">
+                                                        <Building2 size={10} />
+                                                        <span>{project.category || 'Internal'}</span>
                                                     </div>
                                                 </div>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${isHealthy ? 'bg-emerald-100/50 text-emerald-700' : 'bg-red-100/50 text-red-700'}`}>
+                                                    {isHealthy ? 'Healthy' : 'At Risk'}
+                                                </span>
                                             </div>
+
+                                            <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
+                                                <Users size={12} className="text-on-surface-tertiary" />
+                                                <span className="truncate">
+                                                    ({project.assignees?.length || 0}) {project.assignees && project.assignees.length > 0
+                                                        ? project.assignees.map(a => employees.find(e => e.id === a.id)?.name.split(' ')[0]).filter(Boolean).join(', ')
+                                                        : 'Unassigned'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
+                                                <Clock size={12} className="text-on-surface-tertiary" />
+                                                <span>
+                                                    Last report: {(() => {
+                                                        const projectGoalIds = goals.filter(g => g.projectId === project.id).map(g => g.id);
+                                                        const projectReports = reports.filter(r => projectGoalIds.includes(r.goalId));
+                                                        if (projectReports.length === 0) return 'Never';
+                                                        const lastReportDate = new Date(Math.max(...projectReports.map(r => new Date(r.submissionDate).getTime())));
+                                                        return formatReportDate(lastReportDate.toISOString());
+                                                    })()}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
+                                                <Trophy size={12} className="text-on-surface-tertiary" />
+                                                <span className="font-semibold text-on-surface">
+                                                    {project.averageScore.toFixed(1)}/10
+                                                </span>
+                                            </div>
+
                                             {project.goals.length > 0 && (
-                                                <div className="mt-3 pt-3 border-t border-border">
-                                                    <h5 className="text-sm font-medium text-on-surface mb-2 flex items-center gap-2">
-                                                        <Target size={14} className="text-on-surface-secondary" />
-                                                        Goals ({project.goals.length})
-                                                    </h5>
-                                                    <div className="space-y-2">
-                                                        {project.goals.map((goal) => {
-                                                            const goalReports = reports.filter(r => r.goalId === goal.id);
-                                                            const goalAvgScore = goalReports.length > 0
-                                                                ? goalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / goalReports.length
-                                                                : 0;
-                                                            return (
-                                                                <div key={goal.id} className="bg-surface-elevated p-3 rounded border border-border">
-                                                                    <div className="flex items-start justify-between">
-                                                                        <div className="flex-1">
-                                                                            <span className="font-medium text-sm text-on-surface truncate block" title={goal.name}>{goal.name}</span>
-                                                                            {goal.deadline && (
-                                                                                <div className="flex items-center gap-1 mt-1 text-xs text-on-surface-secondary">
-                                                                                    <Calendar size={12} />
-                                                                                    <span>Deadline: {new Date(goal.deadline).toLocaleDateString()}</span>
-                                                                                </div>
-                                                                            )}
-                                                                            {goal.criteria.length > 0 && (
-                                                                                <div className="mt-1 flex flex-wrap gap-1">
-                                                                                    {goal.criteria.slice(0, 3).map((criterion) => (
-                                                                                        <span key={criterion.id} className="text-xs px-2 py-0.5 bg-surface border border-border text-on-surface-secondary rounded">
-                                                                                            {criterion.name}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                    {goal.criteria.length > 3 && (
-                                                                                        <span className="text-xs text-on-surface-secondary">
-                                                                                            +{goal.criteria.length - 3} more
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        {goalReports.length > 0 && (
-                                                                            <div className="ml-3 text-right">
-                                                                                <div className="text-sm font-semibold text-on-surface">
-                                                                                    {goalAvgScore.toFixed(1)}/10
-                                                                                </div>
-                                                                                <div className="text-xs text-on-surface-secondary">
-                                                                                    {goalReports.length} report{goalReports.length !== 1 ? 's' : ''}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedProjectForGoals(project);
+                                                    }}
+                                                    className="w-full text-left mt-2 pl-1 pt-2 border-t border-border/50 text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
+                                                >
+                                                    {project.goals.length} Goals
+                                                    <ChevronRight size={10} />
+                                                </button>
                                             )}
                                         </div>
-                                    ))}
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Report Detail Modal */}
+            {
+                selectedReport && (
+                    <ReportDetailModal
+                        report={selectedReport}
+                        isOpen={!!selectedReport}
+                        onClose={() => setSelectedReport(null)}
+                        onUpdateReport={handleUpdateReport}
+                        employees={employees}
+                        goals={goals}
+                        projects={projects}
+                        currentManagerId={currentManagerId}
+                        isManagerView={!isEmployeeView}
+                        onSelectEmployee={onSelectEmployee}
+                        onSelectProject={onSelectProject}
+                    />
+                )
+            }
+
+            {/* Goal Drill Down Modal */}
+            {
+                selectedGoalId && selectedGoalDetails && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="bg-surface-elevated w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden">
+                            {/* Header */}
+                            <div className="p-6 border-b border-border flex items-center justify-between bg-surface">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Target className="text-primary" size={20} />
+                                        <h2 className="text-xl font-bold text-on-surface">{selectedGoalDetails.name}</h2>
+                                        <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                                            Goal Details
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-on-surface-secondary">
+                                        Project: {projects.find(p => p.id === selectedGoalDetails.projectId)?.name || 'Unknown'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedGoalId(null)}
+                                    className="p-2 hover:bg-surface-hover rounded-full transition-colors text-on-surface-tertiary hover:text-on-surface"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                                {/* Summary Stats */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-surface p-4 rounded-lg border border-border">
+                                        <div className="text-xs text-on-surface-secondary mb-1">Total Reports</div>
+                                        <div className="text-2xl font-bold text-on-surface">{selectedGoalReports.length}</div>
+                                    </div>
+                                    <div className="bg-surface p-4 rounded-lg border border-border">
+                                        <div className="text-xs text-on-surface-secondary mb-1">Average Score</div>
+                                        <div className="text-2xl font-bold text-on-surface">
+                                            {((selectedGoalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / (selectedGoalReports.length || 1)) || 0).toFixed(1)}/10
+                                        </div>
+                                    </div>
+                                    <div className="bg-surface p-4 rounded-lg border border-border">
+                                        <div className="text-xs text-on-surface-secondary mb-1">Red Flags</div>
+                                        <div className="text-2xl font-bold text-red-500">
+                                            {selectedGoalReports.filter(r => r.evaluationScore < 6).length}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Reports List */}
+                                <div>
+                                    <h3 className="text-sm font-semibold text-on-surface mb-4 uppercase tracking-wider">Reports & AI Reasoning</h3>
+                                    <div className="space-y-4">
+                                        {selectedGoalReports.length > 0 ? (
+                                            selectedGoalReports.map((report) => (
+                                                <div
+                                                    key={report.id}
+                                                    className={`p-5 rounded-xl border transition-all ${report.evaluationScore < 6
+                                                        ? 'bg-red-500/5 border-red-200 hover:border-red-300'
+                                                        : 'bg-surface border-border hover:border-primary/30'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`p-2 rounded-lg ${report.evaluationScore < 6 ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'}`}>
+                                                                {report.evaluationScore < 6 ? <AlertCircle size={20} /> : <FileText size={20} />}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-semibold text-on-surface">
+                                                                    {employees.find(e => e.id === report.employeeId)?.name || 'Unknown Employee'}
+                                                                </div>
+                                                                <div className="text-xs text-on-surface-tertiary">
+                                                                    {new Date(report.submissionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className={`text-lg font-bold ${report.evaluationScore < 6 ? 'text-red-600' : 'text-primary'}`}>
+                                                                {(report.evaluationScore ?? 0).toFixed(1)}/10
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setSelectedReport(report)}
+                                                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 font-medium"
+                                                            >
+                                                                View Full Report <ExternalLink size={12} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* AI Reasoning Preview */}
+                                                    <div className="bg-surface-elevated/50 p-4 rounded-lg border border-border/50">
+                                                        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-on-surface-secondary uppercase tracking-tight">
+                                                            <Sparkles size={14} className="text-amber-500" />
+                                                            AI Reasoning Excerpt
+                                                        </div>
+                                                        <div className="text-sm text-on-surface leading-relaxed italic">
+                                                            "{report.evaluationReasoning.length > 300
+                                                                ? report.evaluationReasoning.substring(0, 300) + '...'
+                                                                : report.evaluationReasoning}"
+                                                        </div>
+                                                    </div>
+
+                                                    {report.evaluationScore < 6 && (
+                                                        <div className="mt-3 flex items-center gap-2 text-xs text-red-600 font-medium bg-red-50 p-2 rounded">
+                                                            <AlertCircle size={14} />
+                                                            Critical: Red flag report requires immediate attention and follow-up.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-12 bg-surface rounded-xl border border-dashed border-border">
+                                                <Info size={40} className="mx-auto text-on-surface-tertiary mb-3 opacity-20" />
+                                                <p className="text-on-surface-secondary">No reports found for this goal in the selected period.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        )}
+
+                            {/* Footer */}
+                            <div className="p-6 border-t border-border bg-surface flex justify-end">
+                                <button
+                                    onClick={() => setSelectedGoalId(null)}
+                                    className="px-6 py-2 bg-on-surface text-surface rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                                >
+                                    Close View
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )
             }
 
-            {/* Report Detail Modal */}
-            {selectedReport && (
-                <ReportDetailModal
-                    report={selectedReport}
-                    isOpen={!!selectedReport}
-                    onClose={() => setSelectedReport(null)}
-                    onUpdateReport={handleUpdateReport}
-                    employees={employees}
-                    goals={goals}
-                    projects={projects}
-                    currentManagerId={currentManagerId}
-                    isManagerView={!isEmployeeView}
-                    onSelectEmployee={onSelectEmployee}
-                    onSelectProject={onSelectProject}
-                />
-            )}
-
-            {/* Metrics Customization Modal */}
             {
                 !isEmployeeView && viewMode === 'manager' && (
                     <MetricsSelectionModal
@@ -2156,7 +2413,98 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     />
                 )
             }
-        </div >
+
+            {selectedProjectForGoals && (
+                <ProjectGoalsModal
+                    project={selectedProjectForGoals}
+                    goals={goals.filter(g => g.projectId === selectedProjectForGoals.id)}
+                    isOpen={!!selectedProjectForGoals}
+                    onClose={() => setSelectedProjectForGoals(null)}
+                />
+            )}
+
+            {/* Skill List Modal */}
+            <Modal
+                isOpen={isSkillListModalOpen}
+                onClose={() => setIsSkillListModalOpen(false)}
+                title="Measured Skills Proficiency"
+            >
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-on-surface-secondary">Detailed breakdown of skills measured by Zevian AI based on your project reports.</p>
+                        <span className="text-xs font-bold px-2 py-1 rounded bg-primary/10 text-primary">{sortedSkills.length} Skills</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {sortedSkills.map((skill, index) => (
+                            <div key={index} className="bg-surface-elevated p-4 rounded-xl border border-border flex flex-col gap-3 hover:border-primary/30 transition-all duration-200 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-bold text-on-surface line-clamp-1">{skill.name}</span>
+                                    <span className="text-sm font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
+                                        {skill.averageScore.toFixed(1)}
+                                    </span>
+                                </div>
+                                <div className="w-full bg-surface rounded-full h-2 overflow-hidden border border-border/50">
+                                    <div
+                                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
+                                        style={{ width: `${(skill.averageScore / 10) * 100}%` }}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] font-medium text-on-surface-secondary">
+                                    <span className="flex items-center gap-1">
+                                        <Activity size={12} className="text-primary" />
+                                        {skill.frequency} Mentions
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        {skill.averageScore >= 8 ? (
+                                            <div className="flex items-center gap-1 text-green-500">
+                                                <Trophy size={12} />
+                                                <span className="uppercase tracking-wider font-bold text-[10px]">Expert</span>
+                                            </div>
+                                        ) : skill.averageScore >= 6 ? (
+                                            <div className="flex items-center gap-1 text-primary">
+                                                <Award size={12} />
+                                                <span className="uppercase tracking-wider font-bold text-[10px]">Advanced</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1 text-amber-500">
+                                                <Activity size={12} />
+                                                <span className="uppercase tracking-wider font-bold text-[10px]">Developing</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="pt-4 border-t border-border flex justify-end gap-3">
+                        {viewMode === 'manager' && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsMetricsModalOpen(true)}
+                                icon={Sliders}
+                            >
+                                Customize Metrics
+                            </Button>
+                        )}
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => {
+                                setIsSkillListModalOpen(false);
+                                performSkillAnalysis(selectedMetrics);
+                            }}
+                            icon={Sparkles}
+                            disabled={isAnalyzingSkills || filteredReports.length === 0}
+                        >
+                            Re-analyze Skills
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+        </div>
     );
 };
 

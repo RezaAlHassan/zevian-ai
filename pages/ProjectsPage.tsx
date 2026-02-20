@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { Project, Employee, Goal, Report } from '../types';
-import { FolderKanban, Plus, Search, Eye, Edit2, Bot, MoreHorizontal, Trash2, File, X, UserPlus } from 'lucide-react';
+import { FolderKanban, Plus, Search, Eye, Edit2, Bot, MoreHorizontal, Trash2, File, X, UserPlus, Users } from 'lucide-react';
 import Table from '../components/Table';
+import { StackedAvatars, ProfilePicture } from '../components/Avatar';
 import Input from '../components/Input';
 import Select from '../components/Select';
 import MultiSelect from '../components/MultiSelect';
@@ -45,6 +46,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigningProject, setAssigningProject] = useState<Project | null>(null);
   const [tempAssigneeIds, setTempAssigneeIds] = useState<string[]>([]);
+
+  const [viewingAssigneesProject, setViewingAssigneesProject] = useState<Project | null>(null);
 
   // File input ref for integrated upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,10 +112,17 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
   // Filter projects based on view mode
   const visibleProjects = useMemo(() => {
     if (viewMode === 'employee' && currentEmployeeId) {
-      // Employees see only projects assigned to them
-      return projects.filter(project =>
-        project.assignees?.some(assignee => assignee.type === 'employee' && assignee.id === currentEmployeeId) || false
-      );
+      // Employees see projects they are assigned to OR projects where they have assigned goals
+      return projects.filter(project => {
+        const isProjectAssigned = project.assignees?.some(assignee => assignee.id === currentEmployeeId) || false;
+
+        const hasGoalAssignment = goals.some(goal =>
+          goal.projectId === project.id &&
+          goal.assignees?.some(assignee => assignee.id === currentEmployeeId)
+        );
+
+        return isProjectAssigned || hasGoalAssignment;
+      });
     }
 
     if (viewMode === 'manager' && currentManagerId) {
@@ -190,6 +200,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
           reportFrequency,
           knowledgeBaseLink: undefined, // Removed from UI
           createdBy: currentManagerId || currentEmployeeId,
+          createdAt: new Date().toISOString(),
         });
       }
 
@@ -295,10 +306,25 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
     const creatorName = getCreatorName(project.createdBy);
     const hasDirectReports = hasDirectReportsOnProject.get(project.id) || false;
 
+    const assignedEmployees = project.assignees
+      ?.map(a => employees.find(e => e.id === a.id))
+      .filter((e): e is Employee => !!e) || [];
+
     return [
       <span className="capitalize text-on-surface-secondary">{project.name}</span>,
       <span className="capitalize text-on-surface-secondary">{project.category || '—'}</span>,
-      <span className="capitalize text-on-surface-secondary">{assigneeNames}</span>,
+      <div className="flex items-center">
+        {assignedEmployees.length > 0 ? (
+          <StackedAvatars
+            employees={assignedEmployees}
+            maxVisible={3}
+            size={32}
+            onSeeMore={() => setViewingAssigneesProject(project)}
+          />
+        ) : (
+          <span className="text-on-surface-tertiary text-sm">Unassigned</span>
+        )}
+      </div>,
       <span className="capitalize text-on-surface-secondary">{creatorName}</span>,
       <div className="flex items-center">
         {viewMode === 'manager' && currentManagerId ? (
@@ -418,7 +444,11 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         <div className="bg-surface-elevated rounded-lg p-6 border border-border">
           {filteredProjects.length > 0 ? (
             <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
-              <Table headers={projectTableHeaders} rows={projectTableRows} />
+              <Table
+                headers={projectTableHeaders}
+                rows={projectTableRows}
+                onRowClick={onSelectProject ? (index) => onSelectProject(filteredProjects[index].id) : undefined}
+              />
             </div>
           ) : (
             <div className="text-center py-12">
@@ -426,7 +456,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
               <p className="text-lg text-on-surface-secondary mb-2">
                 {searchQuery ? 'No projects found matching your search' : 'No projects created yet'}
               </p>
-              {!searchQuery && (
+              {viewMode === 'manager' && !searchQuery && (
                 <Button
                   onClick={() => setShowCreateModal(true)}
                   variant="primary"
@@ -456,8 +486,9 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
           setEditingProject(null);
         }}
         title={editingProject ? 'Edit Project' : 'Create New Project'}
+        scrollable={false}
       >
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="space-y-4">
           <Input
             id="projectName"
             type="text"
@@ -623,6 +654,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         isOpen={showAssignModal}
         onClose={() => setShowAssignModal(false)}
         title={`Assign Members to ${assigningProject?.name}`}
+        scrollable={false}
       >
         <div className="space-y-6">
           <p className="text-sm text-on-surface-secondary">
@@ -631,11 +663,13 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
 
           <MultiSelect
             label="Select Members"
-            options={employees.map(emp => ({
-              value: emp.id,
-              label: emp.name,
-              sublabel: emp.role === 'manager' ? 'Manager' : emp.title || 'Employee'
-            }))}
+            options={employees
+              .filter(emp => emp.role === 'manager')
+              .map(emp => ({
+                value: emp.id,
+                label: emp.name,
+                sublabel: emp.title || 'Manager'
+              }))}
             selectedValues={tempAssigneeIds}
             onChange={setTempAssigneeIds}
             placeholder="Search and select members..."
@@ -654,6 +688,42 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
               onClick={handleSaveAssignments}
             >
               Save Assignments
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      {/* View Assignees Modal */}
+      <Modal
+        isOpen={!!viewingAssigneesProject}
+        onClose={() => setViewingAssigneesProject(null)}
+        title={`Assigned Members - ${viewingAssigneesProject?.name}`}
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {viewingAssigneesProject?.assignees && viewingAssigneesProject.assignees.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2">
+              {viewingAssigneesProject.assignees
+                .map(a => employees.find(e => e.id === a.id))
+                .filter((e): e is Employee => !!e)
+                .map(employee => (
+                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-lg border border-transparent hover:border-border transition-colors">
+                    <ProfilePicture name={employee.name} size={40} />
+                    <div>
+                      <div className="font-medium text-on-surface">{employee.name}</div>
+                      <div className="text-xs text-on-surface-secondary capitalize">{employee.role}</div>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          ) : (
+            <p className="text-on-surface-secondary text-center py-4">No members assigned.</p>
+          )}
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => setViewingAssigneesProject(null)}
+            >
+              Close
             </Button>
           </div>
         </div>

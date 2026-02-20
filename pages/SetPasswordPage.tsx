@@ -86,47 +86,21 @@ const SetPasswordPage: React.FC = () => {
         setSubmitting(true);
 
         try {
-            // 1. Create Auth User (Sign Up)
-            console.log('[Setup] 1. Signing up...');
-            const { data: signUpData, error: signUpError } = await authService.acceptInvite(invitation.email, password, name, invitation.role);
-            if (signUpError) throw signUpError;
+            // 1. Call the Edge Function (Creates Auth User + DB Employee + Assignments)
+            console.log('[Setup] 1. Creating account and setup via Edge Function...');
+            const result = await authService.acceptInvite(token, password, name) as any;
 
-            // 1.5. Ensure Session (Auto-login if needed)
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                console.log('[Setup] Session missing, attempting auto-login...');
-                const { error: signInError } = await authService.signIn(invitation.email, password);
-                if (signInError) {
-                    if (signInError.message.includes("Email not confirmed")) {
-                        throw new Error("Please check your email to confirm your account before continuing.");
-                    }
-                    throw signInError;
-                }
-            }
+            if (result.error) throw new Error(result.error);
 
-            // 2. Call the "Smart" DB Function (Completes Employee, Project, and Invite in one go)
-            console.log('[Setup] 2. Completing invitation via server-side function...');
-            const { data: rpcData, error: rcpError } = await supabase.rpc('complete_invitation_flow', {
-                token_input: token,
-                user_name: name
-            });
+            // 2. Sign In (Since account is now confirmed and created)
+            console.log('[Setup] 2. Signing in...');
+            await authService.signIn(invitation.email, password);
 
-            if (rcpError) {
-                console.error('[Setup] Server-side setup failed:', rcpError);
-                throw rcpError;
-            }
-
-            console.log('[Setup] Success! Result:', rpcData);
+            console.log('[Setup] Success! Account ready.');
 
             // 3. Finalize
             localStorage.setItem('userRole', invitation.role);
             localStorage.setItem('onboardingCompleted', 'true');
-
-            // Persist to DB if possible (though RPC should handle this, let's be safe or just trust the next refresh)
-            const employeeId = rpcData?.employee_id;
-            if (employeeId) {
-                await employeeService.update(employeeId, { onboardingCompleted: true }).catch(console.error);
-            }
 
             // 4. Redirect
             setTimeout(() => {

@@ -19,11 +19,11 @@ DROP TABLE IF EXISTS employees CASCADE;
 DROP TABLE IF EXISTS project_documents CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS organizations CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
 
 -- ============================================================================
 -- 1. ORGANIZATIONS
 -- ============================================================================
-
 CREATE TABLE organizations (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -435,7 +435,6 @@ CREATE POLICY "View own reports" ON reports FOR SELECT USING (employee_id IN (SE
 CREATE POLICY "Manager view org reports" ON reports FOR SELECT USING (is_manager() AND EXISTS (SELECT 1 FROM employees WHERE employees.id = reports.employee_id AND employees.organization_id = get_my_org_id()));
 CREATE POLICY "Create own reports" ON reports FOR INSERT WITH CHECK (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
 CREATE POLICY "Update own reports" ON reports FOR UPDATE USING (employee_id IN (SELECT id FROM employees WHERE auth_user_id = auth.uid()));
-CREATE POLICY "Manager update org reports" ON reports FOR UPDATE USING (is_manager() AND EXISTS (SELECT 1 FROM employees WHERE employees.id = reports.employee_id AND employees.organization_id = get_my_org_id()));
 
 -- REPORT CRITERION SCORES
 CREATE POLICY "Enable read access for authenticated users" ON report_criterion_scores FOR SELECT USING (auth.role() = 'authenticated');
@@ -646,3 +645,324 @@ CREATE TRIGGER on_manager_feedback
 AFTER UPDATE ON reports
 FOR EACH ROW
 EXECUTE FUNCTION notify_manager_feedback();
+
+CREATE POLICY "Manager update org reports" ON reports 
+FOR UPDATE USING (
+    is_manager() AND 
+    EXISTS (
+        SELECT 1 FROM employees 
+        WHERE employees.id = reports.employee_id 
+        AND employees.organization_id = get_my_org_id()
+    )
+);
+
+
+-- Create knowledge_pins table
+CREATE TABLE IF NOT EXISTS knowledge_pins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    section TEXT NOT NULL CHECK (section IN ('lexicon', 'priorities', 'benchmarks', 'constraints', 'general')),
+    content TEXT NOT NULL,
+    created_by TEXT REFERENCES employees(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_pins_project_id ON knowledge_pins(project_id);
+
+-- Add knowledge_base_cache to projects
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS knowledge_base_cache JSONB;
+
+-- Enable RLS
+ALTER TABLE knowledge_pins ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+
+-- View: All members of the organization (aligned with project visibility)
+CREATE POLICY "View project pins" ON knowledge_pins
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM projects
+            WHERE projects.id = knowledge_pins.project_id
+            AND projects.organization_id = (SELECT organization_id FROM employees WHERE auth_user_id = auth.uid() LIMIT 1)
+        )
+    );
+
+-- Manage: Only Managers
+CREATE POLICY "Manager manage pins" ON knowledge_pins
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM employees
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('manager', 'admin')
+            AND organization_id = (SELECT organization_id FROM projects WHERE projects.id = knowledge_pins.project_id)
+        )
+    );
+
+
+
+-- ============================================================================
+-- 004_goal_assignment_and_invitations.sql
+-- ============================================================================
+
+-- 1. Create GOAL ASSIGNEES table
+CREATE TABLE IF NOT EXISTS goal_assignees (
+    id SERIAL PRIMARY KEY,
+    goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    assignee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    assignee_type TEXT NOT NULL CHECK (assignee_type IN ('employee', 'manager')),
+    assigned_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (goal_id, assignee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_goal_assignees_goal_id ON goal_assignees(goal_id);
+CREATE INDEX IF NOT EXISTS idx_goal_assignees_assignee_id ON goal_assignees(assignee_id);
+
+-- RLS for goal_assignees
+ALTER TABLE goal_assignees ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "View organization goal assignees" ON goal_assignees FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM goals g
+      JOIN projects p ON g.project_id = p.id
+      WHERE g.id = goal_assignees.goal_id 
+      AND p.organization_id = (SELECT e.organization_id FROM employees e WHERE e.auth_user_id = auth.uid() LIMIT 1)
+    )
+);
+
+CREATE POLICY "Manager manage goal assignees" ON goal_assignees FOR ALL USING (
+    is_manager() AND EXISTS (
+      SELECT 1 FROM goals g
+      JOIN projects p ON g.project_id = p.id
+      WHERE g.id = goal_assignees.goal_id 
+      AND p.organization_id = (SELECT e.organization_id FROM employees e WHERE e.auth_user_id = auth.uid() LIMIT 1)
+    )
+);
+
+
+-- 2. Modify INVITATIONS table
+-- Add array columns for multiple projects and goals
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS initial_project_ids TEXT[];
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS initial_goal_ids TEXT[];
+
+-- Migrate existing data (optional, but good for safety if we had data)
+-- UPDATE invitations SET initial_project_ids = ARRAY[initial_project_id] WHERE initial_project_id IS NOT NULL AND initial_project_ids IS NULL;
+
+-- Drop old column (or keep it deprecated? Let's drop it to be clean as per request)
+-- ALTER TABLE invitations DROP COLUMN IF EXISTS initial_project_id;
+-- actually, let's keep it for now as "deprecated" to avoid breaking immediate running code before frontend updates, 
+-- but we will use the new columns in the flow.
+
+
+-- 3. Update complete_invitation_flow function to handle multiple assignments
+CREATE OR REPLACE FUNCTION complete_invitation_flow(
+  token_input TEXT,
+  user_name TEXT,
+  auth_user_id_input UUID DEFAULT NULL,
+  email_input TEXT DEFAULT NULL
+)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_user_id UUID;
+  current_email TEXT;
+  invite_record invitations%ROWTYPE;
+  new_employee_id TEXT;
+  pid TEXT;
+  gid TEXT;
+BEGIN
+  -- 1. Identify the user
+  current_user_id := COALESCE(auth_user_id_input, auth.uid());
+  current_email := COALESCE(email_input, auth.jwt() ->> 'email');
+
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID must be provided or user must be signed in';
+  END IF;
+
+  -- 2. Validate Invitation
+  SELECT * INTO invite_record FROM invitations WHERE token = token_input;
+
+  IF invite_record IS NULL THEN
+    RAISE EXCEPTION 'Invalid invitation token';
+  END IF;
+
+  IF invite_record.status = 'accepted' THEN
+    RAISE EXCEPTION 'Invitation already accepted';
+  END IF;
+
+  -- 3. Create Employee Record
+  new_employee_id := 'emp-' || floor(extract(epoch from now()) * 1000)::text;
+
+  INSERT INTO employees (
+    id, 
+    organization_id, 
+    auth_user_id, 
+    name, 
+    email, 
+    role, 
+    manager_id, 
+    onboarding_completed,
+    join_date
+  ) VALUES (
+    new_employee_id,
+    invite_record.organization_id,
+    current_user_id,
+    user_name,
+    invite_record.email,
+    invite_record.role,
+    invite_record.initial_manager_id,
+    TRUE,
+    NOW()
+  );
+
+  -- 4. Assign Projects (Handle both single old field and new array field)
+  -- Priority: array field > single field
+  
+  -- Handle Array
+  IF invite_record.initial_project_ids IS NOT NULL AND array_length(invite_record.initial_project_ids, 1) > 0 THEN
+    FOREACH pid IN ARRAY invite_record.initial_project_ids
+    LOOP
+      INSERT INTO project_assignees (project_id, assignee_id, assignee_type)
+      VALUES (pid, new_employee_id, invite_record.role)
+      ON CONFLICT (project_id, assignee_id) DO NOTHING;
+    END LOOP;
+  -- Handle Single (Legacy)
+  ELSIF invite_record.initial_project_id IS NOT NULL THEN
+      INSERT INTO project_assignees (project_id, assignee_id, assignee_type)
+      VALUES (invite_record.initial_project_id, new_employee_id, invite_record.role)
+      ON CONFLICT (project_id, assignee_id) DO NOTHING;
+  END IF;
+
+  -- 5. Assign Goals
+  IF invite_record.initial_goal_ids IS NOT NULL AND array_length(invite_record.initial_goal_ids, 1) > 0 THEN
+    FOREACH gid IN ARRAY invite_record.initial_goal_ids
+    LOOP
+      INSERT INTO goal_assignees (goal_id, assignee_id, assignee_type)
+      VALUES (gid, new_employee_id, invite_record.role)
+      ON CONFLICT (goal_id, assignee_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  -- 6. Mark Invitation Accepted
+  UPDATE invitations
+  SET status = 'accepted', accepted_at = NOW()
+  WHERE token = token_input;
+
+  -- 7. Return success
+  RETURN jsonb_build_object(
+    'success', true, 
+    'employee_id', new_employee_id
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- 1. Add trigger to notify employee when explicitly assigned to a goal
+-- 1. Add trigger to notify employee when explicitly assigned to a goal
+CREATE OR REPLACE FUNCTION notify_goal_assignment()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_goal_name TEXT;
+    v_project_id TEXT;
+BEGIN
+    -- Use aliases and explicit qualification to avoid ambiguity
+    SELECT g.name, g.project_id 
+    INTO v_goal_name, v_project_id 
+    FROM goals g 
+    WHERE g.id = NEW.goal_id;
+    
+    INSERT INTO notifications (user_id, type, title, message, link_url)
+    VALUES (
+        NEW.assignee_id,
+        'goal',
+        'New Goal Assignment',
+        'You have been explicitly assigned to goal: ' || v_goal_name,
+        '/projects/' || v_project_id
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_goal_assignment ON goal_assignees;
+CREATE TRIGGER on_goal_assignment
+AFTER INSERT ON goal_assignees
+FOR EACH ROW
+EXECUTE FUNCTION notify_goal_assignment();
+-- 2. Update the invitation flow to ensure all assignments are processed correctly
+-- 2. Update the invitation flow to ensure all assignments are processed correctly
+CREATE OR REPLACE FUNCTION complete_invitation_flow(
+  token_input TEXT,
+  user_name TEXT,
+  auth_user_id_input UUID DEFAULT NULL,
+  email_input TEXT DEFAULT NULL
+)
+RETURNS JSONB
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_current_user_id UUID;
+  v_current_email TEXT;
+  v_invite_record invitations%ROWTYPE;
+  v_new_employee_id TEXT;
+  v_pid TEXT;
+  v_gid TEXT;
+BEGIN
+  v_current_user_id := COALESCE(auth_user_id_input, auth.uid());
+  v_current_email := COALESCE(email_input, auth.jwt() ->> 'email');
+
+  IF v_current_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID must be provided or user must be signed in';
+  END IF;
+
+  SELECT * INTO v_invite_record FROM invitations WHERE token = token_input;
+
+  IF v_invite_record IS NULL THEN
+    RAISE EXCEPTION 'Invalid invitation token';
+  END IF;
+
+  IF v_invite_record.status = 'accepted' THEN
+    RAISE EXCEPTION 'Invitation already accepted';
+  END IF;
+
+  v_new_employee_id := 'emp-' || floor(extract(epoch from now()) * 1000)::text;
+
+  INSERT INTO employees (
+    id, organization_id, auth_user_id, name, email, role, manager_id, onboarding_completed, join_date
+  ) VALUES (
+    v_new_employee_id, v_invite_record.organization_id, v_current_user_id, user_name, v_invite_record.email, v_invite_record.role, v_invite_record.initial_manager_id, TRUE, NOW()
+  );
+
+  -- Assign Projects
+  IF v_invite_record.initial_project_ids IS NOT NULL AND array_length(v_invite_record.initial_project_ids, 1) > 0 THEN
+    FOREACH v_pid IN ARRAY v_invite_record.initial_project_ids
+    LOOP
+      INSERT INTO project_assignees (project_id, assignee_id, assignee_type)
+      VALUES (v_pid, v_new_employee_id, v_invite_record.role)
+      ON CONFLICT (project_id, assignee_id) DO NOTHING;
+    END LOOP;
+  ELSIF v_invite_record.initial_project_id IS NOT NULL THEN
+      INSERT INTO project_assignees (project_id, assignee_id, assignee_type)
+      VALUES (v_invite_record.initial_project_id, v_new_employee_id, v_invite_record.role)
+      ON CONFLICT (project_id, assignee_id) DO NOTHING;
+  END IF;
+
+  -- Assign Goals
+  IF v_invite_record.initial_goal_ids IS NOT NULL AND array_length(v_invite_record.initial_goal_ids, 1) > 0 THEN
+    FOREACH v_gid IN ARRAY v_invite_record.initial_goal_ids
+    LOOP
+      INSERT INTO goal_assignees (goal_id, assignee_id, assignee_type)
+      VALUES (v_gid, v_new_employee_id, v_invite_record.role)
+      ON CONFLICT (goal_id, assignee_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  UPDATE invitations
+  SET status = 'accepted', accepted_at = NOW()
+  WHERE token = token_input;
+
+  RETURN jsonb_build_object('success', true, 'employee_id', v_new_employee_id);
+END;
+$$ LANGUAGE plpgsql;

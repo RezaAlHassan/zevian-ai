@@ -27,7 +27,13 @@ export const authService = {
                 data: metadata,
             },
         });
-        if (error) throw error;
+        if (error) {
+            if (error.status === 429) {
+                console.error("Signup Rate Limit hit:", error);
+                throw new Error("Too many signup attempts. Please wait a while before trying again.");
+            }
+            throw error;
+        }
         return data;
     },
 
@@ -66,18 +72,26 @@ export const authService = {
      * but for this flow we are treating "Accept" as "SignUp with pre-verified email logic"
      * OR we use the standard signUp if the user doesn't exist in Auth yet.
      */
-    acceptInvite: async (email: string, password: string, name: string, role?: string) => {
-        // 1. Sign up the user in Supabase Auth
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: { name, role },
-                emailRedirectTo: undefined // Auto-confirm if possible or require email verification
-            }
+    acceptInvite: async (token: string, password: string, name: string) => {
+        const { data, error } = await supabase.functions.invoke('accept-invitation', {
+            body: { token, password, name }
         });
 
-        if (error) throw error;
+        if (error) {
+            // Attempt to extract the error message from the response body
+            try {
+                const errorContext = (error as any).context;
+                if (errorContext && typeof errorContext.json === 'function') {
+                    const errorBody = await errorContext.json();
+                    if (errorBody && errorBody.error) {
+                        throw new Error(errorBody.error);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to parse function error body', e);
+            }
+            throw error;
+        }
         return data;
     },
 

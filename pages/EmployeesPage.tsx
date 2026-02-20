@@ -1,24 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import { Employee, Report, EmployeeRole, Invitation, Project } from '../types';
-import { User, Users, ChevronRight, Search, Star, Calendar, Eye, UserPlus, UserMinus, Plus, Mail, Clock, XCircle } from 'lucide-react';
+import { Employee, Report, EmployeeRole, Invitation, Project, Goal } from '../types';
+import { User, Users, Search, Star, MessageSquare, ClipboardCheck, Briefcase, Target, Eye } from 'lucide-react';
 import { formatTableDate } from '../utils/dateFormat';
 import Table from '../components/Table';
 import StatCard from '../components/StatCard';
-import Input from '../components/Input';
 import Button from '../components/Button';
-import Select from '../components/Select';
-import Modal from '../components/Modal';
 import InviteUserModal from '../components/InviteUserModal';
-import { filterEmployeesByManager, getScopedEmployeeIds, getDirectReportIds, isEmployeeInManagerScope } from '../utils/employeeFilter';
+import UserProjectsModal from '../components/UserProjectsModal'; // NEW
+import { isEmployeeInManagerScope } from '../utils/employeeFilter';
 import { canViewOrganizationWide } from '../utils/managerPermissions';
-
 
 interface EmployeesPageProps {
   employees: Employee[];
   reports: Report[];
   projects?: Project[];
-  invitations?: Invitation[];
+  goals?: Goal[];
+  invitations?: Invitation[]; // Kept for interface compatibility but mostly unused now
   onSelectEmployee: (employeeId: string) => void;
   currentManagerId?: string;
   viewMode?: 'manager' | 'employee';
@@ -34,342 +32,258 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   employees,
   reports,
   projects = [],
-  invitations = [],
+  goals = [],
   onSelectEmployee,
   currentManagerId,
   viewMode = 'manager',
-  scopeFilter = 'direct-reports',
-  onAddEmployee,
-  onUpdateEmployee,
-  onInvite,
-  onDeleteInvitation,
+  onUpdateEmployee, // Used for team management
+  // onInvite, // Moved to Organization page mostly, but good to keep if passing through
   searchQuery
 }) => {
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'team' | 'pending'>('all'); // NEW: Tab state
+  const [activeTab, setActiveTab] = useState<'employees' | 'managers'>('employees');
 
-  // Get current manager for permission checks
-  const currentManager = useMemo(() => {
-    if (!currentManagerId) return null;
-    return employees.find(emp => emp.id === currentManagerId);
-  }, [employees, currentManagerId]);
+  // Modal State
+  const [selectedUserForProjects, setSelectedUserForProjects] = useState<Employee | null>(null);
 
-  const canViewOrgWide = useMemo(() => {
-    return currentManager ? canViewOrganizationWide(currentManager) : false;
-  }, [currentManager]);
-
-  // Get employee IDs - Managers see ALL employees now
-  const scopedEmployeeIds = useMemo(() => {
-    // Always return all employees for managers, ignoring scope filter
-    // Also return all if not manager view (though usually this page is manager-only or constrained by parent)
-    return new Set(employees.map(emp => emp.id));
-  }, [employees]);
-
-  // Filter employees by selected scope
-  const scopedEmployees = useMemo(() => {
-    return employees.filter(emp => scopedEmployeeIds.has(emp.id));
-  }, [employees, scopedEmployeeIds]);
-
-  // Filter reports to only include scoped employees
-  const scopedReports = useMemo(() => {
-    return reports.filter(report => scopedEmployeeIds.has(report.employeeId));
-  }, [reports, scopedEmployeeIds]);
-
-  // Calculate average score for scoped employees only
-  const averageScore = useMemo(() => {
-    const employeeScores: { [key: string]: number[] } = {};
-
-    scopedReports.forEach(report => {
-      if (!employeeScores[report.employeeId]) {
-        employeeScores[report.employeeId] = [];
-      }
-      employeeScores[report.employeeId].push(report.evaluationScore);
-    });
-
-    const allScores: number[] = [];
-    Object.values(employeeScores).forEach(scores => {
-      allScores.push(...scores);
-    });
-
-    if (allScores.length === 0) return 0;
-    return allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
-  }, [scopedReports]);
-
-  // Calculate total score and leaderboard position for each scoped employee
-  const employeeScores = useMemo(() => {
-    const scores: { [key: string]: { total: number; count: number; average: number } } = {};
-    scopedReports.forEach(report => {
-      if (!scores[report.employeeId]) {
-        scores[report.employeeId] = { total: 0, count: 0, average: 0 };
-      }
-      scores[report.employeeId].total += report.evaluationScore;
-      scores[report.employeeId].count += 1;
-      scores[report.employeeId].average = scores[report.employeeId].total / scores[report.employeeId].count;
-    });
-    return scores;
-  }, [scopedReports]);
-
-  // Handle Team Actions
-  const handleAddToTeam = async (employeeId: string) => {
-    if (!onUpdateEmployee || !currentManagerId) return;
-    const emp = employees.find(e => e.id === employeeId);
-    if (!emp) return;
-
-    if (confirm(`Add ${emp.name} to your reporting team?`)) {
-      await onUpdateEmployee({ ...emp, managerId: currentManagerId });
-    }
-  };
-
-  const handleRemoveFromTeam = async (employeeId: string) => {
-    if (!onUpdateEmployee) return;
-    const emp = employees.find(e => e.id === employeeId);
-    if (!emp) return;
-
-    if (confirm(`Remove ${emp.name} from your reporting team?`)) {
-      // Setting managerId to undefined/null removes them from specific management
-      await onUpdateEmployee({ ...emp, managerId: undefined });
-    }
-  };
-
-  // Filter pending invitations
-  const pendingInvitations = useMemo(() => {
-    return invitations.filter(inv => inv.status === 'pending');
-  }, [invitations]);
-
-  // Leaders for assignment dropdown
-  const managers = useMemo(() => {
-    return employees.filter(emp => emp.role === 'manager');
-  }, [employees]);
-
-  // Filter employees based on search AND Tab
+  // Filter Logic
   const filteredEmployees = useMemo(() => {
-    // 1. Base list: In 'all' tab -> all employees. In 'team' tab -> team members only.
-    let baseList = employees;
-    if (activeTab === 'team' && currentManagerId) {
-      // Filter for My Team (Direct reports OR explicit manager assignments)
-      baseList = employees.filter(emp => isEmployeeInManagerScope(emp, employees, currentManagerId));
-    } else if (viewMode === 'manager') {
-      // 'All Employees' logic (already what 'scopedEmployees' was doing in previous step)
-      // scopedEmployees is effectively ALL employees now, so just use employees
-      baseList = employees;
+    let list = employees;
+    const query = (searchQuery || '').trim().toLowerCase();
+
+    // 1. Tab Filter
+    if (activeTab === 'employees') {
+      list = list.filter(e => e.role === 'employee');
     } else {
-      // Employee view - restrict generally? Or use scoped logic
-      baseList = scopedEmployees;
+      list = list.filter(e => e.role === 'manager');
     }
 
-    let filtered = baseList;
-    const query = (searchQuery || '').trim().toLowerCase();
+    // 2. Search Filter
     if (query) {
-      filtered = filtered.filter(emp =>
-        emp.name.toLowerCase().includes(query) ||
-        emp.email.toLowerCase().includes(query) ||
-        emp.title?.toLowerCase().includes(query)
+      list = list.filter(e =>
+        e.name.toLowerCase().includes(query) ||
+        e.email.toLowerCase().includes(query) ||
+        e.title?.toLowerCase().includes(query)
       );
     }
-    return filtered;
-  }, [employees, scopedEmployees, searchQuery, activeTab, currentManagerId, viewMode]);
+    return list;
+  }, [employees, activeTab, searchQuery]);
 
-  const employeeTableHeaders = ['Name', 'Email', 'Join Date', 'Reports', 'Total Score', 'Actions'];
-  const employeeTableRows = filteredEmployees.map(employee => {
-    const score = employeeScores[employee.id];
+  // --- Metrics Calculation ---
 
-    // Check membership
-    const isInTeam = currentManagerId ? isEmployeeInManagerScope(employee, employees, currentManagerId) : false;
-    // Allow View Details if in team OR if current user is owner/super admin (not fully implemented, assume manager scope check is enough)
-    const canViewDetails = viewMode === 'manager' && currentManagerId ? isInTeam : true;
+  // 1. Employee Metrics
+  const employeeMetrics = useMemo(() => {
+    const metrics: { [id: string]: { daysJoined: number; activeGoalCount: number; avgScore: number; reportCount: number } } = {};
 
-    return [
-      <div>
-        <span className="capitalize text-on-surface-secondary block">{employee.name}</span>
-        {employee.title && (
-          <span className="text-xs text-on-surface-secondary">{employee.title}</span>
-        )}
-      </div>,
-      <span className="capitalize text-on-surface-secondary">{employee.email}</span>,
-      <div className="flex items-center gap-2">
-        <Calendar size={14} className="text-on-surface-tertiary" />
-        <span className="capitalize text-on-surface-secondary">
-          {employee.joinDate
-            ? formatTableDate(employee.joinDate)
-            : 'N/A'}
-        </span>
-      </div>,
-      <div>
-        {score ? (
-          <span className="capitalize text-on-surface-secondary">{score.count}</span>
-        ) : (
-          <span className="capitalize text-on-surface-secondary">0</span>
-        )}
-      </div>,
-      <div>
-        {score ? (
-          <div>
-            <span className="capitalize text-on-surface-secondary">{score.total.toFixed(1)}</span>
-            <span className="text-xs text-on-surface-secondary ml-1">
-              ({score.average.toFixed(1)} avg)
-            </span>
-          </div>
-        ) : (
-          <span className="capitalize text-on-surface-secondary">No reports</span>
-        )}
-      </div>,
-      <div className="flex items-center gap-1">
-        {/* View Details Action */}
+    filteredEmployees.forEach(emp => {
+      // Days Joined
+      const joined = emp.joinDate ? new Date(emp.joinDate) : new Date();
+      const diffTime = Math.abs(new Date().getTime() - joined.getTime());
+      const daysJoined = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Active Goals (Count where assignee)
+      const empGoals = goals.filter(g =>
+        g.status !== 'completed' &&
+        (g.assignees?.some(a => a.id === emp.id) || (!g.assignees?.length && false)) // Strict assignment for now
+      );
+
+      // Reports & Scores
+      const empReports = reports.filter(r => r.employeeId === emp.id);
+      const totalScore = empReports.reduce((sum, r) => sum + r.evaluationScore, 0);
+      const avgScore = empReports.length > 0 ? totalScore / empReports.length : 0;
+
+      metrics[emp.id] = {
+        daysJoined,
+        activeGoalCount: empGoals.length,
+        avgScore,
+        reportCount: empReports.length
+      };
+    });
+    return metrics;
+  }, [filteredEmployees, goals, reports]);
+
+  // 2. Manager Metrics
+  const managerMetrics = useMemo(() => {
+    const metrics: { [id: string]: { feedbacksLeft: number; reportsReviewed: number; projectCount: number } } = {};
+
+    filteredEmployees.forEach(mgr => {
+      // Identify goals managed by this manager
+      const managedGoalIds = new Set(goals.filter(g => g.managerId === mgr.id).map(g => g.id));
+
+      // Reports for those goals
+      const relevantReports = reports.filter(r => managedGoalIds.has(r.goalId));
+
+      const feedbacksLeft = relevantReports.filter(r => r.managerFeedback).length;
+      const reportsReviewed = relevantReports.filter(r => r.managerOverallScore !== undefined && r.managerOverallScore !== null).length;
+
+      // Active Projects (Calculated same way as employees initially, where they are assignees or maybe creators?)
+      // Let's assume assignees for now to be consistent with 'Active Projects' meaning 'Participating in'.
+      const mgrProjects = projects.filter(p => p.assignees?.some(a => a.id === mgr.id));
+
+      metrics[mgr.id] = {
+        feedbacksLeft,
+        reportsReviewed,
+        projectCount: mgrProjects.length
+      };
+    });
+    return metrics;
+  }, [filteredEmployees, goals, reports, projects]);
+
+
+  // --- Render Tables ---
+
+  const renderEmployeeTable = () => {
+    const headers = ['Name', 'Role/Title', 'Time in Org', 'Active Goals', 'Avg Score', 'Reports', 'Actions'];
+    const rows = filteredEmployees.map(emp => {
+      const m = employeeMetrics[emp.id] || { daysJoined: 0, activeGoalCount: 0, avgScore: 0, reportCount: 0 };
+
+      return [
+        <div key="name">
+          <span className="font-medium text-sm text-on-surface block">{emp.name}</span>
+          <span className="text-xs text-on-surface-secondary">{emp.email}</span>
+        </div>,
+        <span key="title" className="text-sm text-on-surface-secondary">{emp.title || 'N/A'}</span>,
+        <span key="time" className="text-sm text-on-surface-secondary">{m.daysJoined} days</span>,
         <button
-          onClick={() => onSelectEmployee(employee.id)}
-          disabled={!canViewDetails}
-          className={`p-1.5 transition-all duration-200 rounded-lg ${canViewDetails
-            ? "text-primary hover:bg-primary/10"
-            : "text-on-surface-tertiary cursor-not-allowed opacity-50"
-            }`}
-          title={!canViewDetails ? "Add to team to view details" : "View Details"}
+          key="goals"
+          onClick={() => setSelectedUserForProjects(emp)}
+          className="flex items-center gap-2 hover:bg-surface-secondary px-2 py-1 rounded transition-colors group"
         >
-          <Eye size={18} strokeWidth={2} />
-        </button>
-
-        {/* Team Management Actions */}
-        {viewMode === 'manager' && currentManagerId && currentManagerId !== employee.id && (
-          isInTeam ? (
-            <button
-              onClick={() => handleRemoveFromTeam(employee.id)}
-              className="p-1.5 text-on-surface-secondary hover:text-error hover:bg-error/10 rounded-lg transition-all duration-200"
-              title="Remove from my reporting team"
-            >
-              <UserMinus size={18} strokeWidth={2} />
-            </button>
-          ) : (
-            <button
-              onClick={() => handleAddToTeam(employee.id)}
-              className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
-              title="Add to my reporting team"
-            >
-              <Plus size={18} strokeWidth={2} />
-            </button>
-          )
-        )}
-      </div>
-    ];
-  });
-
-  const invitationTableHeaders = ['Email', 'Role', 'Project', 'Team', 'Invited At', 'Actions'];
-  const invitationTableRows = pendingInvitations.map(invitation => {
-    const projectName = projects.find(p => p.id === invitation.initialProjectId)?.name || 'None';
-    const managerName = employees.find(e => e.id === invitation.initialManagerId)?.name || 'None';
-
-    return [
-      <div className="flex items-center gap-2">
-        <Mail size={14} className="text-on-surface-tertiary" />
-        <span className="text-on-surface-secondary">{invitation.email}</span>
-      </div>,
-      <span className="capitalize text-on-surface-secondary">{invitation.role}</span>,
-      <span className="text-on-surface-secondary">{projectName}</span>,
-      <span className="text-on-surface-secondary">{managerName}</span>,
-      <div className="flex items-center gap-2">
-        <Clock size={14} className="text-on-surface-tertiary" />
-        <span className="text-on-surface-secondary">
-          {formatTableDate(invitation.invitedAt)}
-        </span>
-      </div>,
-      <div className="flex items-center gap-3">
-        {onDeleteInvitation && (
+          <Target size={16} className="text-primary group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-on-surface group-hover:text-primary transition-colors">{m.activeGoalCount}</span>
+        </button>,
+        <div key="score" className="flex items-center gap-1">
+          <Star size={14} className={m.avgScore > 0 ? "text-yellow-500 fill-yellow-500" : "text-on-surface-tertiary"} />
+          <span className={`font-medium ${m.avgScore > 0 ? 'text-on-surface' : 'text-on-surface-tertiary'}`}>
+            {m.avgScore > 0 ? m.avgScore.toFixed(1) : '-'}
+          </span>
+        </div>,
+        <span key="reports" className="text-sm text-on-surface-secondary">{m.reportCount}</span>,
+        emp.id !== currentManagerId ? (
           <button
-            onClick={() => {
-              if (confirm(`Cancel invitation for ${invitation.email}?`)) {
-                onDeleteInvitation(invitation.id);
-              }
-            }}
-            className="text-red-500 hover:text-red-700 hover:underline font-medium text-sm flex items-center gap-1 transition-colors"
+            key="action"
+            onClick={() => onSelectEmployee(emp.id)}
+            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            title="View Details"
           >
-            <XCircle size={16} strokeWidth={2} />
-            Cancel
+            <Eye size={18} />
           </button>
-        )}
-      </div>
-    ];
-  });
+        ) : <div key="action" />
+      ];
+    });
+
+    return (
+      <Table
+        headers={headers}
+        rows={rows}
+        onRowClick={(index) => {
+          const emp = filteredEmployees[index];
+          if (emp.id !== currentManagerId) {
+            onSelectEmployee(emp.id);
+          }
+        }}
+      />
+    );
+  };
+
+  const renderManagerTable = () => {
+    const headers = ['Name', 'Role/Title', 'Active Projects', 'Feedbacks', 'Reports Reviewed', 'Actions'];
+    const rows = filteredEmployees.map(mgr => {
+      const m = managerMetrics[mgr.id] || { feedbacksLeft: 0, reportsReviewed: 0, projectCount: 0 };
+
+      return [
+        <div key="name">
+          <span className="font-medium text-sm text-on-surface block">{mgr.name}</span>
+          <span className="text-xs text-on-surface-secondary">{mgr.email}</span>
+        </div>,
+        <span key="title" className="text-sm text-on-surface-secondary">{mgr.title || 'Manager'}</span>,
+        <button
+          key="projects"
+          onClick={() => setSelectedUserForProjects(mgr)}
+          className="flex items-center gap-2 hover:bg-surface-secondary px-2 py-1 rounded transition-colors group"
+        >
+          <Briefcase size={16} className="text-primary group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-on-surface group-hover:text-primary transition-colors">{m.projectCount}</span>
+        </button>,
+        <div key="feedbacks" className="flex items-center gap-2">
+          <MessageSquare size={16} className="text-blue-500" />
+          <span className="font-medium text-on-surface">{m.feedbacksLeft}</span>
+        </div>,
+        <div key="reviewed" className="flex items-center gap-2">
+          <ClipboardCheck size={16} className="text-emerald-500" />
+          <span className="font-medium text-on-surface">{m.reportsReviewed}</span>
+        </div>,
+        mgr.id !== currentManagerId ? (
+          <button
+            key="action"
+            onClick={() => onSelectEmployee(mgr.id)}
+            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            title="View Activity"
+          >
+            <Eye size={18} />
+          </button>
+        ) : <div key="action" />
+      ];
+    });
+
+    return (
+      <Table
+        headers={headers}
+        rows={rows}
+        onRowClick={(index) => {
+          const mgr = filteredEmployees[index];
+          if (mgr.id !== currentManagerId) {
+            onSelectEmployee(mgr.id);
+          }
+        }}
+      />
+    );
+  };
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
-      <h2 className="text-xl font-bold text-on-surface">Employees</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-on-surface">Performance Overview</h2>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <StatCard title="Employees" value={scopedEmployees.length} icon={<User size={24} className="text-on-surface-secondary" />} />
-        <StatCard title="Average Score" value={averageScore.toFixed(2)} icon={<Star size={24} className="text-on-surface-secondary" />} />
+        <StatCard title="Total Employees" value={employees.filter(e => e.role === 'employee').length} icon={<User size={24} className="text-on-surface-secondary" />} />
+        <StatCard title="Total Managers" value={employees.filter(e => e.role === 'manager').length} icon={<Users size={24} className="text-on-surface-secondary" />} />
       </div>
 
-      <div className="bg-surface-elevated rounded-lg p-6  border border-border">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          {/* Tab Toggle */}
-          <div className="flex p-1 bg-surface border border-border rounded-lg w-fit">
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'all'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-on-surface-secondary hover:text-on-surface'
-                }`}
-            >
-              All Employees
-            </button>
-            <button
-              onClick={() => setActiveTab('team')}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'team'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-on-surface-secondary hover:text-on-surface'
-                }`}
-            >
-              My Team
-            </button>
-            {viewMode === 'manager' && (
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === 'pending'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'text-on-surface-secondary hover:text-on-surface'
-                  }`}
-              >
-                Pending
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {viewMode === 'manager' && onInvite && (
-              <Button
-                onClick={() => setShowInviteModal(true)}
-                variant="primary"
-                size="sm"
-                icon={UserPlus}
-              >
-                Invite User
-              </Button>
-            )}
-            {/* Search - Removed local search, now global */}
-          </div>
+      <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+        {/* Tabs */}
+        <div className="flex items-center gap-4 mb-6 border-b border-border">
+          <button
+            onClick={() => setActiveTab('employees')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'employees'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-on-surface-secondary hover:text-on-surface'
+              }`}
+          >
+            Employees
+          </button>
+          <button
+            onClick={() => setActiveTab('managers')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'managers'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-on-surface-secondary hover:text-on-surface'
+              }`}
+          >
+            Managers
+          </button>
         </div>
-        {activeTab === 'pending' ? (
-          pendingInvitations.length > 0 ? (
-            <Table headers={invitationTableHeaders} rows={invitationTableRows} />
-          ) : (
-            <p className="text-on-surface-secondary text-center py-8">No pending invitations.</p>
-          )
-        ) : filteredEmployees.length > 0 ? (
-          <Table headers={employeeTableHeaders} rows={employeeTableRows} />
-        ) : (
-          <p className="text-on-surface-secondary text-center py-8">No employees found matching your search.</p>
-        )}
+
+        {activeTab === 'employees' ? renderEmployeeTable() : renderManagerTable()}
       </div>
 
-
-
-      {/* Invite User Modal */}
-      {showInviteModal && onInvite && (
-        <InviteUserModal
-          isOpen={showInviteModal}
-          onClose={() => setShowInviteModal(false)}
-          onInvite={onInvite}
-          organizationName="the organization"
+      {selectedUserForProjects && (
+        <UserProjectsModal
+          isOpen={!!selectedUserForProjects}
+          onClose={() => setSelectedUserForProjects(null)}
+          user={selectedUserForProjects}
           projects={projects}
-          managers={managers}
+          goals={goals}
+          mode={selectedUserForProjects.role === 'manager' ? 'projects' : 'goals'}
         />
       )}
     </div>
@@ -377,3 +291,5 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
 };
 
 export default EmployeesPage;
+
+

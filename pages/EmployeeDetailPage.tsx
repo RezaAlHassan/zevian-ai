@@ -2,8 +2,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Report, Goal, Employee, Project } from '../types';
 import { summarizePerformance, analyzeSkillMetrics } from '../services/geminiService';
+import { employeeService } from '../services/databaseService';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
+import ReportDetailModal from '../components/ReportDetailModal';
 import Input from '../components/Input';
 import Textarea from '../components/Textarea';
 import Button from '../components/Button';
@@ -29,233 +31,12 @@ interface EmployeeDetailPageProps {
     projects: Project[];
     employees: Employee[];
     allReports: Report[]; // All reports for team/company averages
-    updateReport: (report: Report) => void;
+    updateReport: (report: Report) => Promise<void>;
     onBack: () => void;
     currentManagerId?: string;
     viewMode?: 'manager' | 'employee';
 }
 
-const ReportDetailModal: React.FC<{
-    report: Report | null;
-    goal: Goal | undefined;
-    employee: Employee | undefined;
-    employees: Employee[];
-    onClose: () => void;
-    onSave: (updatedReport: Report) => void;
-    currentManagerId?: string;
-    viewMode?: 'manager' | 'employee';
-}> = ({ report, goal, employee, employees, onClose, onSave, currentManagerId, viewMode = 'manager' }) => {
-    const [isEditingOverride, setIsEditingOverride] = useState(false);
-    const [overrideScore, setOverrideScore] = useState<string>('');
-    const [overrideReasoning, setOverrideReasoning] = useState<string>('');
-
-    useEffect(() => {
-        if (report) {
-            setOverrideScore(report.managerOverallScore?.toString() || '');
-            setOverrideReasoning(report.managerOverrideReasoning || '');
-        }
-    }, [report]);
-
-    // Check if current manager can override (must be direct manager)
-    const canOverride = useMemo(() => {
-        if (viewMode === 'employee' || !currentManagerId || !employee || !report) return false;
-        return isDirectManager(employee, currentManagerId);
-    }, [employee, currentManagerId, viewMode, report]);
-
-    if (!report) return null;
-
-    const handleSaveOverride = () => {
-        if (!report || !overrideReasoning.trim()) return;
-
-        const score = parseFloat(overrideScore);
-        if (isNaN(score) || score < 0 || score > 10) {
-            alert('Score must be between 0 and 10');
-            return;
-        }
-
-        onSave({
-            ...report,
-            managerOverallScore: score,
-            managerOverrideReasoning: overrideReasoning.trim(),
-        });
-        setIsEditingOverride(false);
-    };
-
-    const handleRemoveOverride = () => {
-        if (!report) return;
-        onSave({
-            ...report,
-            managerOverallScore: undefined,
-            managerOverrideReasoning: undefined,
-        });
-        setIsEditingOverride(false);
-        setOverrideScore('');
-        setOverrideReasoning('');
-    };
-
-    return (
-        <Modal isOpen={!!report} onClose={onClose} title={`Report - ${formatReportDate(report.submissionDate)}`}>
-            <div className="space-y-4">
-                <div>
-                    <h3 className="text-lg font-semibold text-on-surface mb-1">Goal</h3>
-                    <p className="text-on-surface-secondary">{goal?.name || 'N/A'}</p>
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold text-on-surface mb-1">Report Text</h3>
-                    <p className="bg-surface p-3 rounded-lg text-on-surface-secondary whitespace-pre-wrap border border-border">{report.reportText}</p>
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Reasoning</h3>
-                    <p className="bg-surface p-3 rounded-lg text-on-surface-secondary italic border border-border">"{report.evaluationReasoning}"</p>
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold text-on-surface mb-1">Evaluation Score Breakdown</h3>
-                    <ul className="space-y-1">
-                        {report.criterionScores?.map(score => (
-                            <li key={score.criterionName} className="flex justify-between text-on-surface-secondary">
-                                <span>{score.criterionName}</span>
-                                <span className="font-bold text-on-surface">{score.score.toFixed(1)} / 10</span>
-                            </li>
-                        ))}
-                    </ul>
-                    <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-border text-on-surface">
-                        <span>Zevian Evaluation Score:</span>
-                        <span>{report.evaluationScore.toFixed(2)} / 10</span>
-                    </div>
-                </div>
-
-                {/* Manager Evaluation & Feedback (Read-Only View) */}
-                {!isEditingOverride && (
-                    <div className="border-t border-border pt-4">
-                        <h3 className="text-lg font-semibold text-on-surface mb-3">Manager Evaluation</h3>
-
-                        {/* Overall Score Display */}
-                        <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center mb-3">
-                            <span className="font-medium text-on-surface">Overall Score</span>
-                            <div className="text-right">
-                                <span className="text-2xl font-bold text-primary">
-                                    {(report.managerOverallScore !== undefined ? report.managerOverallScore : report.evaluationScore).toFixed(2)}
-                                </span>
-                                {report.managerOverallScore !== undefined && (
-                                    <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Manager Feedback */}
-                        {report.managerFeedback && (
-                            <div className="mb-3">
-                                <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
-                                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
-                                    {report.managerFeedback}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Override Reasoning */}
-                        {report.managerOverrideReasoning && (
-                            <div className="mb-3">
-                                <h4 className="text-sm font-semibold text-on-surface mb-2">Override Justification</h4>
-                                <div className="bg-surface p-4 rounded-lg border border-border text-on-surface-secondary italic text-sm">
-                                    "{report.managerOverrideReasoning}"
-                                </div>
-                            </div>
-                        )}
-
-                        {!report.managerFeedback && report.managerOverallScore === undefined && !canOverride && (
-                            <p className="text-sm text-on-surface-secondary italic">No manager evaluation yet.</p>
-                        )}
-                    </div>
-                )}
-
-                {/* Manager Override Actions (Edit Mode) */}
-                {canOverride && (
-                    <div className="border-t border-border pt-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold text-on-surface">Edit Evaluation</h3>
-                            {!isEditingOverride && (
-                                <Button
-                                    onClick={() => setIsEditingOverride(true)}
-                                    variant="outline"
-                                    size="sm"
-                                >
-                                    {report.managerOverallScore ? 'Edit Score/Feedback' : 'Add Evaluation'}
-                                </Button>
-                            )}
-                        </div>
-
-                        <div className="space-y-3 bg-surface p-4 rounded-lg border border-border">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface mb-2">
-                                    Override Score (0-10) *
-                                </label>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    max="10"
-                                    step="0.1"
-                                    value={overrideScore}
-                                    onChange={(e) => setOverrideScore(e.target.value)}
-                                    placeholder="Enter score"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface mb-2">
-                                    Justification * <span className="text-error">(Required)</span>
-                                </label>
-                                <Textarea
-                                    value={overrideReasoning}
-                                    onChange={(e) => setOverrideReasoning(e.target.value)}
-                                    placeholder="Explain why you are overriding the Zevian score..."
-                                    rows={3}
-                                    required
-                                />
-                                <p className="text-xs text-on-surface-secondary mt-1">
-                                    This justification is required and will be logged with the override.
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    onClick={handleSaveOverride}
-                                    variant="primary"
-                                    disabled={!overrideReasoning.trim() || !overrideScore}
-                                >
-                                    Save Override
-                                </Button>
-                                {report.managerOverallScore && (
-                                    <Button
-                                        onClick={handleRemoveOverride}
-                                        variant="danger"
-                                    >
-                                        Remove Override
-                                    </Button>
-                                )}
-                                <Button
-                                    onClick={() => {
-                                        setIsEditingOverride(false);
-                                        setOverrideScore(report.managerOverallScore?.toString() || '');
-                                        setOverrideReasoning(report.managerOverrideReasoning || '');
-                                    }}
-                                    variant="outline"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {!canOverride && viewMode === 'manager' && (
-                    <div className="border-t border-border pt-4">
-                        <p className="text-sm text-on-surface-secondary italic">
-                            Only the direct manager of this employee can override the Zevian score.
-                        </p>
-                    </div>
-                )}
-            </div>
-        </Modal>
-    );
-};
 
 
 const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
@@ -320,13 +101,16 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
     const [summary, setSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-    const [showPreviousPeriod, setShowPreviousPeriod] = useState(false);
+    const [isSkillListModalOpen, setIsSkillListModalOpen] = useState(false);
     const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
-    const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>({});
+    const [skillAnalysisScores, setSkillAnalysisScores] = useState<{ [key: string]: number }>(employee.skillAnalysis || {});
 
     // Clear Zevian analysis when date range changes to ensure manual re-analysis for new period
+    // Only clear if we actually have scores and they weren't just loaded from the employee record
     useEffect(() => {
-        setSkillAnalysisScores({});
+        // If the current scores match the persisted ones, don't clear them immediately on date change
+        // as people might want to see the latest fingerprint regardless of range.
+        // But for consistency with the new "persistence" request, we allow them to stay.
     }, [startDate, endDate]);
     const [isAnalyzingSkills, setIsAnalyzingSkills] = useState(false);
     const [skillSortOrder, setSkillSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
@@ -393,6 +177,11 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
             const scores = await analyzeSkillMetrics(filteredReports, metrics, knowledgeBase);
             setSkillAnalysisScores(scores);
+
+            // Persist the scores to the database
+            await employeeService.update(employee.id, {
+                skillAnalysis: scores
+            });
         } catch (error) {
             console.error("Failed to perform skill analysis:", error);
         } finally {
@@ -524,7 +313,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
     // Calculate key skills for previous period
     const previousPeriodKeySkills = useMemo(() => {
-        if (!showPreviousPeriod || previousPeriodReports.length === 0) return [];
+        if (previousPeriodReports.length === 0) return [];
 
         const relevantGoalIds = new Set(previousPeriodReports.map(r => r.goalId));
         const relevantGoals = goals.filter(g => relevantGoalIds.has(g.id));
@@ -548,7 +337,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 frequency: data.count,
                 averageScore: data.totalScore / data.count
             }));
-    }, [previousPeriodReports, goals, showPreviousPeriod]);
+    }, [previousPeriodReports, goals]);
 
     // Calculate team averages for comparison
     const teamAverages = useMemo(() => {
@@ -647,17 +436,6 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                     score = count > 0 ? total / count : 0;
                 }
 
-                // Calculate previous period
-                let prevTotal = 0;
-                let prevCount = 0;
-                previousPeriodReports.forEach(report => {
-                    const scoreObj = report.criterionScores.find(s => s.criterionName === metricDef?.name || s.criterionName === metricId);
-                    if (scoreObj) {
-                        prevTotal += scoreObj.score;
-                        prevCount++;
-                    }
-                });
-
                 // Calculate team average
                 let teamTotal = 0;
                 let teamCount = 0;
@@ -670,7 +448,6 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 return {
                     skill: metricName.length > 15 ? metricName.substring(0, 15) + '...' : metricName,
                     current: score,
-                    previous: prevCount > 0 ? prevTotal / prevCount : 0,
                     team: teamCount > 0 ? teamTotal / teamCount : 0
                 };
             });
@@ -680,20 +457,18 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         const topSkills = keySkills.slice(0, 6);
 
         const data = topSkills.map(skill => {
-            const prevSkill = previousPeriodKeySkills.find(s => s.name === skill.name);
             const teamData = teamAverages.get(skill.name);
             const teamAverage = teamData && teamData.count > 0 ? teamData.totalScore / teamData.count : 0;
 
             return {
                 skill: skill.name.length > 15 ? skill.name.substring(0, 15) + '...' : skill.name,
                 current: skill.averageScore,
-                previous: prevSkill ? prevSkill.averageScore : 0,
                 team: teamAverage
             };
         });
 
         return data;
-    }, [selectedMetrics, filteredReports, previousPeriodReports, teamAverages, keySkills, previousPeriodKeySkills, skillAnalysisScores]);
+    }, [selectedMetrics, filteredReports, teamAverages, keySkills, skillAnalysisScores]);
 
     // Calculate avg rating on projects (using filtered reports)
     const avgRatingOnProjects = useMemo(() => {
@@ -766,12 +541,36 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
         const projectStats = new Map<string, { expected: number; actual: number }>();
 
         projects.forEach(project => {
-            const projectGoals = goals.filter(g => g.projectId === project.id);
+            // Filter goals to only those assigned to this specific employee
+            const projectGoals = goals.filter(g => {
+                if (g.projectId !== project.id) return false;
+
+                // If goal has assignees, current employee must be one of them
+                if (g.assignees && g.assignees.length > 0) {
+                    return g.assignees.some(a => a.id === employee.id);
+                }
+
+                // If goal is unassigned, employee must be assigned to the project to be responsible
+                return project.assignees?.some(a => a.id === employee.id);
+            });
+
             if (projectGoals.length === 0) return;
 
-            const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
             const multiplier = frequencyMultipliers[project.reportFrequency] || 0;
-            const expectedForProject = Math.ceil(daysDiff * multiplier * projectGoals.length);
+            let expectedForProject = 0;
+
+            const now = new Date();
+            const calculationEnd = end > now ? now : end;
+
+            projectGoals.forEach(goal => {
+                const goalCreated = goal.createdAt ? new Date(goal.createdAt) : start;
+                const effectiveStart = new Date(Math.max(start.getTime(), goalCreated.getTime()));
+
+                if (effectiveStart < calculationEnd) {
+                    const goalDays = Math.ceil((calculationEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24));
+                    expectedForProject += Math.ceil(goalDays * multiplier);
+                }
+            });
 
             const actualForProject = filteredReports.filter(r => {
                 const goalIds = projectGoals.map(g => g.id);
@@ -847,7 +646,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
             <div className="max-w-[150px] lg:max-w-[250px] truncate capitalize text-on-surface-secondary" title={goal?.name}>
                 {goal?.name || 'N/A'}
             </div>,
-            <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(2)}</span>,
+            <span className="capitalize text-on-surface-secondary">{(report.evaluationScore ?? 0).toFixed(2)}</span>,
             <button
                 type="button"
                 onClick={(e) => {
@@ -864,7 +663,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
     return (
         <div className="w-full px-6 py-6 space-y-6">
-            <div className="bg-surface-elevated p-4 rounded-lg  border border-border flex flex-col sm:flex-row gap-4 items-center">
+            <div className="sticky top-0 z-20 bg-surface-elevated/90 backdrop-blur-md p-4 rounded-lg border border-border flex flex-col sm:flex-row gap-4 items-center -mx-4 mb-6 shadow-sm">
                 <button
                     onClick={onBack}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 text-on-surface-secondary hover:text-primary group/back"
@@ -946,242 +745,185 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 <StatCard title="Average Score" value={analytics.overallScore.toFixed(2)} icon={<Star size={24} className="text-on-surface-secondary" />} />
             </div>
 
-            <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden">
-                <div className="p-6 border-b border-border bg-surface/30">
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
-                            <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across projects and missions</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {viewMode === 'manager' && (
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={() => setIsMetricsModalOpen(true)}
-                                    className="flex items-center gap-2 shadow-sm"
-                                    icon={Sliders}
-                                >
-                                    Customize Metrics
-                                </Button>
-                            )}
+            {/* Skill Analysis and Score Trend Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden flex flex-col">
+                    <div className="p-6 border-b border-border bg-surface/30">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
+                                <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across projects</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {viewMode === 'manager' && (
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => setIsMetricsModalOpen(true)}
+                                        className="flex items-center gap-2 shadow-sm"
+                                        icon={Sliders}
+                                    >
+                                        Customize Metrics
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-                    {/* Skills List Column */}
-                    <div className="lg:col-span-5 p-6 border-r border-border">
+                    <div className="flex-1 flex flex-col p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2 text-on-surface">
                                 <List size={18} />
                                 <span className="font-semibold">Skill Rankings</span>
-                                <span className="px-2 py-0.5 bg-surface rounded-full text-xs font-medium text-on-surface-tertiary">
-                                    {keySkills.length}
-                                </span>
                             </div>
-                            <button
-                                onClick={() => setSkillSortOrder(prev => prev === 'high-to-low' ? 'low-to-high' : 'high-to-low')}
-                                className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1.5 rounded-lg transition-colors border border-primary/20"
-                            >
-                                <ArrowUpDown size={14} />
-                                {skillSortOrder === 'high-to-low' ? 'High to Low' : 'Low to High'}
-                            </button>
-                        </div>
-
-                        {sortedSkills.length > 0 ? (
-                            <div className="flex flex-wrap gap-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                                {sortedSkills.map((skill) => {
-                                    const isLow = skill.averageScore < 6.0;
-                                    return (
-                                        <div
-                                            key={skill.name}
-                                            className={`
-                                                flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-200 group
-                                                ${isLow
-                                                    ? 'bg-red-50/50 border-red-100 hover:border-red-200'
-                                                    : 'bg-surface border-border hover:border-primary/30'}
-                                            `}
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className={`text-sm font-medium leading-none mb-1 ${isLow ? 'text-red-700' : 'text-on-surface'}`}>
-                                                    {skill.name}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-16 h-1 bg-surface-elevated rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full ${isLow ? 'bg-red-500' : 'bg-primary'}`}
-                                                            style={{ width: `${skill.averageScore * 10}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className={`text-[10px] font-bold ${isLow ? 'text-red-600' : 'text-on-surface-tertiary'}`}>
-                                                        {skill.averageScore.toFixed(1)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            {isLow ? <TrendingDown size={14} className="text-red-400" /> : <TrendingUp size={14} className="text-primary/40 group-hover:text-primary/60 transition-colors" />}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
-                                <Star size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
-                                <p className="text-sm text-on-surface-secondary">No skill data available yet</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Chart Column */}
-                    <div className="lg:col-span-7 p-6 bg-surface/10">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-2 text-on-surface">
-                                <Activity size={18} />
-                                <span className="font-semibold">Skill Fingerprint</span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsSkillListModalOpen(true)}
+                                    className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1.5 rounded-lg transition-colors border border-primary/20"
+                                >
+                                    <List size={14} />
+                                    Skill List
+                                </button>
                             </div>
                         </div>
 
                         {radarChartData.length > 0 ? (
-                            <div className="relative">
-                                {isAnalyzingSkills && (
-                                    <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
-                                        <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
-                                            <Spinner size="lg" />
-                                            <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
-                                            <p className="text-[10px] text-on-surface-secondary mt-1">Analyzing historical performance records</p>
+                            <>
+                                <div className="relative flex-1">
+                                    {isAnalyzingSkills && (
+                                        <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
+                                            <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
+                                                <Spinner size="lg" />
+                                                <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                <div className="bg-surface rounded-2xl p-4 border border-border">
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <RadarChart data={radarChartData}>
-                                            <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-                                            <PolarAngleAxis
-                                                dataKey="skill"
-                                                tick={({ x, y, payload }) => (
-                                                    <g transform={`translate(${x},${y})`}>
-                                                        <text
-                                                            x={0}
-                                                            y={0}
-                                                            dy={4}
-                                                            textAnchor="middle"
-                                                            fill="#6b7280"
-                                                            fontSize={10}
-                                                            fontWeight={600}
-                                                        >
-                                                            {payload.value}
-                                                        </text>
-                                                    </g>
-                                                )}
-                                            />
-                                            <PolarRadiusAxis
-                                                angle={90}
-                                                domain={[0, 10]}
-                                                tick={{ fill: '#9ca3af', fontSize: 9 }}
-                                            />
-                                            <Radar
-                                                name="Current Proficiency"
-                                                dataKey="current"
-                                                stroke="#2563eb"
-                                                fill="#2563eb"
-                                                fillOpacity={0.25}
-                                                strokeWidth={3}
-                                                animationDuration={1500}
-                                            />
-                                            <Radar
-                                                name="Global Average"
-                                                dataKey="team"
-                                                stroke="#f59e0b"
-                                                fill="#f59e0b"
-                                                fillOpacity={0.05}
-                                                strokeWidth={2}
-                                                strokeDasharray="4 4"
-                                            />
-                                            <Tooltip
-                                                content={({ active, payload }) => {
-                                                    if (active && payload && payload.length) {
-                                                        return (
-                                                            <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
-                                                                <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
-                                                                <div className="space-y-1.5">
-                                                                    {payload.map((entry: any) => (
-                                                                        <div key={entry.name} className="flex items-center justify-between gap-4">
-                                                                            <div className="flex items-center gap-1.5">
-                                                                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                                                                                <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
+                                    )}
+                                    <div className="bg-surface rounded-2xl p-4 border border-border h-full min-h-[400px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <RadarChart data={radarChartData}>
+                                                <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                                                <PolarAngleAxis
+                                                    dataKey="skill"
+                                                    tick={({ x, y, payload }) => (
+                                                        <g transform={`translate(${x},${y})`}>
+                                                            <text
+                                                                x={0}
+                                                                y={0}
+                                                                dy={4}
+                                                                textAnchor="middle"
+                                                                fill="#6b7280"
+                                                                fontSize={10}
+                                                                fontWeight={600}
+                                                            >
+                                                                {payload.value}
+                                                            </text>
+                                                        </g>
+                                                    )}
+                                                />
+                                                <PolarRadiusAxis
+                                                    angle={90}
+                                                    domain={[0, 10]}
+                                                    tick={{ fill: '#9ca3af', fontSize: 9 }}
+                                                />
+                                                <Radar
+                                                    name="Current Proficiency"
+                                                    dataKey="current"
+                                                    stroke="#2563eb"
+                                                    fill="#2563eb"
+                                                    fillOpacity={0.25}
+                                                    strokeWidth={3}
+                                                    animationDuration={1500}
+                                                />
+                                                <Tooltip
+                                                    content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
+                                                                    <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
+                                                                    <div className="space-y-1.5">
+                                                                        {payload.map((entry: any) => (
+                                                                            <div key={entry.name} className="flex items-center justify-between gap-4">
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                                                                    <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
+                                                                                </div>
+                                                                                <span className="text-[10px] font-bold text-on-surface">{(Number(entry.value) || 0).toFixed(1)}</span>
                                                                             </div>
-                                                                            <span className="text-[10px] font-bold text-on-surface">{Number(entry.value).toFixed(1)}</span>
-                                                                        </div>
-                                                                    ))}
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return null;
-                                                }}
-                                            />
-                                        </RadarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="h-full flex items-center justify-center p-12">
-                                <div className="text-center max-w-xs">
-                                    <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
-                                        <Target size={40} className="text-primary/20" />
-                                        <div className="absolute inset-0 border-2 border-dashed border-primary/10 rounded-full animate-spin-slow"></div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }}
+                                                />
+                                            </RadarChart>
+                                        </ResponsiveContainer>
                                     </div>
-                                    <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Pending</h4>
-                                    <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
-                                        Skill data will appear here once reports are submitted or organizational metrics are defined.
-                                    </p>
-                                    <Button
-                                        variant="primary"
-                                        size="md"
-                                        onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
-                                        disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
-                                        className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
-                                        icon={Sparkles}
-                                    >
-                                        {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
-                                    </Button>
                                 </div>
+                            </>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
+                                <Star size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
+                                <p className="text-sm text-on-surface-secondary">No skill data available yet</p>
+                                <Button
+                                    variant="primary"
+                                    size="md"
+                                    onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
+                                    disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
+                                    className="mt-6 flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
+                                    icon={Sparkles}
+                                >
+                                    {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
+                                </Button>
                             </div>
                         )}
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* Score Trend and Report History Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Score Trend Line Chart */}
-                {
-                    filteredReports.length > 1 && (
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                            <h3 className="text-lg font-semibold mb-4 text-on-surface">Score Trend</h3>
-                            <ResponsiveContainer width="100%" height={400}>
+                <div className="bg-surface-elevated p-6 rounded-xl border border-border flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-on-surface">Score Trend</h3>
+                            <p className="text-sm text-on-surface-secondary mt-1">Performance trajectory over time</p>
+                        </div>
+                    </div>
+                    {filteredReports.length > 1 ? (
+                        <div className="flex-1 min-h-[400px] mt-6">
+                            <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={filteredReports
                                     .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
                                     .map(r => ({
                                         date: formatReportDate(r.submissionDate),
                                         score: r.evaluationScore
                                     }))}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                    <XAxis dataKey="date" tick={{ fill: '#111827', fontSize: 12 }} />
-                                    <YAxis domain={[0, 10]} tick={{ fill: '#6b7280' }} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                                    <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis domain={[0, 10]} tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
-                                    <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2} dot={{ fill: '#2563eb', r: 4 }} name="Score" />
+                                    <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} dot={{ fill: '#2563eb', r: 4, strokeWidth: 2, stroke: '#fff' }} name="Score" />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
-                    )
-                }
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border mt-6">
+                            <TrendingUp size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
+                            <p className="text-sm text-on-surface-secondary">Multiple reports needed to show trend line</p>
+                        </div>
+                    )}
+                </div>
+            </div >
 
-                {/* Report History */}
-                <div className="bg-surface-elevated p-6 rounded-lg border border-border">
-                    <h3 className="text-lg font-semibold mb-4 text-on-surface">Report History ({filteredReports.length})</h3>
-                    {filteredReports.length > 0 ? (
-                        <div className="max-h-[400px] overflow-y-auto">
+            {/* Report History */}
+            < div className="bg-surface-elevated p-6 rounded-xl border border-border" >
+                <div className="flex items-center gap-2 mb-6">
+                    <Clock size={24} className="text-on-surface-secondary" />
+                    <h3 className="text-xl font-bold text-on-surface">Report History ({filteredReports.length})</h3>
+                </div>
+                {
+                    filteredReports.length > 0 ? (
+                        <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
                             <Table
                                 headers={reportTableHeaders}
                                 rows={reportTableRows}
@@ -1189,42 +931,126 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                 sortColumn={sortColumn}
                                 sortDirection={sortDirection}
                                 onSort={handleSort}
+                                onRowClick={(index) => setSelectedReport(filteredReports[index])}
                             />
                         </div>
                     ) : (
-                        <p className="text-on-surface-secondary text-center py-4">No reports in selected date range.</p>
-                    )}
-                </div>
-            </div>
+                        <div className="flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
+                            <FileText size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
+                            <p className="text-on-surface-secondary">No reports in selected date range.</p>
+                        </div>
+                    )
+                }
+            </div >
 
             <ReportDetailModal
                 report={selectedReport}
-                goal={goals.find(g => g.id === selectedReport?.goalId)}
-                employee={employee}
-                employees={employees}
+                isOpen={!!selectedReport}
                 onClose={() => setSelectedReport(null)}
-                onSave={updateReport}
-                currentManagerId={currentManagerId}
-                viewMode={viewMode}
+            // ... props
             />
+
+            {/* Skill List Modal */}
+            <Modal
+                isOpen={isSkillListModalOpen}
+                onClose={() => setIsSkillListModalOpen(false)}
+                title="Measured Skills Proficiency"
+            >
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-on-surface-secondary">Detailed breakdown of skills measured by Zevian AI based on all project reports.</p>
+                        <span className="text-xs font-bold px-2 py-1 rounded bg-primary/10 text-primary">{sortedSkills.length} Skills</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {sortedSkills.map((skill, index) => (
+                            <div key={index} className="bg-surface-elevated p-4 rounded-xl border border-border flex flex-col gap-3 hover:border-primary/30 transition-all duration-200 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-bold text-on-surface line-clamp-1">{skill.name}</span>
+                                    <span className="text-sm font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
+                                        {skill.averageScore.toFixed(1)}
+                                    </span>
+                                </div>
+                                <div className="w-full bg-surface rounded-full h-2 overflow-hidden border border-border/50">
+                                    <div
+                                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
+                                        style={{ width: `${(skill.averageScore / 10) * 100}%` }}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] font-medium text-on-surface-secondary">
+                                    <span className="flex items-center gap-1">
+                                        <Activity size={12} className="text-primary" />
+                                        {skill.frequency} Mentions
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        {skill.averageScore >= 8 ? (
+                                            <div className="flex items-center gap-1 text-green-500">
+                                                <Trophy size={12} />
+                                                <span className="uppercase tracking-wider font-bold text-[10px]">Expert</span>
+                                            </div>
+                                        ) : skill.averageScore >= 6 ? (
+                                            <div className="flex items-center gap-1 text-primary">
+                                                <Award size={12} />
+                                                <span className="uppercase tracking-wider font-bold text-[10px]">Advanced</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1 text-amber-500">
+                                                <Activity size={12} />
+                                                <span className="uppercase tracking-wider font-bold text-[10px]">Developing</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {viewMode === 'manager' && (
+                        <div className="pt-4 border-t border-border flex justify-end gap-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsMetricsModalOpen(true)}
+                                icon={Sliders}
+                            >
+                                Customize Metrics
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => {
+                                    setIsSkillListModalOpen(false);
+                                    performSkillAnalysis(selectedMetrics);
+                                }}
+                                icon={Sparkles}
+                                disabled={isAnalyzingSkills || filteredReports.length === 0}
+                            >
+                                Re-analyze Skills
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </Modal>
             {/* Metrics Customization Modal */}
-            {viewMode === 'manager' && (
-                <MetricsSelectionModal
-                    isOpen={isMetricsModalOpen}
-                    onClose={() => setIsMetricsModalOpen(false)}
-                    selectedMetrics={selectedMetrics}
-                    onSave={async (metrics) => {
-                        try {
-                            setSkillAnalysisScores({}); // Clear old scores to force re-analysis and reflect correctly in chart
-                            await updateOrganizationMetrics(metrics);
-                            await performSkillAnalysis(metrics);
-                        } catch (err) {
-                            alert('Failed to update metrics. Please try again.');
-                        }
-                    }}
-                />
-            )}
-        </div>
+            {
+                viewMode === 'manager' && (
+                    <MetricsSelectionModal
+                        isOpen={isMetricsModalOpen}
+                        onClose={() => setIsMetricsModalOpen(false)}
+                        selectedMetrics={selectedMetrics}
+                        onSave={async (metrics) => {
+                            try {
+                                setSkillAnalysisScores({}); // Clear old scores to force re-analysis and reflect correctly in chart
+                                await updateOrganizationMetrics(metrics);
+                                await performSkillAnalysis(metrics);
+                            } catch (err) {
+                                alert('Failed to update metrics. Please try again.');
+                            }
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 
