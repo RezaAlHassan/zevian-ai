@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import MultiSelect from '../components/MultiSelect';
 import Table from '../components/Table';
 import { canSetGlobalFrequency, canViewOrganizationWide, canManageSettings, isAccountOwner } from '../utils/managerPermissions';
+import Checkbox from '../components/Checkbox';
 
 interface SettingsPageProps {
   settings: ManagerSettings;
@@ -205,15 +206,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             Late Submission Policy
           </label>
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={localSettings.allowLateSubmissions !== false}
-                onChange={(e) => setLocalSettings(prev => ({ ...prev, allowLateSubmissions: e.target.checked }))}
-                className="w-4 h-4 text-primary focus:ring-primary focus:ring-2 rounded"
-              />
-              <span className="text-on-surface font-medium">Allow late submissions after goal deadline</span>
-            </label>
+            <Checkbox
+              checked={localSettings.allowLateSubmissions !== false}
+              onChange={(checked) => setLocalSettings(prev => ({ ...prev, allowLateSubmissions: checked }))}
+              label="Allow late submissions after goal deadline"
+            />
           </div>
           <p className="mt-2 text-sm text-on-surface-secondary">
             {localSettings.allowLateSubmissions !== false
@@ -289,20 +286,18 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         : 'bg-surface border-border text-on-surface hover:bg-surface-hover'
                         }`}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={localSettings.selectedDays?.includes(day) || false}
-                        onChange={(e) => {
+                        onChange={(checked) => {
                           const currentDays = localSettings.selectedDays || [];
-                          if (e.target.checked) {
+                          if (checked) {
                             handleSelectedDaysChange([...currentDays, day]);
                           } else {
                             handleSelectedDaysChange(currentDays.filter(d => d !== day));
                           }
                         }}
-                        className="w-4 h-4"
+                        label={day.slice(0, 3)}
                       />
-                      <span className="text-sm font-medium">{day.slice(0, 3)}</span>
                     </label>
                   ))}
                 </div>
@@ -367,20 +362,18 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                       : 'bg-surface border-border text-on-surface hover:bg-surface-hover'
                                       }`}
                                   >
-                                    <input
-                                      type="checkbox"
+                                    <Checkbox
                                       checked={projectSettings.selectedDays?.includes(day) || false}
-                                      onChange={(e) => {
+                                      onChange={(checked) => {
                                         const currentDays = projectSettings.selectedDays || [];
-                                        if (e.target.checked) {
+                                        if (checked) {
                                           handleProjectSelectedDaysChange(projectId, [...currentDays, day]);
                                         } else {
                                           handleProjectSelectedDaysChange(projectId, currentDays.filter(d => d !== day));
                                         }
                                       }}
-                                      className="w-3 h-3"
+                                      label={day.slice(0, 3)}
                                     />
-                                    <span className="font-medium">{day.slice(0, 3)}</span>
                                   </label>
                                 ))}
                               </div>
@@ -449,20 +442,18 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                       : 'bg-surface border-border text-on-surface hover:bg-surface-hover'
                                       }`}
                                   >
-                                    <input
-                                      type="checkbox"
+                                    <Checkbox
                                       checked={employeeSettings.selectedDays?.includes(day) || false}
-                                      onChange={(e) => {
+                                      onChange={(checked) => {
                                         const currentDays = employeeSettings.selectedDays || [];
-                                        if (e.target.checked) {
+                                        if (checked) {
                                           handleEmployeeSelectedDaysChange(employeeId, [...currentDays, day]);
                                         } else {
                                           handleEmployeeSelectedDaysChange(employeeId, currentDays.filter(d => d !== day));
                                         }
                                       }}
-                                      className="w-3 h-3"
+                                      label={day.slice(0, 3)}
                                     />
-                                    <span className="font-medium">{day.slice(0, 3)}</span>
                                   </label>
                                 ))}
                               </div>
@@ -548,7 +539,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* Success Message */}
       {saved && (
-        <div className="fixed bottom-4 right-4 bg-success/20 border border-success/30 text-success px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">
+        <div className="fixed bottom-4 right-4 bg-success/20 border border-success/30 text-success px-4 py-3 rounded-lg flex items-center gap-2">
           <Save size={20} />
           <span className="font-medium">Settings saved successfully!</span>
         </div>

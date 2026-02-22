@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { reportService } from '../services/databaseService';
+import { reportService, notificationService } from '../services/databaseService';
 import type { Report } from '../types';
 
 export function useReports(organizationId?: string) {
@@ -30,6 +30,14 @@ export function useReports(organizationId?: string) {
     useEffect(() => {
         fetchReports();
     }, [fetchReports]);
+
+    const checkLateReports = useCallback(async (employeeId: string) => {
+        try {
+            await notificationService.checkAndNotifyLateReports(employeeId);
+        } catch (err) {
+            console.error('Error checking late reports:', err);
+        }
+    }, []);
 
     const createReport = useCallback(async (report: Omit<Report, 'createdAt' | 'updatedAt'>) => {
         try {
@@ -71,5 +79,6 @@ export function useReports(organizationId?: string) {
         createReport,
         updateReport,
         deleteReport,
+        checkLateReports,
     };
 }

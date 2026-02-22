@@ -82,7 +82,7 @@ serve(async (req) => {
         const inviteLink = `${origin}/invite/${token}`;
 
         const { data: emailData, error: emailError } = await resend.emails.send({
-            from: "Performance Tracker <onboarding@resend.dev>", // Change this if you have a verified domain
+            from: "Performance Tracker <invite@alosystem.com>", // Change this if you have a verified domain
             to: [email],
             subject: `Join ${organizationName} on Performance Tracker`,
             html: `

@@ -1,57 +1,72 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Performance Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              // Preline Design System Colors
-              'background': '#ffffff',
-              'surface': '#f9fafb',
-              'surface-hover': '#f3f4f6',
-              'surface-elevated': '#ffffff',
-              'surface-pressed': '#e5e7eb',
-              'primary': '#2563eb',
-              'primary-hover': '#1d4ed8',
-              'primary-pressed': '#1e40af',
-              'primary-light': '#3b82f6',
-              'secondary': '#6366f1',
-              'accent': '#8b5cf6',
-              'on-primary': '#ffffff',
-              'on-surface': '#111827',
-              'on-surface-secondary': '#6b7280',
-              'on-surface-tertiary': '#9ca3af',
-              'border': '#e5e7eb',
-              'border-hover': '#d1d5db',
-              'border-focus': '#2563eb',
-              'error': '#ef4444',
-              'error-hover': '#dc2626',
-              'warning': '#f59e0b',
-              'warning-hover': '#d97706',
-              'success': '#10b981',
-              'success-hover': '#059669',
-              'info': '#3b82f6',
-              'info-hover': '#2563eb',
-            },
-            fontFamily: {
-              'sans': ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-            },
-            boxShadow: {
-              'datadog': '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.2)',
-              'datadog-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)',
-            },
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zevian</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            // Moon Design System v1 Colors
+            primary: '#5C62F5',
+            piccolo: '#5C62F5',
+            hit: '#FFD000',
+            roshi: '#0D9B54',
+            dodoria: '#EF5451',
+            krillin: '#FF8F1F',
+            goku: '#F9FAFB',
+            gohan: '#F3F4F6',
+            bulma: '#111827',
+            trunks: '#6B7280',
+            beerus: '#E5E7EB',
+            goten: '#FFFFFF',
+            popo: '#000000',
+            heles: 'rgba(0, 0, 0, 0.04)', // hover overlay
+            jiren: 'rgba(0, 0, 0, 0.08)', // active overlay
+          },
+          fontFamily: {
+            sans: ['DM Sans', 'sans-serif'],
+            moon: ['DM Sans', 'sans-serif'],
+          },
+          fontSize: {
+            'moon-48': ['3rem', { lineHeight: '3.5rem' }],
+            'moon-40': ['2.5rem', { lineHeight: '3rem' }],
+            'moon-32': ['2rem', { lineHeight: '2.5rem' }],
+            'moon-24': ['1.5rem', { lineHeight: '2rem' }],
+            'moon-20': ['1.25rem', { lineHeight: '1.75rem' }],
+            'moon-18': ['1.125rem', { lineHeight: '1.75rem' }],
+            'moon-16': ['1rem', { lineHeight: '1.5rem' }],
+            'moon-14': ['0.875rem', { lineHeight: '1.25rem' }],
+            'moon-12': ['0.75rem', { lineHeight: '1rem' }],
+          },
+          borderRadius: {
+            'moon-i-xs': '4px',
+            'moon-i-sm': '8px',
+            'moon-i-md': '12px',
+            'moon-s-xs': '4px',
+            'moon-s-sm': '8px',
+            'moon-s-md': '12px',
+            'moon-s-lg': '16px',
+            'moon-s-xl': '20px',
+            'moon-s-2xl': '24px',
+          },
+          boxShadow: {
+            'moon-xs': '0 2px 4px rgba(0,0,0,0.08)',
+            'moon-sm': '0 4px 8px rgba(0,0,0,0.10)',
+            'moon-md': '0 8px 16px rgba(0,0,0,0.12)',
+            'moon-lg': '0 16px 32px rgba(0,0,0,0.14)',
+            'moon-xl': '0 24px 48px rgba(0,0,0,0.16)',
           },
         },
-      }
-    </script>
+      },
+    }
+  </script>
   <script type="importmap">
 {
   "imports": {
@@ -64,10 +79,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-background text-on-surface" style="background-color: #ffffff;">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body class="bg-goten text-bulma font-moon antialiased">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

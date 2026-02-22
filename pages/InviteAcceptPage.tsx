@@ -83,7 +83,7 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-goten">
         <div className="text-center">
           <Loader2 className="animate-spin mx-auto mb-4 text-primary" size={48} />
           <p className="text-on-surface-secondary">Loading invitation...</p>
@@ -94,7 +94,7 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-goten">
         <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border text-center">
           <XCircle size={48} className="text-error mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-on-surface mb-2">Invitation Error</h2>
@@ -110,7 +110,7 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
   const orgName = localStorage.getItem('organizationName') || 'the organization';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-goten p-4">
       <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border">
         <div className="text-center mb-6">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">

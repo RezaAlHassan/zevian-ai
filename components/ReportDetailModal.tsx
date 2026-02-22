@@ -8,7 +8,7 @@ import Input from './Input';
 import Button from './Button';
 
 interface ReportDetailModalProps {
-    report: Report;
+    report: Report | null;
     isOpen: boolean;
     onClose: () => void;
     onUpdateReport?: (report: Report) => Promise<void>;
@@ -50,7 +50,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     }, [isOpen, report]);
 
     const handleSave = async () => {
-        if (!onUpdateReport) return;
+        if (!onUpdateReport || !report) return;
 
         const newScore = parseFloat(overrideScore);
         if (isNaN(newScore) || newScore < 0 || newScore > 10) {
@@ -60,10 +60,6 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
         // If score changed from original AI score, reasoning is required
         const isScoreChanged = Math.abs(newScore - report.evaluationScore) > 0.1;
-
-        // If updating an existing override, check against that too? 
-        // Logic: specific requirement "If score is changed, a reason must be given (required)"
-        // This implies if the Manager Score differs from the AI score.
 
         if (isScoreChanged && !overrideReasoning.trim()) {
             setError('Reasoning is required when overriding the score');
@@ -77,8 +73,9 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             const updatedReport: Report = {
                 ...report,
                 managerOverallScore: newScore,
-                managerOverrideReasoning: overrideReasoning,
-                managerFeedback: feedback
+                managerOverrideReasoning: overrideReasoning.trim(),
+                managerFeedback: feedback.trim(),
+                reviewedBy: currentManagerId
             };
 
             await onUpdateReport(updatedReport);
@@ -91,14 +88,37 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         }
     };
 
+    const handleRemoveOverride = async () => {
+        if (!onUpdateReport || !report) return;
+        setIsSaving(true);
+        try {
+            const updatedReport: Report = {
+                ...report,
+                managerOverallScore: undefined,
+                managerOverrideReasoning: undefined,
+                managerFeedback: undefined,
+                reviewedBy: undefined
+            };
+            await onUpdateReport(updatedReport);
+            onClose();
+        } catch (err) {
+            console.error('Failed to remove override:', err);
+            setError('Failed to remove override');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (!report) return null;
+
     const employee = employees.find(e => e.id === report.employeeId);
     const goal = goals.find(g => g.id === report.goalId);
     const project = goal ? projects.find(p => p.id === goal.projectId) : null;
 
     // Determine effective score to display in header
-    const displayScore = report.managerOverallScore !== undefined
+    const displayScore = (report.managerOverallScore !== undefined
         ? report.managerOverallScore
-        : report.evaluationScore;
+        : report.evaluationScore) ?? 0;
 
     return (
         <Modal
@@ -111,7 +131,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-surface-elevated p-4 rounded-lg border border-border">
                     <div>
                         <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <User size={14} />
+                            <User size={14} className="text-piccolo" />
                             Employee
                         </div>
                         {onSelectEmployee && employee ? (
@@ -130,14 +150,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                     </div>
                     <div>
                         <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <Target size={14} />
+                            <Target size={14} className="text-piccolo" />
                             Goal
                         </div>
                         <span className="font-medium text-on-surface">{goal?.name || 'N/A'}</span>
                     </div>
                     <div>
                         <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <Layers size={14} />
+                            <Layers size={14} className="text-piccolo" />
                             Project
                         </div>
                         {onSelectProject && project ? (
@@ -168,7 +188,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 {/* AI Analysis */}
                 <div>
                     <h3 className="text-lg font-semibold text-on-surface mb-2 flex items-center gap-2">
-                        <TrendingUp size={20} className="text-primary" />
+                        <TrendingUp size={20} className="text-piccolo" />
                         AI Analysis
                     </h3>
                     <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border text-sm">
@@ -217,7 +237,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                             <div>
                                 <label className="block text-sm font-medium text-on-surface mb-1">
-                                    Score Reasoning {Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && <span className="text-red-500">*</span>}
+                                    Justification {Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && <span className="text-red-500">*</span>}
                                 </label>
                                 <Textarea
                                     value={overrideReasoning}
@@ -225,6 +245,11 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                     placeholder="Explain why you are changing the score..."
                                     rows={3}
                                 />
+                                {Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && (
+                                    <p className="text-xs text-on-surface-secondary mt-1">
+                                        Justification is required when overriding the Zevian score.
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -243,12 +268,23 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                 <div className="text-red-500 text-sm font-medium">{error}</div>
                             )}
 
-                            <div className="flex justify-end pt-2">
+                            <div className="flex justify-end gap-3 pt-2">
+                                {report.managerOverallScore !== undefined && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleRemoveOverride}
+                                        isLoading={isSaving}
+                                        disabled={isSaving}
+                                        className="text-error border-error/20 hover:bg-error/5"
+                                    >
+                                        Remove Override
+                                    </Button>
+                                )}
                                 <Button
                                     variant="primary"
                                     onClick={handleSave}
                                     isLoading={isSaving}
-                                    disabled={isSaving}
+                                    disabled={isSaving || (Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && !overrideReasoning.trim())}
                                 >
                                     Save Evaluation
                                 </Button>
@@ -272,6 +308,23 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                     <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
                                         {report.managerFeedback}
                                     </div>
+                                </div>
+                            )}
+
+                            {report.managerOverrideReasoning && (
+                                <div>
+                                    <h4 className="text-sm font-semibold text-on-surface mb-2">Justification</h4>
+                                    <div className="bg-surface p-4 rounded-lg border border-border text-on-surface-secondary italic text-sm">
+                                        "{report.managerOverrideReasoning}"
+                                    </div>
+                                </div>
+                            )}
+
+                            {report.reviewedBy && (
+                                <div className="text-right">
+                                    <p className="text-xs text-on-surface-tertiary">
+                                        Reviewed by {employees.find(e => e.id === report.reviewedBy)?.name || 'a manager'}
+                                    </p>
                                 </div>
                             )}
                         </div>

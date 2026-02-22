@@ -50,7 +50,7 @@ const Dropdown: React.FC<DropdownProps> = ({
     if (isOpen && buttonRef.current && menuRef.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect();
       const menuRect = menuRef.current.getBoundingClientRect();
-      
+
       if (align === 'right') {
         menuRef.current.style.right = `${window.innerWidth - buttonRect.right}px`;
         menuRef.current.style.left = 'auto';
@@ -58,21 +58,21 @@ const Dropdown: React.FC<DropdownProps> = ({
         menuRef.current.style.left = `${buttonRect.left}px`;
         menuRef.current.style.right = 'auto';
       }
-      
+
       menuRef.current.style.top = `${buttonRect.bottom + 4}px`;
     }
   }, [isOpen, align]);
 
   const sizeClasses = {
-    sm: 'py-1.5 px-3 text-sm',
-    md: 'py-2 px-4 text-sm',
-    lg: 'py-2.5 px-5 text-base',
+    sm: 'py-1.5 px-3 text-moon-14',
+    md: 'py-2 px-4 text-moon-14',
+    lg: 'py-2.5 px-5 text-moon-16',
   };
 
   const variantClasses = {
-    default: 'bg-white text-on-surface border border-border hover:bg-surface-hover',
-    outline: 'bg-transparent text-on-surface border border-border hover:bg-surface-hover',
-    ghost: 'bg-transparent text-on-surface hover:bg-surface-hover',
+    default: 'bg-goten text-bulma border border-beerus hover:bg-gohan',
+    outline: 'bg-transparent text-bulma border border-beerus hover:bg-gohan',
+    ghost: 'bg-transparent text-bulma hover:bg-gohan',
   };
 
   return (
@@ -87,8 +87,8 @@ const Dropdown: React.FC<DropdownProps> = ({
         type="button"
         className={`
           inline-flex items-center gap-2 ${sizeClasses[size]} ${variantClasses[variant]}
-          rounded-lg font-medium transition-all
-          focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+          rounded-moon-i-md font-medium transition-all
+          focus:outline-none focus:ring-2 focus:ring-piccolo focus:ring-offset-2
           ${buttonClassName}
         `}
         onClick={() => setIsOpen(!isOpen)}
@@ -96,8 +96,8 @@ const Dropdown: React.FC<DropdownProps> = ({
         {icon && <span className="flex-shrink-0">{icon}</span>}
         {buttonText && <span>{buttonText}</span>}
         {(!icon || buttonText) && (
-          <ChevronDown 
-            size={16} 
+          <ChevronDown
+            size={16}
             className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
           />
         )}
@@ -111,7 +111,7 @@ const Dropdown: React.FC<DropdownProps> = ({
           />
           <div
             ref={menuRef}
-            className="fixed z-50 mt-1 min-w-[12rem] bg-white rounded-lg shadow-lg border border-border py-1"
+            className="fixed z-50 mt-1 min-w-[12rem] bg-goten rounded-moon-s-md border border-beerus py-1"
             onClick={(e) => e.stopPropagation()}
           >
             {children}
@@ -141,8 +141,8 @@ export const DropdownItem: React.FC<DropdownItemProps> = ({
       onClick={onClick}
       disabled={disabled}
       className={`
-        w-full text-left px-4 py-2 text-sm text-on-surface
-        hover:bg-surface-hover transition-colors
+        w-full text-left px-4 py-2 text-moon-14 text-bulma
+        hover:bg-gohan transition-colors
         disabled:opacity-50 disabled:cursor-not-allowed
         ${className}
       `}
@@ -157,7 +157,7 @@ interface DropdownDividerProps {
 }
 
 export const DropdownDivider: React.FC<DropdownDividerProps> = ({ className = '' }) => {
-  return <div className={`my-1 border-t border-border ${className}`} />;
+  return <div className={`my-1 border-t border-beerus ${className}`} />;
 };
 
 export default Dropdown;

@@ -1,5 +1,20 @@
-/* Green Theme Design System (Fixoria AI inspired) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Moon Theme Design System */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --piccolo: #5C62F5;
+  --hit: #FFD000;
+  --roshi: #0D9B54;
+  --dodoria: #EF5451;
+  --krillin: #FF8F1F;
+  --goku: #F9FAFB;
+  --gohan: #F3F4F6;
+  --goten: #FFFFFF;
+  --bulma: #111827;
+  --trunks: #6B7280;
+  --beerus: #E5E7EB;
+  --popo: #000000;
+}
 
 * {
   box-sizing: border-box;
@@ -8,11 +23,13 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #ffffff;
-  color: #1f2937;
+  background-color: #FFFFFF;
+  /* goten */
+  color: #111827;
+  /* bulma */
 }
 
 /* Scrollbar Styling - Light Theme */
@@ -36,7 +53,7 @@ body {
 
 /* Focus styles - Preline */
 *:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #5c62f5;
   outline-offset: 2px;
   border-radius: 0.5rem;
 }
@@ -54,20 +71,25 @@ button:disabled {
 }
 
 /* Input/Select/Textarea base styles - Datadog */
-input, textarea, select {
+input,
+textarea,
+select {
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
   font-size: 14px;
   line-height: 20px;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #5c62f5;
+  box-shadow: 0 0 0 3px rgba(92, 98, 245, 0.1);
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: #9ca3af;
 }
 
@@ -79,13 +101,13 @@ table {
 
 /* Link styles - Preline */
 a {
-  color: #2563eb;
+  color: #5c62f5;
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 a:hover {
-  color: #1d4ed8;
+  color: #4b4fcf;
   text-decoration: underline;
 }
 
@@ -109,8 +131,8 @@ input[type="radio"]:hover {
 }
 
 input[type="radio"]:checked {
-  border-color: #6b7280;
-  background-color: #6b7280;
+  border-color: #5c62f5;
+  background-color: #5c62f5;
 }
 
 input[type="radio"]:checked::after {
@@ -143,20 +165,20 @@ input[type="checkbox"] {
   height: 16px;
   border: 2px solid #d1d5db;
   border-radius: 0.25rem;
-  background-color: rgba(37, 99, 235, 0.1);
+  background-color: rgba(92, 98, 245, 0.1);
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
 }
 
 input[type="checkbox"]:hover {
-  border-color: #2563eb;
-  background-color: rgba(37, 99, 235, 0.15);
+  border-color: #5c62f5;
+  background-color: rgba(92, 98, 245, 0.15);
 }
 
 input[type="checkbox"]:checked {
-  border-color: #2563eb;
-  background-color: #2563eb;
+  border-color: #5c62f5;
+  background-color: #5c62f5;
 }
 
 input[type="checkbox"]:checked::after {
@@ -173,17 +195,19 @@ input[type="checkbox"]:checked::after {
 
 input[type="checkbox"]:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(92, 98, 245, 0.1);
 }
 
 input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -191,4 +215,38 @@ input[type="checkbox"]:disabled {
 
 .animate-spin-slow {
   animation: spin-slow 12s linear infinite;
+}
+
+/* Interactive Icon States - Moon Design System style */
+.interactive-icon {
+  @apply transition-all duration-200 cursor-pointer;
+  color: var(--trunks);
+  /* Default color using trunks token */
+}
+
+.interactive-icon:hover {
+  color: var(--piccolo);
+  /* Primary color on hover */
+  transform: scale(1.1);
+}
+
+.interactive-icon:focus-visible {
+  outline: 2px solid var(--piccolo);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.interactive-icon:active {
+  transform: scale(0.95);
+  opacity: 0.8;
+}
+
+/* Primary variant for icons that should always be primary color */
+.interactive-icon-primary {
+  @apply interactive-icon;
+  color: var(--piccolo);
+}
+
+.interactive-icon-primary:hover {
+  filter: brightness(1.1);
 }

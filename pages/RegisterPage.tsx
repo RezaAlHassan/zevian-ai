@@ -57,15 +57,15 @@ const RegisterPage: React.FC = () => {
 
     if (success) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4">
-                <div className="max-w-md w-full bg-surface-elevated rounded-xl shadow-lg border border-border p-8 text-center">
-                    <div className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle className="w-8 h-8 text-success" />
+            <div className="min-h-screen flex items-center justify-center bg-gohan p-4">
+                <div className="max-w-md w-full bg-goten rounded-moon-s-xl border border-beerus p-8 text-center">
+                    <div className="w-16 h-16 bg-roshi/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="w-8 h-8 text-roshi" />
                     </div>
-                    <h2 className="text-2xl font-bold text-on-surface mb-2">
+                    <h2 className="text-moon-24 font-semibold text-bulma mb-2">
                         {verificationRequired ? 'Verify Your Account' : 'Account Created!'}
                     </h2>
-                    <p className="text-on-surface-secondary mb-6">
+                    <p className="text-moon-14 text-trunks mb-6">
                         {verificationRequired
                             ? 'We have sent a confirmation link to your email. Please verify your account before logging in.'
                             : 'Redirecting you to the dashboard...'}
@@ -73,7 +73,7 @@ const RegisterPage: React.FC = () => {
 
                     {verificationRequired ? (
                         <div className="space-y-4">
-                            <div className="p-3 bg-surface rounded-lg border border-border text-sm text-on-surface-secondary">
+                            <div className="p-3 bg-gohan rounded-moon-s-md border border-beerus text-moon-12 text-trunks">
                                 <p>Didn't receive the email? Check your spam folder.</p>
                             </div>
                             <Button
@@ -86,7 +86,7 @@ const RegisterPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="flex justify-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-piccolo"></div>
                         </div>
                     )}
                 </div>
@@ -95,16 +95,16 @@ const RegisterPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <div className="max-w-md w-full bg-surface-elevated rounded-xl shadow-lg border border-border overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center bg-gohan p-4">
+            <div className="max-w-md w-full bg-goten rounded-moon-s-xl border border-beerus overflow-hidden">
                 <div className="px-8 py-10">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-on-surface mb-2">Get Started</h1>
-                        <p className="text-on-surface-secondary">Create a new organization account</p>
+                        <h1 className="text-moon-32 font-semibold text-bulma mb-2">Get Started</h1>
+                        <p className="text-moon-16 text-trunks">Create a new organization account</p>
                     </div>
 
                     {error && (
-                        <div className="mb-6 bg-error/10 border border-error/20 rounded-lg p-3 flex items-center gap-2 text-error text-sm">
+                        <div className="mb-6 bg-dodoria/10 border border-dodoria/20 rounded-moon-s-md p-3 flex items-center gap-2 text-dodoria text-moon-14">
                             <AlertTriangle size={16} />
                             <span>{error}</span>
                         </div>

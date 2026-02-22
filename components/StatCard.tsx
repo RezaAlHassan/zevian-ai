@@ -52,14 +52,14 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, sparklineData, 
   };
 
   return (
-    <div className="bg-surface p-4 rounded-lg border border-border hover:border-primary/30 transition-colors flex flex-col justify-between h-full">
+    <div className="bg-gohan p-4 rounded-moon-s-md border border-beerus hover:border-primary/30 transition-colors flex flex-col justify-between h-full">
       {/* Header: Icon + Title */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1.5 bg-primary/10 rounded-md text-primary shrink-0 [&>svg]:w-4 [&>svg]:h-4">
+          <div className="p-1.5 bg-piccolo/10 rounded-md text-piccolo shrink-0 [&>svg]:w-4 [&>svg]:h-4">
             {icon}
           </div>
-          <h4 className="font-semibold text-on-surface text-sm truncate" title={title}>{title}</h4>
+          <h4 className="font-semibold text-bulma text-moon-14 truncate" title={title}>{title}</h4>
         </div>
         {showActionBadge && (
           <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500" title="Action Needed" />
@@ -69,7 +69,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, sparklineData, 
       {/* Body: Value + Sparkline */}
       <div className="flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-2xl font-bold text-on-surface tracking-tight truncate" title={String(value)}>{value}</p>
+          <p className="text-moon-24 font-bold text-bulma tracking-tight truncate" title={String(value)}>{value}</p>
         </div>
         <div className="flex flex-col items-end">
           {renderSparkline()}

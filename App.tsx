@@ -52,7 +52,7 @@ const AppContent: React.FC = () => {
   // Database hooks
   const { projects, loading: projectsLoading, createProject, updateProject: updateProjectDb, deleteProject: deleteProjectDb } = useProjects(organizationId);
   const { goals, loading: goalsLoading, createGoal, updateGoal: updateGoalDb, deleteGoal: deleteGoalDb } = useGoals(organizationId);
-  const { reports, loading: reportsLoading, createReport, updateReport: updateReportDb, deleteReport: deleteReportDb } = useReports(organizationId);
+  const { reports, loading: reportsLoading, createReport, updateReport: updateReportDb, deleteReport: deleteReportDb, checkLateReports } = useReports(organizationId);
   const { employees, loading: employeesLoading, createEmployee: createEmployeeDb, updateEmployee: updateEmployeeDb } = useEmployees(organizationId);
   const { organization, refreshOrganization } = useOrganization(organizationId);
 
@@ -213,8 +213,9 @@ const AppContent: React.FC = () => {
   }, [createEmployeeDb]);
 
   // Create and store an invitation
-  const createInvitation = useCallback(async (email: string, role: EmployeeRole, initialProjectId?: string, initialManagerId?: string) => {
-    console.log('[App] createInvitation parameters:', { email, role, initialProjectId, initialManagerId });
+  // Create and store an invitation
+  const createInvitation = useCallback(async (email: string, role: EmployeeRole, initialProjectIds?: string[], initialGoalIds?: string[], initialManagerId?: string) => {
+    console.log('[App] createInvitation parameters:', { email, role, initialProjectIds, initialGoalIds, initialManagerId });
     // Validation
     if (!organizationId) {
       alert("Error: Organization ID not found. Please setup your organization first.");
@@ -237,7 +238,8 @@ const AppContent: React.FC = () => {
         organizationId: organizationId,
         invitedBy: currentEmployeeId,
         invitedByText: currentUser?.name || 'A manager',
-        initialProjectId,
+        initialProjectIds,
+        initialGoalIds,
         initialManagerId,
       });
 
@@ -568,6 +570,7 @@ const AppContent: React.FC = () => {
         ...data.project,
         organizationId: finalOrgId,
         createdBy: ownerId || 'emp-1',
+        createdAt: new Date().toISOString(),
       };
       await addProject(projectWithOrg);
 
@@ -620,7 +623,7 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-screen bg-goten">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-on-surface-secondary">Loading data...</p>
@@ -635,7 +638,7 @@ const AppContent: React.FC = () => {
   // Fallback: If logged in but no employee record (and not onboarding), show Setup screen
   if (!authLoading && user && !employee && !showOnboarding) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background p-6">
+      <div className="flex h-screen items-center justify-center bg-goten p-6">
         <div className="text-center max-w-md space-y-6">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
             <span className="text-3xl">🚀</span>
@@ -668,7 +671,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      <div className="flex h-screen bg-background text-on-surface font-sans">
+      <div className="flex h-screen bg-goten text-on-surface font-sans">
         {!isAuthPage && (
           <Sidebar
             currentPage={currentPage}
@@ -677,6 +680,7 @@ const AppContent: React.FC = () => {
             onInvite={viewMode === 'manager' ? createInvitation : undefined}
             organizationName={organizationName}
             projects={memoizedProjects}
+            goals={memoizedGoals}
             employees={memoizedEmployees}
           />
         )}
@@ -698,9 +702,12 @@ const AppContent: React.FC = () => {
               }}
               currentUser={employee}
               user={user}
+              goals={memoizedGoals}
+              projects={memoizedProjects}
+              reports={memoizedReports}
             />
           )}
-          <main className="flex-1 overflow-y-auto bg-background w-full">
+          <main className="flex-1 overflow-y-auto bg-goten w-full">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -738,6 +745,7 @@ const AppContent: React.FC = () => {
                   onNavigate={(page) => navigate(`/${page}`)}
                   onSelectEmployee={viewEmployeeDetails}
                   onSelectProject={viewProjectDetails}
+                  checkLateReports={checkLateReports}
                 />
               } />
               <Route path="/projects" element={
@@ -785,6 +793,7 @@ const AppContent: React.FC = () => {
                   goals={memoizedGoals}
                   projects={memoizedProjects}
                   employees={memoizedEmployees}
+                  reports={memoizedReports}
                   addGoal={addGoal}
                   updateGoal={updateGoal}
                   deleteGoal={deleteGoal}
@@ -823,6 +832,8 @@ const AppContent: React.FC = () => {
                 <ReportsPage
                   reports={memoizedReports}
                   goals={memoizedGoals}
+                  employees={memoizedEmployees}
+                  projects={memoizedProjects}
                   currentEmployeeId={currentEmployeeId}
                 />
               } />
@@ -835,6 +846,7 @@ const AppContent: React.FC = () => {
                   currentManagerId={viewMode === 'manager' ? currentManagerId : undefined}
                   viewMode={viewMode}
                   scopeFilter={scopeFilter}
+                  updateReport={updateReport}
                 />
               } />
               <Route path="/employees" element={
@@ -850,6 +862,7 @@ const AppContent: React.FC = () => {
                   onInvite={createInvitation}
                   onDeleteInvitation={deleteInvitation}
                   projects={memoizedProjects}
+                  goals={memoizedGoals}
                   invitations={invitations}
                   searchQuery={searchQuery}
                 />
@@ -880,6 +893,10 @@ const AppContent: React.FC = () => {
                     setShowOnboarding(true);
                   }}
                   currentManagerId={currentManagerId}
+                  invitations={invitations}
+                  goals={memoizedGoals}
+                  onInvite={createInvitation}
+                  onDeleteInvitation={deleteInvitation}
                 />
               } />
               <Route path="/invite/:token" element={<InviteAcceptPage />} />

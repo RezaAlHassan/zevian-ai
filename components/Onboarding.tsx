@@ -216,7 +216,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
           <div className="space-y-6">
             <div className="text-center space-y-1">
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-2 shadow-sm border border-border">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-2 border border-border">
                   <img src="/logo.png" alt="Performance Tracker Logo" className="w-10 h-10 object-contain" />
                 </div>
               </div>
@@ -258,7 +258,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                     }
                   }}
                   className={`
-                    p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md
+                    p-4 rounded-xl border-2 cursor-pointer transition-all
                     ${selectedMetrics.includes(metric.id)
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border bg-surface-elevated hover:border-on-surface-tertiary'

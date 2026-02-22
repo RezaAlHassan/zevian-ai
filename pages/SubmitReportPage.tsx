@@ -1,13 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { Goal, Report, Employee, Project, ManagerSettings, ReportCriterionScore, Organization } from '../types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Goal, Report, Employee, Project, ManagerSettings, ReportCriterionScore, Organization, ProjectDocument } from '../types';
 import { evaluateReport } from '../services/geminiService';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
-
 import Button from '../components/Button';
-import Select from '../components/Select';
-import { CheckCircle, AlertTriangle, Target, Paperclip, Send, ChevronDown, ChevronUp, Calendar, FolderKanban, Info } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Target, Paperclip, Send, FolderKanban, Info, X, FileText, Loader2 } from 'lucide-react';
 import { STANDARD_METRICS } from '../constants';
+import { storageService } from '../services/storageService';
 
 interface SubmitReportPageProps {
   goals: Goal[];
@@ -26,9 +25,13 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
   );
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
-  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
   const [reportText, setReportText] = useState('');
-  const [isProjectDetailsModalOpen, setIsProjectDetailsModalOpen] = useState(false);
+
+  // File Upload State
+  const [uploadedDocuments, setUploadedDocuments] = useState<ProjectDocument[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,724 +45,404 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Get projects assigned to the selected employee
-  const availableProjects = useMemo(() => {
-    if (!selectedEmployeeId) {
-      console.log('[SubmitReport] No employee selected');
-      return [];
+  // Load Project Documents
+  useEffect(() => {
+    if (selectedProjectId) {
+      const loadDocuments = async () => {
+        try {
+          setIsLoadingDocs(true);
+          const docs = await storageService.getProjectDocuments(selectedProjectId);
+          setUploadedDocuments(docs);
+        } catch (err) {
+          console.error('Failed to load project documents:', err);
+        } finally {
+          setIsLoadingDocs(false);
+        }
+      };
+      loadDocuments();
+    } else {
+      setUploadedDocuments([]);
     }
+  }, [selectedProjectId]);
 
-    console.log('[SubmitReport] Filtering projects for employee:', selectedEmployeeId);
-    console.log('[SubmitReport] Total projects:', projects.length);
-
-    const filtered = projects.filter(project => {
-      const hasAssignees = project.assignees && project.assignees.length > 0;
-      const isAssigned = project.assignees?.some(assignee =>
-        assignee.type === 'employee' && assignee.id === selectedEmployeeId
-      ) || false;
-
-      console.log(`[SubmitReport] Project "${project.name}":`, {
-        hasAssignees,
-        assignees: project.assignees,
-        isAssigned
-      });
-
-      return isAssigned;
+  // Filtering projects and goals
+  const availableProjects = useMemo(() => {
+    if (!selectedEmployeeId) return [];
+    return projects.filter(project => {
+      const isProjectAssigned = project.assignees?.some(assignee => assignee.id === selectedEmployeeId) || false;
+      const hasGoalAssignment = goals.some(goal =>
+        goal.projectId === project.id &&
+        goal.assignees?.some(a => a.id === selectedEmployeeId)
+      );
+      return isProjectAssigned || hasGoalAssignment;
     });
+  }, [projects, selectedEmployeeId, goals]);
 
-    console.log('[SubmitReport] Filtered projects:', filtered.length, filtered.map(p => p.name));
-    return filtered;
-  }, [projects, selectedEmployeeId]);
-
-  // Get goals that belong to the selected project
   const availableGoals = useMemo(() => {
     if (!selectedProjectId) return [];
-    return goals.filter(goal => goal.projectId === selectedProjectId && goal.status !== 'completed');
-  }, [goals, selectedProjectId]);
-
-  const selectedProject = useMemo(() => {
-    return projects.find(p => p.id === selectedProjectId);
-  }, [projects, selectedProjectId]);
-
-  // Check if submission is allowed (considering deadline and settings)
-  const canSubmitAfterDeadline = useMemo(() => {
-    return settings?.allowLateSubmissions !== false; // Default to true if not set
-  }, [settings]);
-
-  const selectedGoals = useMemo(() => {
-    return goals.filter(g => selectedGoalIds.includes(g.id));
-  }, [goals, selectedGoalIds]);
-
-  // Check if any selected goal deadline has passed
-  const goalsWithDeadlineIssues = useMemo(() => {
-    return selectedGoals.filter(goal => {
-      if (!goal.deadline) return false;
-      const isDeadlinePassed = new Date(goal.deadline) < new Date();
-      return isDeadlinePassed && !canSubmitAfterDeadline;
+    return goals.filter(goal => {
+      if (goal.projectId !== selectedProjectId) return false;
+      if (goal.status === 'completed') return false;
+      if (goal.assignees?.some(a => a.id === selectedEmployeeId)) return true;
+      if (goal.assignees && goal.assignees.length > 0) return false;
+      const project = projects.find(p => p.id === goal.projectId);
+      return project?.assignees?.some(a => a.id === selectedEmployeeId) || !project?.assignees || project.assignees.length === 0;
     });
-  }, [selectedGoals, canSubmitAfterDeadline]);
+  }, [goals, selectedProjectId, selectedEmployeeId, projects]);
+
+  const selectedProject = useMemo(() => projects.find(p => p.id === selectedProjectId), [projects, selectedProjectId]);
+  const selectedGoals = useMemo(() => goals.filter(g => selectedGoalIds.includes(g.id)), [goals, selectedGoalIds]);
+  const selectedGoalCriteria = useMemo(() => {
+    const criteriaMap = new Map();
+    selectedGoals.forEach(g => g.criteria.forEach(c => criteriaMap.set(c.id, c)));
+    return Array.from(criteriaMap.values());
+  }, [selectedGoals]);
+
+  const metricsToShow = useMemo(() => organization?.selectedMetrics || [], [organization]);
 
   const handleEvaluateReport = async () => {
-    const textLength = reportText.replace(/<[^>]*>/g, '').trim().length;
-    if (selectedGoalIds.length === 0 || !selectedEmployeeId || !selectedProjectId || textLength < 50) {
-      setError(isEmployeeView
-        ? 'Please select a project, at least one goal, and enter a report of at least 50 characters.'
-        : 'Please select an employee, a project, at least one goal, and enter a report of at least 50 characters.');
-      return;
-    }
-
-    // Check deadline if not allowed to submit late
-    if (goalsWithDeadlineIssues.length > 0) {
-      const goalNames = goalsWithDeadlineIssues.map(g => g.name).join(', ');
-      setError(`The following goal(s) have passed their deadline and late submissions are not allowed: ${goalNames}. Please deselect them or enable late submissions in settings.`);
+    const plainText = reportText.replace(/<[^>]*>/g, '').trim().length;
+    if (selectedGoalIds.length === 0 || plainText < 50) {
+      setError('Please select at least one goal and enter a report of at least 50 characters.');
       return;
     }
 
     setIsEvaluating(true);
     setError(null);
-    setSuccess(null);
-
     try {
-      const plainText = reportText.replace(/<[^>]*>/g, '').trim();
-      const newEvaluations = new Map<string, {
-        evaluationScore: number;
-        evaluationReasoning: string;
-        criterionScores: ReportCriterionScore[];
-      }>();
+      const cleanText = reportText.replace(/<[^>]*>/g, '').trim();
+      const newEvaluations = new Map();
+      const projectKnowledgeBase = selectedProject?.aiContext;
+      const organizationMetrics = organization?.selectedMetrics;
 
-      // Evaluate report for each selected goal
       for (const goalId of selectedGoalIds) {
-        const goalToEvaluate = goals.find(g => g.id === goalId);
-        if (!goalToEvaluate) continue;
-
-        // Get project knowledge base and selected metrics for comprehensive evaluation
-        const projectKnowledgeBase = selectedProject?.aiContext;
-        const organizationMetrics = organization?.selectedMetrics;
+        const goal = goals.find(g => g.id === goalId);
+        if (!goal) continue;
 
         const evaluation = await evaluateReport(
-          plainText,
-          goalToEvaluate.criteria,
-          goalToEvaluate.instructions, // Goal instructions provide specific context
-          projectKnowledgeBase, // Project knowledge base for domain-specific evaluation
-          organizationMetrics // Organizational metrics to evaluate alongside criteria
+          cleanText,
+          goal.criteria,
+          goal.instructions,
+          projectKnowledgeBase,
+          organizationMetrics
         );
 
-        // Helper to normalize strings for robust matching
-        const normalize = (s: string) => s.toLowerCase().trim();
+        const totalWeight = goal.criteria.reduce((sum, c) => sum + c.weight, 0);
+        const goalScore = evaluation.criteriaScores
+          .filter(s => goal.criteria.some(c => c.name.toLowerCase() === s.criterionName.toLowerCase()))
+          .reduce((sum, s) => {
+            const criterion = goal.criteria.find(c => c.name.toLowerCase() === s.criterionName.toLowerCase());
+            return sum + (s.score * ((criterion?.weight || 0) / (totalWeight || 1)));
+          }, 0);
 
-        // Separate goal criteria scores from organizational metric scores using robust matching
-        const goalCriteriaScores = evaluation.criteriaScores.filter(scoreItem =>
-          goalToEvaluate.criteria.some(c => normalize(c.name) === normalize(scoreItem.criterionName))
+        const orgMetricScores = evaluation.criteriaScores.filter(s =>
+          !goal.criteria.some(c => c.name.toLowerCase() === s.criterionName.toLowerCase())
         );
+        const orgScore = orgMetricScores.length > 0
+          ? orgMetricScores.reduce((sum, s) => sum + s.score, 0) / orgMetricScores.length
+          : goalScore;
 
-        const orgMetricScores = evaluation.criteriaScores.filter(scoreItem =>
-          !goalToEvaluate.criteria.some(c => normalize(c.name) === normalize(scoreItem.criterionName))
-        );
-
-        // Calculate weighted average for goal criteria
-        const totalCriteriaWeight = goalToEvaluate.criteria.reduce((sum, c) => sum + c.weight, 0);
-        let goalCriteriaScore = goalCriteriaScores.reduce((weightedSum, scoreItem) => {
-          const criterion = goalToEvaluate.criteria.find(c => normalize(c.name) === normalize(scoreItem.criterionName));
-          if (criterion) {
-            return weightedSum + (scoreItem.score * (criterion.weight / totalCriteriaWeight));
-          }
-          return weightedSum;
-        }, 0);
-
-        // Fallback: If AI returned scores but none matched the criteria names exactly (potentially due to AI misnaming), 
-        // use the average of all criteria scores as the goal score to avoid a 0.7 weight penalty.
-        if (goalCriteriaScores.length === 0 && goalToEvaluate.criteria.length > 0 && evaluation.criteriaScores.length > 0) {
-          console.warn("Matching failed for goal criteria, falling back to simple average of all scores.");
-          goalCriteriaScore = evaluation.criteriaScores.reduce((sum, s) => sum + s.score, 0) / evaluation.criteriaScores.length;
-        }
-
-        // Calculate simple average for organizational metrics (all weighted equally)
-        const orgMetricsScore = orgMetricScores.length > 0
-          ? orgMetricScores.reduce((sum, scoreItem) => sum + scoreItem.score, 0) / orgMetricScores.length
-          : 0;
-
-        // Combine scores with appropriate weighting
-        // Goal criteria: 70% of total score
-        // Organizational metrics: 30% of total score (if present)
-        const goalCriteriaWeight = 0.7;
-        const orgMetricsWeight = 0.3;
-
-        let overallScore;
-        if (orgMetricScores.length > 0 && goalToEvaluate.criteria.length > 0) {
-          overallScore = (goalCriteriaScore * goalCriteriaWeight) + (orgMetricsScore * orgMetricsWeight);
-        } else if (goalToEvaluate.criteria.length > 0) {
-          overallScore = goalCriteriaScore; // 100% Goal
-        } else if (orgMetricScores.length > 0) {
-          overallScore = orgMetricsScore; // 100% Org Metrics if no goal criteria defined
-        } else {
-          overallScore = evaluation.criteriaScores.length > 0
-            ? evaluation.criteriaScores.reduce((sum, s) => sum + s.score, 0) / evaluation.criteriaScores.length
-            : 0;
-        }
+        const finalScore = (goalScore * 0.7) + (orgScore * 0.3);
 
         newEvaluations.set(goalId, {
-          evaluationScore: parseFloat(overallScore.toFixed(2)),
+          evaluationScore: parseFloat(finalScore.toFixed(2)),
           evaluationReasoning: evaluation.reasoning,
-          criterionScores: evaluation.criteriaScores,
+          criterionScores: evaluation.criteriaScores
         });
       }
-
       setEvaluationPreviews(newEvaluations);
       setIsPreviewModalOpen(true);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Evaluation failed.');
     } finally {
       setIsEvaluating(false);
     }
   };
 
   const handleFinalSubmit = async () => {
-    if (evaluationPreviews.size === 0) return;
-
-    // Double-check deadline before final submission
-    if (goalsWithDeadlineIssues.length > 0) {
-      setError(`Some goals have passed their deadline. Late submissions are not allowed.`);
-      setIsPreviewModalOpen(false);
-      return;
-    }
-
     setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
-
     try {
-      // Create a report for each selected goal
-      const timestamp = Date.now();
-      selectedGoalIds.forEach((goalId, index) => {
-        const evaluation = evaluationPreviews.get(goalId);
-        if (!evaluation) return;
-
-        const newReport: Report = {
-          id: `report-${timestamp}-${index}`,
-          goalId: goalId,
+      evaluationPreviews.forEach((evalData, goalId) => {
+        addReport({
+          id: `report-${Date.now()}-${goalId}`,
+          goalId,
           employeeId: selectedEmployeeId,
           reportText,
           submissionDate: new Date().toISOString(),
-          evaluationScore: evaluation.evaluationScore,
-          evaluationReasoning: evaluation.evaluationReasoning,
-          criterionScores: evaluation.criterionScores,
-        };
-
-        addReport(newReport);
+          evaluationScore: evalData.evaluationScore,
+          evaluationReasoning: evalData.evaluationReasoning,
+          criterionScores: evalData.criterionScores
+        });
       });
-
-      setSuccess(`Report submitted successfully for ${selectedGoalIds.length} goal(s)!`);
+      setSuccess('Report submitted successfully!');
       setReportText('');
       setSelectedGoalIds([]);
       setSelectedProjectId('');
-      setExpandedGoalId(null);
-      setEvaluationPreviews(new Map());
-      setIsPreviewModalOpen(false);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(errorMessage);
-      setIsPreviewModalOpen(false);
+      setError('Submission failed.');
     } finally {
       setIsSubmitting(false);
+      setIsPreviewModalOpen(false);
+    }
+  };
+
+  const handleProjectChange = (id: string) => {
+    setSelectedProjectId(id);
+    setSelectedGoalIds([]);
+    setReportText('');
+  };
+
+  const handleGoalToggle = (id: string) => {
+    setSelectedGoalIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0 && selectedProjectId) {
+      const files = Array.from(e.target.files) as File[];
+      setIsUploading(true);
+      try {
+        const uploaded = await Promise.all(
+          files.map(file => storageService.uploadFile(selectedProjectId, file, selectedEmployeeId))
+        );
+        setUploadedDocuments(prev => [...uploaded, ...prev]);
+        setSuccess('Files uploaded.');
+      } catch (err) {
+        setError('Upload failed.');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handleRemoveFile = async (id: string) => {
+    if (!confirm('Delete document?')) return;
+    try {
+      await storageService.deleteFile(id);
+      setUploadedDocuments(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      setError('Delete failed.');
     }
   };
 
   const textLength = reportText.replace(/<[^>]*>/g, '').trim().length;
-  const maxLength = 3000;
-
-  const handleProjectChange = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    setSelectedGoalIds([]);
-    setExpandedGoalId(null);
-    setReportText('');
-  };
-
-  const toggleGoalAccordion = (goalId: string) => {
-    setExpandedGoalId(expandedGoalId === goalId ? null : goalId);
-  };
-
-  const handleGoalToggle = (goalId: string) => {
-    setSelectedGoalIds(prev => {
-      if (prev.includes(goalId)) {
-        return prev.filter(id => id !== goalId);
-      } else {
-        return [...prev, goalId];
-      }
-    });
-  };
 
   return (
-    <>
-      <div className="w-full px-6 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-on-surface mb-2">Submit Work Report</h1>
-          <p className="text-sm text-on-surface-secondary">
-            Select a project, then choose a goal to submit your work report.
-          </p>
-        </div>
+    <div className="w-full max-w-7xl mx-auto px-6 py-8 space-y-8">
+      {/* 1. Minimalist Header */}
+      <header className="flex flex-col gap-1 border-b border-border pb-6">
+        <h1 className="text-2xl font-bold text-on-surface tracking-tight">Submit Report</h1>
+        <p className="text-sm text-on-surface-secondary opacity-60">Document your results and align with organizational excellence.</p>
+      </header>
 
-        {/* Organizational Metrics Info - Moved to top for visibility */}
-        {(() => {
-          const metricsToShow = organization?.selectedMetrics && organization.selectedMetrics.length > 0
-            ? organization.selectedMetrics
-            : [];
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Main Reporting Flow */}
+        <div className="lg:col-span-3 space-y-6">
 
-          if (metricsToShow.length === 0) return null;
-
-          return (
-            <div className="mb-8 p-5 bg-surface/30 border border-border rounded-xl">
-              <h2 className="text-base font-semibold text-on-surface mb-1">Company-Wide Standards</h2>
-              <p className="text-xs text-on-surface-secondary mb-4">
-                Beyond your specific goals, every report is evaluated against these organizational excellence metrics (30% of total score):
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {metricsToShow.map(metricId => {
-                  const metric = STANDARD_METRICS.find(m => m.id === metricId);
-                  if (!metric) return null;
-                  return (
-                    <div key={metric.id} className="bg-white border border-border rounded-lg p-3 hover:border-primary/50 transition-all shadow-sm">
-                      <h3 className="font-bold text-primary text-xs mb-1">{metric.friendlyName}</h3>
-                      <p className="text-[10px] text-on-surface-secondary leading-tight line-clamp-2">{metric.description}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-        <div >
-          <p>
-          </p>
-        </div>
-
-        {/* Employee Selection (if not employee view) */}
-        {!isEmployeeView && (
-          <div className="mb-6">
-            <Select
-              label="Select Employee"
-              value={selectedEmployeeId}
-              onChange={(e) => {
-                setSelectedEmployeeId(e.target.value);
-                setSelectedProjectId('');
-                setSelectedGoalIds([]);
-                setExpandedGoalId(null);
-              }}
-              options={[
-                { value: '', label: '-- Select an employee --' },
-                ...employees.map(emp => ({ value: emp.id, label: emp.name }))
-              ]}
-            />
-          </div>
-        )}
-
-        {/* Project Selection */}
-        {selectedEmployeeId && availableProjects.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-on-surface-secondary">Select Project</label>
-              {selectedProjectId && (
-                <Button
-                  onClick={() => setIsProjectDetailsModalOpen(true)}
-                  variant="ghost"
-                  size="sm"
-                  icon={Info}
-                >
-                  View Project Details
-                </Button>
-              )}
-            </div>
-            <Select
-              value={selectedProjectId}
-              onChange={(e) => handleProjectChange(e.target.value)}
-              options={[
-                { value: '', label: '-- Select a project --' },
-                ...availableProjects.map(project => ({ value: project.id, label: project.name }))
-              ]}
-            />
-          </div>
-        )}
-
-        {/* Goals Accordion */}
-        {selectedProjectId && availableGoals.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-on-surface mb-4">Select Goals</h2>
+          {/* 2. Selection Header (Compact Horizontal Bar) */}
+          <div className="bg-surface/30 border border-border/50 rounded-2xl p-4 space-y-4">
             <div className="space-y-2">
-              {availableGoals.map((goal) => {
-                const isExpanded = expandedGoalId === goal.id;
-                const isSelected = selectedGoalIds.includes(goal.id);
-                const isDeadlinePassed = goal.deadline ? new Date(goal.deadline) < new Date() : false;
-                const canSubmit = !isDeadlinePassed || canSubmitAfterDeadline;
-
-                return (
-                  <div
-                    key={goal.id}
-                    className={`border rounded-lg transition-all ${isSelected
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-white hover:border-primary/50'
-                      }`}
+              <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest px-1">Project Selection</span>
+              <div className="flex flex-wrap gap-2">
+                {availableProjects.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleProjectChange(p.id)}
+                    className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all ${selectedProjectId === p.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-white hover:border-primary/20'}`}
                   >
-                    <div className="flex items-center gap-3 p-4">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleGoalToggle(goal.id)}
-                        disabled={!canSubmit}
-                        className="w-4 h-4 text-primary focus:ring-primary focus:ring-2 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      <button
-                        onClick={() => toggleGoalAccordion(goal.id)}
-                        className="flex-1 flex items-center justify-between text-left"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
-                            }`}>
-                            <Target size={20} />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-on-surface">{goal.name}</h3>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-on-surface-secondary">
-                              <span>{goal.criteria.length} criteria</span>
-                              <span>•</span>
-                              <span>{goal.instructions ? 'Instructions available' : 'No instructions'}</span>
-                              {goal.deadline && (
-                                <>
-                                  <span>•</span>
-                                  <div className="flex items-center gap-1">
-                                    <Calendar size={12} />
-                                    <span className={isDeadlinePassed ? 'text-error' : ''}>
-                                      {new Date(goal.deadline).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                              {isDeadlinePassed && (
-                                <>
-                                  <span>•</span>
-                                  <span className={canSubmit ? 'text-warning' : 'text-error'}>
-                                    {canSubmit ? 'Deadline Passed (Late Submission Allowed)' : 'Deadline Passed'}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isSelected && (
-                            <span className="text-xs font-medium text-primary">Selected</span>
-                          )}
-                          {isExpanded ? (
-                            <ChevronUp size={20} className="text-on-surface-secondary" />
-                          ) : (
-                            <ChevronDown size={20} className="text-on-surface-secondary" />
-                          )}
-                        </div>
-                      </button>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="px-4 pb-4 border-t border-border pt-4">
-                        <div className="space-y-3">
-                          <div>
-                            <h4 className="text-sm font-semibold text-on-surface mb-2">Criteria</h4>
-                            <div className="space-y-1">
-                              {goal.criteria.map((criterion) => (
-                                <div key={criterion.id} className="text-sm text-on-surface-secondary">
-                                  • {criterion.name} ({criterion.weight}%)
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-semibold text-on-surface mb-2">Instructions</h4>
-                            <div className="text-sm text-on-surface-secondary whitespace-pre-line">
-                              {goal.instructions || 'No instructions provided.'}
-                            </div>
-                          </div>
-                          {!canSubmit && (
-                            <p className="text-xs text-error">
-                              This goal's deadline has passed and late submissions are not allowed.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Report Input Section */}
-        {selectedGoalIds.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-on-surface mb-2">
-              Report Details {selectedGoalIds.length > 1 && `(${selectedGoalIds.length} goals selected)`}
-            </h2>
-            <p className="text-sm text-on-surface-secondary mb-4">
-              Focus on clarity and results. The analysis looks beyond keywords to understand the actual value delivered.
-            </p>
-
-            <div className="bg-white border border-border rounded-lg">
-              <textarea
-                value={reportText}
-                onChange={(e) => setReportText(e.target.value)}
-                placeholder="Describe the work you've completed, challenges faced, and outcomes achieved..."
-                className="w-full h-48 p-4 bg-transparent border-0 focus:ring-0 resize-none text-on-surface placeholder:text-on-surface-tertiary"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Error/Success Messages */}
-        {error && (
-          <div className="mb-4 flex items-center gap-2 p-3 rounded-lg text-error bg-error/10 border border-error/20">
-            <AlertTriangle size={20} />
-            <span className="text-sm font-medium">{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 flex items-center gap-2 p-3 rounded-lg text-success bg-success/10 border border-success/20">
-            <CheckCircle size={20} />
-            <span className="text-sm font-medium">{success}</span>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        {selectedGoalIds.length > 0 && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button className="p-2 text-on-surface-secondary hover:text-on-surface hover:bg-surface-hover rounded-lg transition-all" title="Add attachment">
-                <Paperclip size={18} />
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-on-surface-secondary">
-                {textLength} / {maxLength}
-              </span>
-              <Button
-                onClick={handleEvaluateReport}
-                disabled={isEvaluating || textLength < 50}
-                variant="primary"
-                size="lg"
-                icon={isEvaluating ? undefined : Send}
-              >
-                {isEvaluating ? (
-                  <>
-                    <Spinner />
-                    Processing...
-                  </>
-                ) : (
-                  `Preview Evaluation${selectedGoalIds.length > 1 ? ` (${selectedGoalIds.length} goals)` : ''}`
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Empty States */}
-        {!selectedEmployeeId && (
-          <div className="text-center py-12">
-            <p className="text-on-surface-secondary">Please select an employee to view available projects.</p>
-          </div>
-        )}
-
-        {selectedEmployeeId && availableProjects.length === 0 && (
-          <div className="text-center py-12">
-            <FolderKanban size={48} className="mx-auto mb-4 text-on-surface-tertiary" />
-            <p className="text-on-surface-secondary">No projects available for this employee.</p>
-          </div>
-        )}
-
-        {selectedProjectId && availableGoals.length === 0 && (
-          <div className="text-center py-12">
-            <Target size={48} className="mx-auto mb-4 text-on-surface-tertiary" />
-            <p className="text-on-surface-secondary">No goals available for this project.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Project Details Modal */}
-      <Modal
-        isOpen={isProjectDetailsModalOpen}
-        onClose={() => setIsProjectDetailsModalOpen(false)}
-        title={selectedProject ? `Project Details - ${selectedProject.name}` : 'Project Details'}
-      >
-        {selectedProject && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-primary mb-3">Project Information</h3>
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm font-medium text-on-surface-secondary">Name:</span>
-                  <p className="text-on-surface">{selectedProject.name}</p>
-                </div>
-                {selectedProject.description && (
-                  <div>
-                    <span className="text-sm font-medium text-on-surface-secondary">Description:</span>
-                    <p className="text-on-surface">{selectedProject.description}</p>
-                  </div>
-                )}
-                {selectedProject.category && (
-                  <div>
-                    <span className="text-sm font-medium text-on-surface-secondary">Category:</span>
-                    <p className="text-on-surface">{selectedProject.category}</p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-sm font-medium text-on-surface-secondary">Report Frequency:</span>
-                  <p className="text-on-surface capitalize">{selectedProject.reportFrequency.replace('-', ' ')}</p>
-                </div>
-                {selectedProject.knowledgeBaseLink && (
-                  <div>
-                    <span className="text-sm font-medium text-on-surface-secondary">Knowledge Base:</span>
-                    <a
-                      href={selectedProject.knowledgeBaseLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      {selectedProject.knowledgeBaseLink}
-                    </a>
-                  </div>
-                )}
-                <div>
-                  <span className="text-sm font-medium text-on-surface-secondary">Assigned To:</span>
-                  <p className="text-on-surface">
-                    {selectedProject.assignees && selectedProject.assignees.length > 0
-                      ? selectedProject.assignees.map(assignee => {
-                        if (assignee.type === 'employee') {
-                          return employees.find(e => e.id === assignee.id)?.name || 'Unknown';
-                        } else {
-                          return employees.find(e => e.id === assignee.id)?.name || 'Unknown';
-                        }
-                      }).join(', ')
-                      : 'Unassigned'
-                    }
-                  </p>
-                </div>
+                    <FolderKanban size={14} className={selectedProjectId === p.id ? 'text-primary' : 'text-on-surface-tertiary'} />
+                    <span className={`text-[11px] font-bold ${selectedProjectId === p.id ? 'text-primary' : 'text-on-surface'}`}>{p.name}</span>
+                    {selectedProjectId === p.id && <CheckCircle size={10} className="text-primary ml-1" />}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div>
-              <h3 className="text-lg font-semibold text-primary mb-3">Goals ({availableGoals.length})</h3>
-              {availableGoals.length > 0 ? (
-                <div className="space-y-3">
-                  {availableGoals.map((goal) => {
-                    const isDeadlinePassed = goal.deadline ? new Date(goal.deadline) < new Date() : false;
+            {selectedProjectId && (
+              <div className="space-y-2 pt-2 border-t border-border/10">
+                <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest px-1">Alignment Goals</span>
+                <div className="flex flex-wrap gap-2">
+                  {availableGoals.map(g => {
+                    const isSelected = selectedGoalIds.includes(g.id);
                     return (
-                      <div key={goal.id} className="bg-surface p-4 rounded-lg border border-border">
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-semibold text-on-surface">{goal.name}</h4>
-                          {goal.deadline && (
-                            <div className={`flex items-center gap-1 text-xs ${isDeadlinePassed ? 'text-error' : 'text-on-surface-secondary'
-                              }`}>
-                              <Calendar size={12} />
-                              <span>{new Date(goal.deadline).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-sm text-on-surface-secondary space-y-1">
-                          <div>Criteria: {goal.criteria.length}</div>
-                          <div>Instructions: {goal.instructions ? 'Yes' : 'No'}</div>
-                        </div>
-                      </div>
+                      <button
+                        key={g.id}
+                        onClick={() => handleGoalToggle(g.id)}
+                        className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-white hover:border-primary/20'}`}
+                      >
+                        <Target size={14} className={isSelected ? 'text-primary' : 'text-on-surface-tertiary'} />
+                        <span className={`text-[11px] font-bold ${isSelected ? 'text-primary' : 'text-on-surface'}`}>{g.name}</span>
+                        {isSelected && <CheckCircle size={10} className="text-primary ml-1" />}
+                      </button>
                     );
                   })}
                 </div>
-              ) : (
-                <p className="text-on-surface-secondary">No goals for this project.</p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        )}
-      </Modal>
 
-      {/* Evaluation Preview Modal */}
-      <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title={`Evaluation Preview${selectedGoalIds.length > 1 ? ` (${selectedGoalIds.length} goals)` : ''}`}>
-        {evaluationPreviews.size > 0 && (
-          <div className="space-y-6 max-h-[80vh] overflow-y-auto">
-            {selectedGoalIds.map((goalId) => {
-              const goal = goals.find(g => g.id === goalId);
-              const evaluation = evaluationPreviews.get(goalId);
-              if (!goal || !evaluation) return null;
+          {/* 3. The Focus Zone - Clean Editor */}
+          {selectedGoalIds.length > 0 && (
+            <section className="bg-white border border-border rounded-[2.5rem] overflow-hidden focus-within:ring-2 focus-within:ring-primary/5 transition-all animate-in fade-in duration-300">
+              {/* Chips Context Area directly above Textarea */}
+              <div className="px-8 pt-8 pb-4 border-b border-border/30 bg-surface/5">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest mr-2">Alignment:</span>
+                  {metricsToShow.map(m => {
+                    const metric = STANDARD_METRICS.find(std => std.id === m);
+                    return metric && (
+                      <div key={m} className="px-3 py-1 bg-white border border-border rounded-lg text-[10px] font-bold text-on-surface-secondary">
+                        {metric.friendlyName}
+                      </div>
+                    );
+                  })}
+                  {selectedGoalCriteria.map(c => (
+                    <div key={c.id} className="px-3 py-1 bg-primary/5 border border-primary/20 rounded-lg text-[10px] font-bold text-primary flex items-center gap-1.5">
+                      <Target size={10} className="opacity-40" />
+                      {c.name}
+                      <span className="text-primary font-mono ml-1.5 bg-primary/10 px-1 py-0.5 rounded text-[9px]">{c.weight}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-              return (
-                <div key={goalId} className="bg-surface-elevated p-6 rounded-lg border border-border">
-                  <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
-                    <Target size={20} />
-                    {goal.name}
-                  </h3>
+              <div className="p-8">
+                <textarea
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="Focus on your impact, data, and results..."
+                  className="w-full min-h-[450px] bg-transparent border-none focus:ring-0 text-lg font-medium leading-relaxed text-on-surface placeholder:text-on-surface-tertiary/20 resize-none"
+                />
 
-                  <div className="bg-surface p-6 rounded-lg border border-border text-center mb-4">
-                    <p className="text-sm text-on-surface-secondary mb-2">Overall Evaluation Score</p>
-                    <div className="flex items-center justify-center gap-3">
-                      <Target size={32} className="text-primary" />
-                      <p className="text-2xl font-bold text-on-surface">{evaluation.evaluationScore.toFixed(2)}</p>
-                      <span className="text-lg text-on-surface-secondary">/ 10</span>
+                <div className="mt-8 flex items-center justify-between border-t border-border/50 pt-8">
+                  <div className="flex items-center gap-8">
+                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 text-on-surface-secondary hover:text-primary transition-colors group">
+                      <div className="w-10 h-10 rounded-xl bg-surface group-hover:bg-primary/5 flex items-center justify-center transition-all">
+                        {isUploading ? <Loader2 size={16} className="animate-spin text-primary" /> : <Paperclip size={16} />}
+                      </div>
+                      <span className="font-bold text-xs">{isUploading ? 'Uploading...' : 'Attach'}</span>
+                    </button>
+                    <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
+
+                    <div className="text-[10px] font-black text-on-surface-tertiary tracking-widest font-mono uppercase">
+                      <span className={textLength > 2800 ? 'text-error' : ''}>{textLength.toLocaleString()}</span>
+                      <span className="opacity-30 ml-1">/ 3,000</span>
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <h4 className="text-md font-semibold text-primary mb-2">Evaluation Summary</h4>
-                    <div className="bg-surface p-4 rounded-lg border border-border">
-                      <p className="text-on-surface-secondary italic">"{evaluation.evaluationReasoning}"</p>
-                    </div>
+                  <div className="flex gap-3">
+                    <Button onClick={handleEvaluateReport} variant="outline" isLoading={isEvaluating} className="h-11 px-6 rounded-xl font-bold text-xs">Analyze Draft</Button>
+                    <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} icon={Send} className="h-11 px-6 rounded-xl font-bold text-xs">Submit Final</Button>
                   </div>
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
 
-                  <div>
-                    <h4 className="text-md font-semibold text-primary mb-3">Criteria Breakdown</h4>
-                    <div className="space-y-2">
-                      {evaluation.criterionScores.map((score, index) => (
-                        <div key={index} className="bg-surface p-3 rounded-lg border border-border">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium text-on-surface">{score.criterionName}</span>
-                            <span className="text-lg font-bold text-primary">{score.score.toFixed(1)} / 10</span>
-                          </div>
-                          <div className="w-full bg-surface-elevated rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full transition-all"
-                              style={{ width: `${(score.score / 10) * 100}%` }}
-                            />
-                          </div>
+        {/* 4. Streamlined Context Sidebar */}
+        <aside className="lg:col-span-1">
+          <div className="bg-surface/50 border border-border rounded-[2rem] p-6 lg:sticky lg:top-8 space-y-8">
+            <h3 className="text-[10px] font-black text-on-surface-tertiary tracking-widest uppercase flex items-center gap-2">
+              <Info size={14} className="text-primary" /> Context
+            </h3>
+
+            {selectedProject ? (
+              <div className="space-y-8 animate-in fade-in duration-300">
+                <div>
+                  <h4 className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest mb-1 opacity-50">Locked Project</h4>
+                  <p className="text-sm font-bold text-on-surface leading-snug">{selectedProject.name}</p>
+
+                  {selectedProject.knowledgeBaseLink && (
+                    <a href={selectedProject.knowledgeBaseLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest mt-4 hover:underline">
+                      <FileText size={12} /> Knowledge Base
+                    </a>
+                  )}
+                </div>
+
+                {uploadedDocuments.length > 0 && (
+                  <div className="space-y-3 pt-6 border-t border-border/50">
+                    <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest opacity-50">Project Files</span>
+                    <div className="space-y-1.5">
+                      {uploadedDocuments.map(d => (
+                        <div key={d.id} className="group p-2.5 rounded-xl bg-white/40 border border-border/20 flex items-center justify-between transition-colors hover:bg-white/60">
+                          <span className="text-[11px] font-bold truncate pr-4">{d.fileName}</span>
+                          <button onClick={() => handleRemoveFile(d.id)} className="text-on-surface-tertiary hover:text-error opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <Button
-                onClick={() => setIsPreviewModalOpen(false)}
-                variant="outline"
-              >
-                Revise Report
-              </Button>
-              <Button
-                onClick={handleFinalSubmit}
-                disabled={isSubmitting}
-                variant="primary"
-                icon={isSubmitting ? undefined : CheckCircle}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Spinner />
-                    Submitting...
-                  </>
-                ) : (
-                  `Submit Report${selectedGoalIds.length > 1 ? `s (${selectedGoalIds.length})` : ''}`
                 )}
-              </Button>
-            </div>
+
+                {selectedGoals.length > 0 && (
+                  <div className="space-y-4 pt-6 border-t border-border/50">
+                    <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest opacity-50">Goal Guidelines</span>
+                    <div className="space-y-3">
+                      {selectedGoals.map(g => (
+                        <div key={g.id} className="p-4 rounded-2xl bg-primary/5 border border-primary/10 transition-colors hover:bg-primary/10">
+                          <p className="text-[10px] font-black text-primary uppercase mb-1.5">{g.name}</p>
+                          <p className="text-[11px] text-on-surface-secondary leading-relaxed line-clamp-3">{g.instructions || 'Standard evaluation apply.'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 opacity-20">
+                <FolderKanban size={32} className="mx-auto mb-2" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Select Project</p>
+              </div>
+            )}
           </div>
-        )}
+        </aside>
+      </div>
+
+      {/* Preview Modal */}
+      <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title="Analysis Preview">
+        <div className="space-y-8 max-h-[75vh] overflow-y-auto pr-4">
+          {Array.from(evaluationPreviews).map(([id, data]: [string, any]) => {
+            const goal = goals.find(g => g.id === id);
+            return (
+              <div key={id} className="bg-white rounded-3xl p-8 border border-border">
+                <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
+                  <Target size={24} className="text-primary" /> {goal?.name}
+                </h3>
+                <div className="bg-surface p-8 rounded-2xl border border-border flex items-center justify-between mb-8">
+                  <div>
+                    <span className="text-xs font-black text-on-surface-tertiary uppercase tracking-widest block mb-1">Score Estimate</span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-black text-primary">{data.evaluationScore.toFixed(1)}</span>
+                      <span className="text-lg font-bold text-on-surface-tertiary">/ 10</span>
+                    </div>
+                  </div>
+                  <CheckCircle size={40} className="text-primary/10" />
+                </div>
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black text-on-surface-tertiary uppercase tracking-widest">AI Feedback</h4>
+                  <p className="text-sm font-medium leading-relaxed italic text-on-surface-secondary">"{data.evaluationReasoning}"</p>
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex gap-4 pt-6 border-t border-border sticky bottom-1 bg-white">
+            <Button onClick={() => setIsPreviewModalOpen(false)} variant="outline" className="flex-1 h-14 rounded-2xl font-bold">Revise</Button>
+            <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} className="flex-1 h-14 rounded-2xl font-bold">Finalize Submission</Button>
+          </div>
+        </div>
       </Modal>
-    </>
+
+      {/* Notifications */}
+      {success && (
+        <div className="fixed bottom-10 right-10 bg-success text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
+          <CheckCircle size={20} /> {success}
+        </div>
+      )}
+      {error && (
+        <div className="fixed bottom-10 right-10 bg-error text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
+          <AlertTriangle size={20} /> {error}
+        </div>
+      )}
+    </div>
   );
 };
 
