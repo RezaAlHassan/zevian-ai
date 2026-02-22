@@ -261,8 +261,8 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
   };
 
   const weightStatus = totalWeight === 100
-    ? { color: 'text-success', icon: <CheckCircle size={20} />, message: 'Total weight is 100%' }
-    : { color: 'text-warning', icon: <AlertTriangle size={20} />, message: `Total weight must be 100% (currently ${totalWeight}%)` };
+    ? { color: 'text-roshi', icon: <CheckCircle size={20} />, message: 'Total weight is 100%' }
+    : { color: 'text-krillin', icon: <AlertTriangle size={20} />, message: `Total weight must be 100% (currently ${totalWeight}%)` };
 
 
 
@@ -277,10 +277,10 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
     const row = [
       <div className="flex items-center gap-2">
-        {goal.status === 'completed' && <CheckCircle size={14} className="text-success" />}
-        <span className={`capitalize ${goal.status === 'completed' ? 'text-on-surface-tertiary line-through' : 'text-on-surface-secondary'}`}>{goal.name}</span>
+        {goal.status === 'completed' && <CheckCircle size={14} className="text-roshi" />}
+        <span className={`capitalize ${goal.status === 'completed' ? 'text-trunks line-through' : 'text-trunks'}`}>{goal.name}</span>
       </div>,
-      <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
+      <span className="capitalize text-trunks">{getProjectName(goal.projectId)}</span>,
       <div className="flex items-center">
         {assignedEmployees.length > 0 ? (
           <StackedAvatars
@@ -290,11 +290,11 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             onSeeMore={() => setViewingAssigneesGoal(goal)}
           />
         ) : (
-          <span className="text-on-surface-tertiary text-sm">Unassigned</span>
+          <span className="text-trunks text-sm">Unassigned</span>
         )}
       </div>,
-      <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
-      <span className="text-on-surface-secondary text-sm">
+      <span className="text-trunks">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
+      <span className="text-trunks text-sm">
         {goal.createdAt ? formatTableDate(goal.createdAt) : '—'}
       </span>
     ];
@@ -311,10 +311,10 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
     const nextReportCell = (
       <div className="flex flex-col">
-        <span className={`text-xs font-bold ${status.isOverdue ? 'text-red-500' : status.isImminent ? 'text-amber-500' : 'text-primary'}`}>
+        <span className={`text-xs font-bold ${status.isOverdue ? 'text-dodoria' : status.isImminent ? 'text-krillin' : 'text-piccolo'}`}>
           {status.label}
         </span>
-        <span className="text-[10px] text-on-surface-tertiary">
+        <span className="text-[10px] text-trunks">
           Freq: {frequency}
         </span>
       </div>
@@ -369,11 +369,11 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         {/* Header with Search and Create Button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-on-surface">Goals</h2>
+            <h2 className="text-xl font-bold text-bulma">Goals</h2>
             {viewMode === 'manager' && (
               <button
                 onClick={() => setShowInfoModal(true)}
-                className="text-on-surface-secondary hover:text-primary transition-colors p-1 rounded hover:bg-surface-hover"
+                className="text-trunks hover:text-piccolo transition-colors p-1 rounded hover:bg-gohan"
                 title="Learn more about Goals"
               >
                 <Info size={20} />
@@ -394,7 +394,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         {/* Search - Removed local search, now global */}
 
         {/* Goals Table */}
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+        <div className="bg-goten rounded-lg p-6 border border-beerus">
           {filteredGoals.length > 0 ? (
             <Table
               headers={goalTableHeaders}
@@ -403,8 +403,8 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             />
           ) : (
             <div className="text-center py-12">
-              <Target size={48} className="text-on-surface-tertiary mx-auto mb-4" />
-              <p className="text-lg text-on-surface-secondary mb-2">
+              <Target size={48} className="text-trunks mx-auto mb-4" />
+              <p className="text-lg text-trunks mb-2">
                 {searchQuery ? 'No goals found matching your search' : 'No goals created yet'}
               </p>
               {viewMode === 'manager' && !searchQuery && (
@@ -453,13 +453,13 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           />
 
           <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">
-              Parent Project <span className="text-error">*</span>
+            <label className="block text-sm font-medium text-bulma mb-2">
+              Parent Project <span className="text-dodoria">*</span>
             </label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="w-full py-2 px-3 border border-border rounded-lg text-sm bg-white text-on-surface focus:border-primary focus:ring-primary focus:ring-1"
+              className="w-full py-2 px-3 border border-beerus rounded-lg text-sm bg-goten text-bulma focus:border-piccolo focus:ring-piccolo focus:ring-1"
             >
               <option value="">-- Select Project --</option>
               {projects.map(project => (
@@ -467,7 +467,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
               ))}
             </select>
             {selectedProject && (
-              <p className="mt-1 text-sm text-on-surface-secondary">
+              <p className="mt-1 text-sm text-trunks">
                 Project: {selectedProject.name} | Frequency: {selectedProject.reportFrequency}
               </p>
             )}
@@ -482,8 +482,8 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             helperText="Optional: Set a deadline for this goal. Reports may not be submitted after the deadline if late submissions are disabled in settings."
           />
 
-          <div className="border-t border-border pt-4">
-            <h3 className="text-lg font-semibold mb-2 text-on-surface">Scoring Criteria</h3>
+          <div className="border-t border-beerus pt-4">
+            <h3 className="text-lg font-semibold mb-2 text-bulma">Scoring Criteria</h3>
             <div className="flex gap-2 items-start">
               <Input
                 type="text"
@@ -513,9 +513,9 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
           <ul className="space-y-2 mt-2">
             {criteria.map((c) => (
-              <li key={c.id} className="flex justify-between items-center bg-surface p-2 rounded-lg border border-border">
-                <span>{c.name} - <span className="font-semibold text-primary">{c.weight}%</span></span>
-                <button onClick={() => handleRemoveCriterion(c.id)} className="text-error hover:text-error-hover">
+              <li key={c.id} className="flex justify-between items-center bg-goku p-2 rounded-lg border border-beerus">
+                <span>{c.name} - <span className="font-semibold text-piccolo">{c.weight}%</span></span>
+                <button onClick={() => handleRemoveCriterion(c.id)} className="text-dodoria hover:text-dodoria-hover">
                   <Trash2 size={18} />
                 </button>
               </li>
@@ -523,15 +523,15 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           </ul>
 
           {criteria.length > 0 && (
-            <div className={`flex items-center gap-2 p-2 rounded-lg ${weightStatus.color} bg-opacity-20 ${totalWeight === 100 ? 'bg-success/20' : 'bg-warning/20'}`}>
+            <div className={`flex items-center gap-2 p-2 rounded-lg ${weightStatus.color} bg-opacity-20 ${totalWeight === 100 ? 'bg-roshi/20' : 'bg-krillin/20'}`}>
               {weightStatus.icon}
               <span className="text-sm font-medium">{weightStatus.message}</span>
             </div>
           )}
 
-          <div className="border-t border-border pt-4">
-            <h3 className="text-lg font-semibold mb-2 text-on-surface">Instructions</h3>
-            <p className="text-sm text-on-surface-secondary mb-3">
+          <div className="border-t border-beerus pt-4">
+            <h3 className="text-lg font-semibold mb-2 text-bulma">Instructions</h3>
+            <p className="text-sm text-trunks mb-3">
               Specific, objective instructions for Zevian to follow during evaluation.
             </p>
             <Textarea
@@ -542,7 +542,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex justify-end gap-3 pt-4 border-t border-beerus">
             <Button
               onClick={() => {
                 setShowCreateModal(false);
@@ -582,13 +582,13 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">
-              Select Project <span className="text-error">*</span>
+            <label className="block text-sm font-medium text-bulma mb-2">
+              Select Project <span className="text-dodoria">*</span>
             </label>
             <select
               value={selectedProjectForAssign}
               onChange={(e) => setSelectedProjectForAssign(e.target.value)}
-              className="w-full py-2 px-3 border border-border rounded-lg text-sm bg-white text-on-surface focus:border-primary focus:ring-primary focus:ring-1"
+              className="w-full py-2 px-3 border border-beerus rounded-lg text-sm bg-goten text-bulma focus:border-piccolo focus:ring-piccolo focus:ring-1"
             >
               <option value="">-- Select Project --</option>
               {projects.map(project => (
@@ -596,12 +596,12 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
               ))}
             </select>
             {selectedProjectForAssign && (
-              <p className="mt-1 text-sm text-on-surface-secondary">
+              <p className="mt-1 text-sm text-trunks">
                 Project: {projects.find(p => p.id === selectedProjectForAssign)?.name} | Frequency: {projects.find(p => p.id === selectedProjectForAssign)?.reportFrequency}
               </p>
             )}
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex justify-end gap-3 pt-4 border-t border-beerus">
             <Button
               onClick={handleCloseAssignProjectModal}
               variant="outline"
@@ -627,7 +627,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         scrollable={false}
       >
         <div className="space-y-6">
-          <p className="text-sm text-on-surface-secondary">
+          <p className="text-sm text-trunks">
             Select members to assign to this goal. Only assigned members (and managers) will see this goal during reporting.
           </p>
 
@@ -646,7 +646,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             searchable
           />
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex justify-end gap-3 pt-4 border-t border-beerus">
             <Button
               variant="outline"
               onClick={handleCloseAssignEmployeesModal}
@@ -676,20 +676,20 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
                 .map(a => employees.find(e => e.id === a.id))
                 .filter((e): e is Employee => !!e)
                 .map(employee => (
-                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-lg border border-transparent hover:border-border transition-colors">
+                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-gohan rounded-lg border border-transparent hover:border-beerus transition-colors">
                     <ProfilePicture name={employee.name} size={40} />
                     <div>
-                      <div className="font-medium text-on-surface">{employee.name}</div>
-                      <div className="text-xs text-on-surface-secondary capitalize">{employee.role}</div>
+                      <div className="font-medium text-bulma">{employee.name}</div>
+                      <div className="text-xs text-trunks capitalize">{employee.role}</div>
                     </div>
                   </div>
                 ))
               }
             </div>
           ) : (
-            <p className="text-on-surface-secondary text-center py-4">No members assigned.</p>
+            <p className="text-trunks text-center py-4">No members assigned.</p>
           )}
-          <div className="flex justify-end pt-4 border-t border-border">
+          <div className="flex justify-end pt-4 border-t border-beerus">
             <Button
               variant="outline"
               onClick={() => setViewingAssigneesGoal(null)}
@@ -708,22 +708,22 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
       >
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-on-surface mb-2">What are Goals?</h4>
-            <p className="text-on-surface-secondary text-sm mb-3">
+            <h4 className="font-semibold text-bulma mb-2">What are Goals?</h4>
+            <p className="text-trunks text-sm mb-3">
               Goals are tied to projects and are used to submit reports against. Each goal has specific criteria and instructions that help evaluate performance.
             </p>
           </div>
-          <div className="border-t border-border pt-4">
-            <h4 className="font-semibold text-on-surface mb-2">Instructions vs Criteria</h4>
-            <p className="text-on-surface-secondary text-sm mb-3">
-              <strong className="text-on-surface">Instructions</strong> are specific, objective rules that Zevian follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
+          <div className="border-t border-beerus pt-4">
+            <h4 className="font-semibold text-bulma mb-2">Instructions vs Criteria</h4>
+            <p className="text-trunks text-sm mb-3">
+              <strong className="text-bulma">Instructions</strong> are specific, objective rules that Zevian follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
             </p>
-            <p className="text-on-surface-secondary text-sm">
-              <strong className="text-on-surface">Criteria</strong> are the broad categories on which performance is scored (e.g., "Code Quality", "Creativity", "Speed") and given a weight.
+            <p className="text-trunks text-sm">
+              <strong className="text-bulma">Criteria</strong> are the broad categories on which performance is scored (e.g., "Code Quality", "Creativity", "Speed") and given a weight.
             </p>
           </div>
-          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mt-4">
-            <p className="text-sm text-on-surface">
+          <div className="bg-piccolo/10 border border-piccolo/20 rounded-lg p-4 mt-4">
+            <p className="text-sm text-bulma">
               <strong>Tip:</strong> Use simple and clear instructions to get the best evaluation from Zevian.
             </p>
           </div>
