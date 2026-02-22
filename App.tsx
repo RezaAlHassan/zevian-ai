@@ -623,7 +623,7 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-screen bg-goten">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-on-surface-secondary">Loading data...</p>
@@ -638,7 +638,7 @@ const AppContent: React.FC = () => {
   // Fallback: If logged in but no employee record (and not onboarding), show Setup screen
   if (!authLoading && user && !employee && !showOnboarding) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background p-6">
+      <div className="flex h-screen items-center justify-center bg-goten p-6">
         <div className="text-center max-w-md space-y-6">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
             <span className="text-3xl">🚀</span>
@@ -671,7 +671,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      <div className="flex h-screen bg-background text-on-surface font-sans">
+      <div className="flex h-screen bg-goten text-on-surface font-sans">
         {!isAuthPage && (
           <Sidebar
             currentPage={currentPage}
@@ -707,7 +707,7 @@ const AppContent: React.FC = () => {
               reports={memoizedReports}
             />
           )}
-          <main className="flex-1 overflow-y-auto bg-background w-full">
+          <main className="flex-1 overflow-y-auto bg-goten w-full">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />

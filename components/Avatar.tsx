@@ -52,14 +52,14 @@ export const StackedAvatars: React.FC<{
                     <ProfilePicture
                         name={employee.name}
                         size={size}
-                        className="border-2 border-white shadow-sm"
+                        className="border-2 border-white"
                     />
                 </div>
             ))}
             {remaining > 0 && (
                 <button
                     onClick={onSeeMore}
-                    className="relative rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white font-semibold hover:bg-blue-600 transition-colors cursor-pointer shadow-sm"
+                    className="relative rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white font-semibold hover:bg-blue-600 transition-colors cursor-pointer"
                     style={{
                         width: size,
                         height: size,

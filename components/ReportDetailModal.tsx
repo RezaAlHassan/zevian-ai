@@ -131,7 +131,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-surface-elevated p-4 rounded-lg border border-border">
                     <div>
                         <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <User size={14} />
+                            <User size={14} className="text-piccolo" />
                             Employee
                         </div>
                         {onSelectEmployee && employee ? (
@@ -150,14 +150,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                     </div>
                     <div>
                         <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <Target size={14} />
+                            <Target size={14} className="text-piccolo" />
                             Goal
                         </div>
                         <span className="font-medium text-on-surface">{goal?.name || 'N/A'}</span>
                     </div>
                     <div>
                         <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <Layers size={14} />
+                            <Layers size={14} className="text-piccolo" />
                             Project
                         </div>
                         {onSelectProject && project ? (
@@ -188,7 +188,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 {/* AI Analysis */}
                 <div>
                     <h3 className="text-lg font-semibold text-on-surface mb-2 flex items-center gap-2">
-                        <TrendingUp size={20} className="text-primary" />
+                        <TrendingUp size={20} className="text-piccolo" />
                         AI Analysis
                     </h3>
                     <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border text-sm">

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Goal, Report, Employee, Criterion, Project } from '../types';
-import { ArrowLeft, Plus, Trash2, Edit2, Save, X, File, Calendar, User, Users, Target, Trophy, Award, Eye, CheckCircle, RotateCcw, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, Save, X, File, Calendar, User, Users, Target, Trophy, Award, Eye, CheckCircle, RotateCcw, Search, Clock } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Table from '../components/Table';
@@ -206,8 +206,8 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
   const reportTableHeaders = [
     { key: 'date', label: 'Date', sortable: true },
     { key: 'employee', label: 'Employee', sortable: true },
-    { key: 'score', label: 'Score', sortable: true },
-    { key: 'status', label: 'Status', sortable: false },
+    { key: 'score', label: 'Zevian Score', sortable: true },
+    { key: 'managerScore', label: 'Manager Score', sortable: true },
     { key: 'actions', label: 'Actions', sortable: false },
   ];
   const reportTableRows = goalReports.map(report => {
@@ -219,16 +219,25 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
       </div>,
       <span className="capitalize text-on-surface-secondary">{employee?.name || 'Unknown'}</span>,
       <span className="capitalize text-on-surface-secondary">
-        {report.evaluationScore.toFixed(1)} / 10
+        {report.evaluationScore.toFixed(1)}
       </span>,
-      <span className="text-sm text-on-surface-secondary">
-        Zevian Evaluated
-      </span>,
+      <div className="flex items-center">
+        {report.managerOverallScore != null ? (
+          <span className="text-primary font-semibold">
+            {report.managerOverallScore.toFixed(1)}
+          </span>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+            <Clock size={10} className="text-[#854d0e]" />
+            Pending Review
+          </div>
+        )}
+      </div>,
       <button
         onClick={() => setSelectedReport(report)}
-        className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors"
+        className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors group"
       >
-        <Eye size={16} strokeWidth={2} />
+        <Eye size={16} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
         View Details
       </button>
     ];
@@ -300,7 +309,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 <div>
                   <label className="text-sm font-medium text-on-surface-secondary">Created By</label>
                   <div className="mt-1 flex items-center gap-2">
-                    <User size={16} className="text-on-surface-secondary" />
+                    <User size={16} className="text-primary/70" />
                     <span className="text-on-surface">
                       {employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}
                     </span>
@@ -309,7 +318,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 <div>
                   <label className="text-sm font-medium text-on-surface-secondary">Created Date</label>
                   <div className="mt-1 flex items-center gap-2">
-                    <Calendar size={16} className="text-on-surface-secondary" />
+                    <Calendar size={16} className="text-primary/70" />
                     <span className="text-on-surface">
                       {goal.createdAt ? formatTableDate(goal.createdAt) : 'Unknown'}
                     </span>
@@ -327,7 +336,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                         key={index}
                         className="flex items-center gap-3 p-3 bg-surface border border-border rounded-lg"
                       >
-                        <File size={18} className="text-on-surface-secondary flex-shrink-0" />
+                        <File size={18} className="text-primary/70 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-on-surface truncate">
                             {file.fileName}
@@ -510,7 +519,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
           <div className="bg-surface-elevated rounded-lg p-6 border border-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
-                <Users size={20} className="text-on-surface-secondary" />
+                <Users size={20} className="text-primary drop-shadow-sm" />
                 Goal Assignees
               </h3>
               {canEdit && (
@@ -646,7 +655,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
       >
         <div className="space-y-4">
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" />
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary/70" />
             <input
               type="text"
               placeholder="Search employees..."

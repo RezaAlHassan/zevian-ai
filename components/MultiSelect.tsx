@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, ChevronDown, Search, Check } from 'lucide-react';
+import Checkbox from './Checkbox';
 
 interface Option {
   value: string;
@@ -177,11 +178,11 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                         }
                       `}
                     >
-                      <div className={`w-4 h-4 border rounded flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-border'
-                        }`}>
-                        {isSelected && <Check size={12} className="text-on-primary" />}
-                      </div>
-                      <span>{option.label}</span>
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => toggleOption(option.value)}
+                        label={option.label}
+                      />
                     </button>
                   );
                 })

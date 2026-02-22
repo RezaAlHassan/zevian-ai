@@ -116,7 +116,7 @@ const SetPasswordPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-goten">
                 <div className="text-center">
                     <Loader2 className="animate-spin mx-auto mb-4 text-primary" size={48} />
                     <p className="text-on-surface-secondary">Loading invitation...</p>
@@ -127,7 +127,7 @@ const SetPasswordPage: React.FC = () => {
 
     if (error && !invitation) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-goten">
                 <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border text-center">
                     <XCircle size={48} className="text-error mx-auto mb-4" />
                     <h2 className="text-xl font-semibold text-on-surface mb-2">Setup Error</h2>
@@ -142,7 +142,7 @@ const SetPasswordPage: React.FC = () => {
 
     if (submitting) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-goten">
                 <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border text-center">
                     <CheckCircle size={48} className="text-success mx-auto mb-4" />
                     <h2 className="text-xl font-semibold text-on-surface mb-2">Account Created!</h2>
@@ -161,7 +161,7 @@ const SetPasswordPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-surface-elevated rounded-xl shadow-lg border border-border overflow-hidden">
+            <div className="max-w-md w-full bg-surface-elevated rounded-xl border border-border overflow-hidden">
                 <div className="px-8 py-10">
                     <div className="text-center mb-8">
                         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">

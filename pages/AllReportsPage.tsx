@@ -9,7 +9,7 @@ import MultiSelect from '../components/MultiSelect';
 import Button from '../components/Button';
 import Select from '../components/Select';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
-import { Eye, FileText, Calendar, TrendingUp, Filter, X, Search, Users, FolderKanban, Target } from 'lucide-react';
+import { Eye, FileText, Calendar, TrendingUp, Filter, X, Search, Users, FolderKanban, Target, Clock } from 'lucide-react';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
 import { filterEmployeesByManager, getScopedEmployeeIds, getDirectReportIds } from '../utils/employeeFilter';
 import { canViewOrganizationWide, isDirectManager } from '../utils/managerPermissions';
@@ -266,22 +266,31 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
 
     return [
       <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-on-surface-secondary" />
+        <Calendar size={16} className="text-primary/70" />
         <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
       </div>,
       <span className="capitalize text-on-surface-secondary">{employee?.name || 'Unknown'}</span>,
       <span className="capitalize text-on-surface-secondary">{project?.name || '—'}</span>,
       <span className="capitalize text-on-surface-secondary">{goal?.name || 'Unknown Goal'}</span>,
       <span className="capitalize text-on-surface-secondary font-medium">{(report.evaluationScore || 0).toFixed(1)}</span>,
-      <span className={`capitalize font-semibold ${report.managerOverallScore != null ? 'text-primary' : 'text-on-surface-tertiary'}`}>
-        {report.managerOverallScore != null ? report.managerOverallScore.toFixed(1) : '—'}
-      </span>,
+      <div className="flex items-center">
+        {report.managerOverallScore != null ? (
+          <span className="text-primary font-semibold">
+            {report.managerOverallScore.toFixed(1)}
+          </span>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+            <Clock size={10} className="text-[#854d0e]" />
+            Pending Review
+          </div>
+        )}
+      </div>,
       <button
         onClick={() => setSelectedReport(report)}
-        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
         title="View Details"
       >
-        <Eye size={18} strokeWidth={2} />
+        <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
       </button>
     ];
   });
@@ -323,7 +332,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
       <div className="bg-surface-elevated rounded-lg p-4 border border-border">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="relative flex-1 min-w-[300px]">
-            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-secondary pointer-events-none z-10" />
+            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary/70 pointer-events-none z-10" />
             <Input
               type="text"
               placeholder="Search reports by employee, goal, or content..."

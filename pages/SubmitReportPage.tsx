@@ -282,7 +282,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
           {/* 3. The Focus Zone - Clean Editor */}
           {selectedGoalIds.length > 0 && (
-            <section className="bg-white border border-border rounded-[2.5rem] overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-primary/5 transition-all animate-in fade-in duration-300">
+            <section className="bg-white border border-border rounded-[2.5rem] overflow-hidden focus-within:ring-2 focus-within:ring-primary/5 transition-all animate-in fade-in duration-300">
               {/* Chips Context Area directly above Textarea */}
               <div className="px-8 pt-8 pb-4 border-b border-border/30 bg-surface/5">
                 <div className="flex flex-wrap gap-2 items-center">
@@ -290,7 +290,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
                   {metricsToShow.map(m => {
                     const metric = STANDARD_METRICS.find(std => std.id === m);
                     return metric && (
-                      <div key={m} className="px-3 py-1 bg-white border border-border rounded-lg text-[10px] font-bold text-on-surface-secondary shadow-sm">
+                      <div key={m} className="px-3 py-1 bg-white border border-border rounded-lg text-[10px] font-bold text-on-surface-secondary">
                         {metric.friendlyName}
                       </div>
                     );
@@ -331,7 +331,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
                   <div className="flex gap-3">
                     <Button onClick={handleEvaluateReport} variant="outline" isLoading={isEvaluating} className="h-11 px-6 rounded-xl font-bold text-xs">Analyze Draft</Button>
-                    <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} icon={Send} className="h-11 px-6 rounded-xl font-bold text-xs shadow-lg shadow-primary/10">Submit Final</Button>
+                    <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} icon={Send} className="h-11 px-6 rounded-xl font-bold text-xs">Submit Final</Button>
                   </div>
                 </div>
               </div>
@@ -349,7 +349,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
             {selectedProject ? (
               <div className="space-y-8 animate-in fade-in duration-300">
                 <div>
-                  <h4 className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest mb-1 shadow-sm opacity-50">Locked Project</h4>
+                  <h4 className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest mb-1 opacity-50">Locked Project</h4>
                   <p className="text-sm font-bold text-on-surface leading-snug">{selectedProject.name}</p>
 
                   {selectedProject.knowledgeBaseLink && (
@@ -403,11 +403,11 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
           {Array.from(evaluationPreviews).map(([id, data]: [string, any]) => {
             const goal = goals.find(g => g.id === id);
             return (
-              <div key={id} className="bg-white rounded-3xl p-8 border border-border shadow-sm">
+              <div key={id} className="bg-white rounded-3xl p-8 border border-border">
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
                   <Target size={24} className="text-primary" /> {goal?.name}
                 </h3>
-                <div className="bg-surface p-8 rounded-2xl border border-border flex items-center justify-between mb-8 shadow-sm">
+                <div className="bg-surface p-8 rounded-2xl border border-border flex items-center justify-between mb-8">
                   <div>
                     <span className="text-xs font-black text-on-surface-tertiary uppercase tracking-widest block mb-1">Score Estimate</span>
                     <div className="flex items-baseline gap-1">
@@ -426,19 +426,19 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
           })}
           <div className="flex gap-4 pt-6 border-t border-border sticky bottom-1 bg-white">
             <Button onClick={() => setIsPreviewModalOpen(false)} variant="outline" className="flex-1 h-14 rounded-2xl font-bold">Revise</Button>
-            <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} className="flex-1 h-14 rounded-2xl font-bold shadow-lg shadow-primary/20">Finalize Submission</Button>
+            <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} className="flex-1 h-14 rounded-2xl font-bold">Finalize Submission</Button>
           </div>
         </div>
       </Modal>
 
       {/* Notifications */}
       {success && (
-        <div className="fixed bottom-10 right-10 bg-success text-white px-8 py-4 rounded-full font-bold shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
+        <div className="fixed bottom-10 right-10 bg-success text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
           <CheckCircle size={20} /> {success}
         </div>
       )}
       {error && (
-        <div className="fixed bottom-10 right-10 bg-error text-white px-8 py-4 rounded-full font-bold shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
+        <div className="fixed bottom-10 right-10 bg-error text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
           <AlertTriangle size={20} /> {error}
         </div>
       )}

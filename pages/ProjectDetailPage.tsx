@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Project, Report, Employee, Goal } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Save, X, Calendar, User, Users, FolderKanban, FileText, Bot, Target, RefreshCw, Link as LinkIcon, Eye, ChevronDown, ChevronUp, ExternalLink, Bookmark } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, X, Calendar, User, Users, FolderKanban, FileText, Bot, Target, RefreshCw, Link as LinkIcon, Eye, ChevronDown, ChevronUp, ExternalLink, Bookmark, TrendingUp, Clock, AlertCircle } from 'lucide-react';
 import Button from '../components/Button';
 import Textarea from '../components/Textarea';
 import Table from '../components/Table';
@@ -62,7 +62,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     if (!project.assignees || project.assignees.length === 0) return 'Unassigned';
     return project.assignees.map(assignee => {
       const employee = employees.find(e => e.id === assignee.id);
-      return employee ? `${employee.name} (${assignee.type})` : `Unknown (${assignee.type})`;
+      return employee ? `${employee.name} (${assignee.type})` : `Unknown(${assignee.type})`;
     }).join(', ');
   }, [project.assignees, employees]);
 
@@ -122,7 +122,8 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     { key: 'date', label: 'Date', sortable: true },
     { key: 'employee', label: 'Employee', sortable: true },
     { key: 'goal', label: 'Goal', sortable: true },
-    { key: 'score', label: 'Score', sortable: true },
+    { key: 'score', label: 'Zevian Score', sortable: true },
+    { key: 'managerScore', label: 'Manager Score', sortable: true },
     { key: 'actions', label: 'Actions', sortable: false },
   ];
 
@@ -137,13 +138,25 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       </div>,
       <span className="truncate">{employee?.name || 'Unknown'}</span>,
       <span className="truncate">{goal?.name || 'N/A'}</span>,
-      <span className="text-on-surface">{report.evaluationScore.toFixed(2)}</span>,
+      <span className="text-on-surface font-medium">{report.evaluationScore.toFixed(1)}</span>,
+      <div className="flex items-center">
+        {report.managerOverallScore != null ? (
+          <span className="text-primary font-semibold">
+            {report.managerOverallScore.toFixed(1)}
+          </span>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+            <Clock size={10} className="text-[#854d0e]" />
+            Pending Review
+          </div>
+        )}
+      </div>,
       <button
         onClick={() => setSelectedReport(report)}
-        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
         title="View Details"
       >
-        <Eye size={18} strokeWidth={2} />
+        <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
       </button>
     ];
   });
@@ -174,7 +187,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           <div className="bg-surface-elevated rounded-lg p-6 border border-border">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Target size={20} className="text-on-surface-secondary" />
+                <Target size={20} className="text-primary drop-shadow-sm" />
                 <h3 className="text-lg font-semibold text-on-surface">Project Goals</h3>
                 <span className="text-sm text-on-surface-secondary">({projectGoals.length})</span>
               </div>
@@ -206,7 +219,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         className="w-full flex items-center justify-between p-4 hover:bg-surface-hover transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <Target size={18} className="text-on-surface-secondary flex-shrink-0" />
+                          <Target size={18} className="text-primary/70 flex-shrink-0" />
                           <div className="flex-1 min-w-0 text-left">
                             <h4 className="font-semibold text-on-surface truncate">{goal.name}</h4>
                             <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-on-surface-secondary">
@@ -273,7 +286,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           <div className="bg-surface-elevated rounded-lg p-6 border border-border">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <FileText size={20} className="text-on-surface-secondary" />
+                <FileText size={20} className="text-primary drop-shadow-sm" />
                 <h3 className="text-lg font-semibold text-on-surface">Recent Reports</h3>
                 <span className="text-sm text-on-surface-secondary">({projectReports.length})</span>
               </div>
@@ -304,7 +317,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           {/* Project Details */}
           <div className="bg-surface-elevated rounded-lg p-6 border border-border">
             <h3 className="text-lg font-semibold mb-4 text-on-surface flex items-center gap-2">
-              <FolderKanban size={20} className="text-on-surface-secondary" />
+              <FolderKanban size={20} className="text-primary drop-shadow-sm" />
               Project Info
             </h3>
             <div className="space-y-4">
@@ -319,7 +332,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-tertiary">Created</label>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <Calendar size={14} className="text-on-surface-tertiary" />
+                  <Calendar size={14} className="text-primary/70" />
                   <span className="text-sm font-medium text-on-surface">
                     {project.createdAt ? formatTableDate(project.createdAt) : '—'}
                   </span>
@@ -343,22 +356,22 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
             <div className="mt-6 pt-6 border-t border-border">
               <Button
-                onClick={() => navigate(`/projects/${project.id}/knowledge-base`)}
+                onClick={() => navigate(`/ projects / ${project.id}/knowledge-base`)}
                 variant="outline"
                 size="sm"
                 icon={ExternalLink}
                 className="w-full justify-center"
               >
                 Access Knowledge Base
-              </Button>
-            </div>
-          </div>
+              </Button >
+            </div >
+          </div >
 
           {/* Project Assignees */}
-          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+          < div className="bg-surface-elevated rounded-lg p-6 border border-border" >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
-                <Users size={20} className="text-on-surface-secondary" />
+                <Users size={20} className="text-primary drop-shadow-sm" />
                 Team Members
               </h3>
               {assigneeEmployees.length > 5 && (
@@ -398,96 +411,98 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      </div>
+          </div >
+        </div >
+      </div >
 
       {/* Report Detail Modal */}
-      {selectedReport && (
-        <Modal
-          isOpen={!!selectedReport}
-          onClose={() => setSelectedReport(null)}
-          title={`Report - ${formatReportDate(selectedReport.submissionDate)}`}
-        >
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Employee</h3>
-              <p className="text-on-surface-secondary">
-                {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Goal</h3>
-              <p className="text-on-surface-secondary">
-                {goals.find(g => g.id === selectedReport.goalId)?.name || 'N/A'}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
-              <div
-                className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: selectedReport.reportText }}
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1 flex items-center gap-2">
-                <Bot size={20} className="text-on-surface-secondary" />
-                Zevian Analysis
-              </h3>
-              <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
-                "{selectedReport.evaluationReasoning}"
+      {
+        selectedReport && (
+          <Modal
+            isOpen={!!selectedReport}
+            onClose={() => setSelectedReport(null)}
+            title={`Report - ${formatReportDate(selectedReport.submissionDate)}`}
+          >
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Employee</h3>
+                <p className="text-on-surface-secondary">
+                  {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
+                </p>
               </div>
-            </div>
-            {/* Manager Evaluation & Feedback */}
-            <div className="border-t border-border pt-6">
-              <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
-              <div className="space-y-4">
-                <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
-                  <span className="font-medium text-on-surface">Overall Score</span>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold text-primary">
-                      {(selectedReport.managerOverallScore != null ? selectedReport.managerOverallScore : (selectedReport.evaluationScore ?? 0)).toFixed(2)}
-                    </span>
-                    {selectedReport.managerOverallScore != null && (
-                      <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
-                    )}
-                  </div>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Goal</h3>
+                <p className="text-on-surface-secondary">
+                  {goals.find(g => g.id === selectedReport.goalId)?.name || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
+                <div
+                  className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: selectedReport.reportText }}
+                />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-1 flex items-center gap-2">
+                  <Bot size={20} className="text-primary drop-shadow-sm" />
+                  Zevian Analysis
+                </h3>
+                <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
+                  "{selectedReport.evaluationReasoning}"
                 </div>
-
-                {selectedReport.managerFeedback && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
-                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
-                      {selectedReport.managerFeedback}
+              </div>
+              {/* Manager Evaluation & Feedback */}
+              <div className="border-t border-border pt-6">
+                <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
+                <div className="space-y-4">
+                  <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
+                    <span className="font-medium text-on-surface">Overall Score</span>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-primary">
+                        {(selectedReport.managerOverallScore != null ? selectedReport.managerOverallScore : (selectedReport.evaluationScore ?? 0)).toFixed(2)}
+                      </span>
+                      {selectedReport.managerOverallScore != null && (
+                        <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                      )}
                     </div>
                   </div>
-                )}
-                {!selectedReport.managerFeedback && selectedReport.managerOverallScore === undefined && (
-                  <p className="text-xs text-on-surface-tertiary italic text-center">
-                    Waiting for manager review and feedback.
-                  </p>
-                )}
-              </div>
-            </div>
 
-            {selectedReport.criterionScores && selectedReport.criterionScores.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
-                <div className="space-y-2">
-                  {selectedReport.criterionScores.map((score, index) => (
-                    <div key={index} className="bg-surface p-3 rounded-lg border border-border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-on-surface text-sm">{score.criterionName}</span>
-                        <span className="text-sm font-semibold text-on-surface-secondary">{score.score.toFixed(1)}/10</span>
+                  {selectedReport.managerFeedback && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
+                      <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                        {selectedReport.managerFeedback}
                       </div>
                     </div>
-                  ))}
+                  )}
+                  {!selectedReport.managerFeedback && selectedReport.managerOverallScore === undefined && (
+                    <p className="text-xs text-on-surface-tertiary italic text-center">
+                      Waiting for manager review and feedback.
+                    </p>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </Modal>
-      )}
+
+              {selectedReport.criterionScores && selectedReport.criterionScores.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
+                  <div className="space-y-2">
+                    {selectedReport.criterionScores.map((score, index) => (
+                      <div key={index} className="bg-surface p-3 rounded-lg border border-border">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-on-surface text-sm">{score.criterionName}</span>
+                          <span className="text-sm font-semibold text-on-surface-secondary">{score.score.toFixed(1)}/10</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )
+      }
 
 
 
@@ -524,7 +539,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           )}
         </div>
       </Modal>
-    </div>
+    </div >
   );
 };
 

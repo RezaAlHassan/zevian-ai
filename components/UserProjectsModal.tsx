@@ -63,32 +63,32 @@ const UserProjectsModal: React.FC<UserProjectsModalProps> = ({
                 {relevantData.length > 0 ? (
                     <div className="grid gap-4">
                         {relevantData.map(({ project, goals }) => (
-                            <div key={project.id} className="border border-border rounded-xl p-4 bg-surface hover:border-primary/20 transition-colors">
+                            <div key={project.id} className="border border-beerus rounded-moon-s-lg p-4 bg-gohan hover:border-primary/20 transition-colors">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <div className="p-2 bg-piccolo/10 rounded-moon-s-md text-piccolo">
                                             <FolderKanban size={20} />
                                         </div>
                                         <div>
-                                            <h4 className="font-semibold text-on-surface">{project.name}</h4>
-                                            <p className="text-xs text-on-surface-tertiary capitalize">{project.category || 'General'}</p>
+                                            <h4 className="font-semibold text-bulma">{project.name}</h4>
+                                            <p className="text-moon-12 text-trunks/70 capitalize">{project.category || 'General'}</p>
                                         </div>
                                     </div>
-                                    <span className="text-xs font-medium px-2 py-1 bg-surface-secondary rounded-full text-on-surface-secondary">
+                                    <span className="text-moon-12 font-medium px-2 py-1 bg-beerus rounded-full text-trunks">
                                         {project.reportFrequency}
                                     </span>
                                 </div>
 
                                 {mode === 'goals' && (
-                                    <div className="space-y-2 mt-3 pl-4 border-l-2 border-border/50">
+                                    <div className="space-y-2 mt-3 pl-4 border-l-2 border-beerus/50">
                                         {goals.map(goal => (
-                                            <div key={goal.id} className="flex items-center justify-between text-sm p-2 bg-surface-secondary/30 rounded-lg">
+                                            <div key={goal.id} className="flex items-center justify-between text-moon-14 p-2 bg-beerus/30 rounded-moon-s-md">
                                                 <div className="flex items-center gap-2 overflow-hidden">
-                                                    <Target size={14} className="text-primary flex-shrink-0" />
-                                                    <span className="text-on-surface truncate">{goal.name}</span>
+                                                    <Target size={14} className="text-piccolo flex-shrink-0" />
+                                                    <span className="text-bulma truncate">{goal.name}</span>
                                                 </div>
                                                 {goal.deadline && (
-                                                    <span className="text-xs text-on-surface-tertiary flex items-center gap-1 whitespace-nowrap ml-2">
+                                                    <span className="text-moon-12 text-trunks/70 flex items-center gap-1 whitespace-nowrap ml-2">
                                                         <Calendar size={10} />
                                                         {formatTableDate(goal.deadline)}
                                                     </span>
@@ -101,7 +101,7 @@ const UserProjectsModal: React.FC<UserProjectsModalProps> = ({
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-on-surface-secondary">
+                    <div className="text-center py-8 text-trunks">
                         {mode === 'goals' ? <Target size={32} className="mx-auto mb-3 opacity-20" /> : <FolderKanban size={32} className="mx-auto mb-3 opacity-20" />}
                         <p>No {mode === 'goals' ? 'active goals' : 'active projects'} found.</p>
                     </div>
@@ -110,7 +110,7 @@ const UserProjectsModal: React.FC<UserProjectsModalProps> = ({
                 <div className="flex justify-end pt-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-surface hover:bg-surface-hover border border-border rounded-lg text-sm font-medium transition-colors"
+                        className="px-4 py-2 bg-gohan hover:bg-beerus border border-beerus rounded-moon-s-md text-moon-14 font-medium transition-colors"
                     >
                         Close
                     </button>

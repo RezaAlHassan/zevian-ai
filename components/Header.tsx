@@ -89,26 +89,26 @@ const Header: React.FC<HeaderProps> = ({
   }, [viewMode, currentEmployeeId, goals, projects, reports]);
 
   return (
-    <header className="bg-white sticky top-0 z-50 border-b border-border h-16">
+    <header className="bg-goten sticky top-0 z-50 border-b border-beerus h-16">
       <div className="flex items-center justify-between h-16 px-6">
         <div className="flex items-center gap-6">
           {viewMode === 'employee' && (
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate('/submit')}
-                className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all active:scale-95"
+                className="flex items-center gap-2.5 px-4 py-2 rounded-moon-i-md bg-piccolo text-goten font-semibold text-moon-14 hover:bg-piccolo/90 transition-all active:scale-95"
               >
                 <FileText size={16} />
                 <span>Submit Report</span>
               </button>
 
               {nextReportDue && (
-                <div className={`flex flex-col px-3 py-1.5 rounded-lg border transition-all ${nextReportDue.status.isOverdue ? 'bg-error/5 border-error/20 text-error' : 'bg-primary/5 border-primary/20 text-primary'}`}>
+                <div className={`flex flex-col px-3 py-1.5 rounded-moon-s-sm border transition-all ${nextReportDue.status.isOverdue ? 'bg-dodoria/5 border-dodoria/20 text-dodoria' : 'bg-piccolo/5 border-piccolo/20 text-piccolo'}`}>
                   <div className="flex items-center gap-2">
                     {nextReportDue.status.isOverdue ? <AlertCircle size={14} className="animate-pulse" /> : <Clock size={14} />}
-                    <span className="text-[11px] font-black uppercase tracking-wider">{nextReportDue.status.label}</span>
+                    <span className="text-moon-12 font-bold uppercase tracking-wider">{nextReportDue.status.label}</span>
                   </div>
-                  <span className="text-[9px] font-bold opacity-70 truncate max-w-[150px]" title={nextReportDue.goal.name}>
+                  <span className="text-[10px] font-bold opacity-70 truncate max-w-[150px]" title={nextReportDue.goal.name}>
                     {nextReportDue.goal.name}
                   </span>
                 </div>
@@ -126,34 +126,34 @@ const Header: React.FC<HeaderProps> = ({
                   scopeFilter === 'reporting-chain' ? 'My Reporting Chain' : 'Organization'
               }
               icon={
-                scopeFilter === 'direct-reports' ? <Users size={16} className="text-primary" /> :
-                  scopeFilter === 'reporting-chain' ? <Network size={16} className="text-primary" /> : <Building2 size={16} className="text-primary" />
+                scopeFilter === 'direct-reports' ? <Users size={16} className="text-piccolo" /> :
+                  scopeFilter === 'reporting-chain' ? <Network size={16} className="text-piccolo" /> : <Building2 size={16} className="text-piccolo" />
               }
               variant="outline"
               size="sm"
               align="right"
-              buttonClassName="bg-surface border-border h-9"
+              buttonClassName="bg-gohan border-beerus h-9"
             >
-              <div className="px-3 py-2 text-xs font-semibold text-on-surface-tertiary uppercase tracking-wider">
+              <div className="px-3 py-2 text-moon-12 font-semibold text-trunks uppercase tracking-wider">
                 Visibility Scope
               </div>
               <DropdownItem onClick={() => setScopeFilter('direct-reports')}>
-                <div className="flex items-center gap-2">
-                  <Users size={16} className={scopeFilter === 'direct-reports' ? 'text-primary' : 'text-on-surface-secondary'} />
-                  <span className={scopeFilter === 'direct-reports' ? 'font-medium text-primary' : ''}>Direct Reports</span>
+                <div className="flex items-center gap-2 group/item">
+                  <Users size={16} className={`${scopeFilter === 'direct-reports' ? 'text-piccolo scale-110' : 'text-trunks group-hover/item:text-piccolo group-hover/item:scale-110'} transition-all duration-200`} />
+                  <span className={scopeFilter === 'direct-reports' ? 'font-medium text-piccolo' : ''}>Direct Reports</span>
                 </div>
               </DropdownItem>
               <DropdownItem onClick={() => setScopeFilter('reporting-chain')}>
-                <div className="flex items-center gap-2">
-                  <Network size={16} className={scopeFilter === 'reporting-chain' ? 'text-primary' : 'text-on-surface-secondary'} />
-                  <span className={scopeFilter === 'reporting-chain' ? 'font-medium text-primary' : ''}>My Reporting Chain</span>
+                <div className="flex items-center gap-2 group/item">
+                  <Network size={16} className={`${scopeFilter === 'reporting-chain' ? 'text-piccolo scale-110' : 'text-trunks group-hover/item:text-piccolo group-hover/item:scale-110'} transition-all duration-200`} />
+                  <span className={scopeFilter === 'reporting-chain' ? 'font-medium text-piccolo' : ''}>My Reporting Chain</span>
                 </div>
               </DropdownItem>
               {canViewOrgWide && (
                 <DropdownItem onClick={() => setScopeFilter('organization')}>
-                  <div className="flex items-center gap-2">
-                    <Building2 size={16} className={scopeFilter === 'organization' ? 'text-primary' : 'text-on-surface-secondary'} />
-                    <span className={scopeFilter === 'organization' ? 'font-medium text-primary' : ''}>Organization</span>
+                  <div className="flex items-center gap-2 group/item">
+                    <Building2 size={16} className={`${scopeFilter === 'organization' ? 'text-piccolo scale-110' : 'text-trunks group-hover/item:text-piccolo group-hover/item:scale-110'} transition-all duration-200`} />
+                    <span className={scopeFilter === 'organization' ? 'font-medium text-piccolo' : ''}>Organization</span>
                   </div>
                 </DropdownItem>
               )}
