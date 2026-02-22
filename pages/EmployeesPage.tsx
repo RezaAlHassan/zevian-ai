@@ -148,8 +148,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           onClick={() => setSelectedUserForProjects(emp)}
           className="flex items-center gap-2 hover:bg-surface-secondary px-2 py-1 rounded transition-colors group"
         >
-          <Target size={16} className="text-primary group-hover:scale-110 transition-transform" />
-          <span className="font-bold text-on-surface group-hover:text-primary transition-colors">{m.activeGoalCount}</span>
+          <Target size={16} className="text-piccolo group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-bulma group-hover:text-piccolo transition-colors">{m.activeGoalCount}</span>
         </button>,
         <div key="score" className="flex items-center gap-1">
           <Star size={14} className={m.avgScore > 0 ? "text-yellow-500 fill-yellow-500" : "text-on-surface-tertiary"} />
@@ -162,10 +162,10 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           <button
             key="action"
             onClick={() => onSelectEmployee(emp.id)}
-            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            className="p-1.5 text-piccolo hover:bg-piccolo/10 rounded-lg transition-colors group"
             title="View Details"
           >
-            <Eye size={18} />
+            <Eye size={18} className="transition-transform group-hover:scale-110" />
           </button>
         ) : <div key="action" />
       ];
@@ -201,8 +201,8 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           onClick={() => setSelectedUserForProjects(mgr)}
           className="flex items-center gap-2 hover:bg-surface-secondary px-2 py-1 rounded transition-colors group"
         >
-          <Briefcase size={16} className="text-primary group-hover:scale-110 transition-transform" />
-          <span className="font-bold text-on-surface group-hover:text-primary transition-colors">{m.projectCount}</span>
+          <Briefcase size={16} className="text-piccolo group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-bulma group-hover:text-piccolo transition-colors">{m.projectCount}</span>
         </button>,
         <div key="feedbacks" className="flex items-center gap-2">
           <MessageSquare size={16} className="text-blue-500" />
@@ -216,10 +216,10 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
           <button
             key="action"
             onClick={() => onSelectEmployee(mgr.id)}
-            className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+            className="p-1.5 text-piccolo hover:bg-piccolo/10 rounded-lg transition-colors group"
             title="View Activity"
           >
-            <Eye size={18} />
+            <Eye size={18} className="transition-transform group-hover:scale-110" />
           </button>
         ) : <div key="action" />
       ];
@@ -252,21 +252,21 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
 
       <div className="bg-surface-elevated rounded-lg p-6 border border-border">
         {/* Tabs */}
-        <div className="flex items-center gap-4 mb-6 border-b border-border">
+        <div className="flex items-center gap-4 mb-6 border-b border-beerus">
           <button
             onClick={() => setActiveTab('employees')}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'employees'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-on-surface-secondary hover:text-on-surface'
+            className={`px-6 py-3 text-moon-14 font-medium border-b-2 transition-all duration-200 ${activeTab === 'employees'
+              ? 'border-piccolo text-piccolo bg-piccolo/5'
+              : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
               }`}
           >
             Employees
           </button>
           <button
             onClick={() => setActiveTab('managers')}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'managers'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-on-surface-secondary hover:text-on-surface'
+            className={`px-6 py-3 text-moon-14 font-medium border-b-2 transition-all duration-200 ${activeTab === 'managers'
+              ? 'border-piccolo text-piccolo bg-piccolo/5'
+              : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
               }`}
           >
             Managers

@@ -10,7 +10,7 @@ import Input from '../components/Input';
 import Textarea from '../components/Textarea';
 import Button from '../components/Button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
-import { Bot, ArrowLeft, Eye, FileText, Star, Activity, Trophy, Award, Calendar, Sparkles, AlertTriangle, ArrowUpDown, List, TrendingUp, TrendingDown, Clock, Target } from 'lucide-react';
+import { ArrowLeft, Filter, Calendar, Eye, TrendingUp, Sparkles, User, Target, Clock, AlertCircle, Bot, FileText, Star, Activity, Trophy, Award, AlertTriangle, ArrowUpDown, List, TrendingDown, Sliders } from 'lucide-react';
 import Table from '../components/Table';
 import StatCard from '../components/StatCard';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
@@ -19,7 +19,6 @@ import { isDirectManager } from '../utils/managerPermissions';
 import { useOrganization } from '../hooks/useOrganization';
 import MetricsSelectionModal from '../components/MetricsSelectionModal';
 import { STANDARD_METRICS } from '../constants';
-import { Sliders } from 'lucide-react';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -633,37 +632,50 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
     const reportTableHeaders = [
         { key: 'date', label: 'Date', sortable: true },
         { key: 'goal', label: 'Goal', sortable: true },
-        { key: 'score', label: 'Score', sortable: true },
+        { key: 'score', label: 'Zevian Score', sortable: true },
+        { key: 'managerScore', label: 'Manager Score', sortable: true },
         { key: 'actions', label: 'Actions', sortable: false },
     ];
     const reportTableRows = filteredReports.map(report => {
         const goal = goals.find(g => g.id === report.goalId);
         return [
             <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-on-surface-tertiary" />
+                <Calendar size={14} className="text-primary/70" />
                 <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
             </div>,
             <div className="max-w-[150px] lg:max-w-[250px] truncate capitalize text-on-surface-secondary" title={goal?.name}>
                 {goal?.name || 'N/A'}
             </div>,
-            <span className="capitalize text-on-surface-secondary">{(report.evaluationScore ?? 0).toFixed(2)}</span>,
+            <span className="capitalize text-on-surface-secondary">{(report.evaluationScore ?? 0).toFixed(1)}</span>,
+            <div className="flex items-center">
+                {report.managerOverallScore != null ? (
+                    <span className="text-primary font-semibold">
+                        {report.managerOverallScore.toFixed(1)}
+                    </span>
+                ) : (
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                        <Clock size={10} className="text-[#854d0e]" />
+                        Pending Review
+                    </div>
+                )}
+            </div>,
             <button
                 type="button"
                 onClick={(e) => {
                     e.stopPropagation();
                     setSelectedReport(report);
                 }}
-                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
                 title="View Details"
             >
-                <Eye size={18} strokeWidth={2} />
+                <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
             </button>
         ];
     });
 
     return (
         <div className="w-full px-6 py-6 space-y-6">
-            <div className="sticky top-0 z-20 bg-surface-elevated/90 backdrop-blur-md p-4 rounded-lg border border-border flex flex-col sm:flex-row gap-4 items-center -mx-4 mb-6 shadow-sm">
+            <div className="sticky top-0 z-20 bg-surface-elevated/90 backdrop-blur-md p-4 rounded-lg border border-border flex flex-col sm:flex-row gap-4 items-center -mx-4 mb-6">
                 <button
                     onClick={onBack}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 text-on-surface-secondary hover:text-primary group/back"
@@ -695,7 +707,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                 <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                            <Sparkles size={18} className="text-on-surface" />
+                            <Sparkles size={18} className="text-primary" />
                             <h3 className="text-base font-semibold text-on-surface">Performance Summary</h3>
                         </div>
                         <p className="text-sm text-on-surface-secondary ml-7">
@@ -727,22 +739,22 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Reports in Period" value={filteredReports.length} icon={<FileText size={24} className="text-on-surface-secondary" />} />
+                <StatCard title="Reports in Period" value={filteredReports.length} icon={<FileText size={24} className="text-primary" />} />
 
                 <StatCard
                     title="Late Submissions"
                     value={submissionReliability ? Math.max(0, submissionReliability.expected - submissionReliability.actual) : 0}
-                    icon={<Clock size={24} className="text-on-surface-secondary" />}
+                    icon={<Clock size={24} className="text-primary" />}
                     showActionBadge={submissionReliability ? (submissionReliability.expected - submissionReliability.actual) > 0 : false}
                 />
 
                 <StatCard
                     title="Avg Score (Org Metrics)"
                     value={orgMetricsAverage > 0 ? orgMetricsAverage.toFixed(2) : "0.00"}
-                    icon={<Target size={24} className="text-on-surface-secondary" />}
+                    icon={<Target size={24} className="text-primary" />}
                 />
 
-                <StatCard title="Average Score" value={analytics.overallScore.toFixed(2)} icon={<Star size={24} className="text-on-surface-secondary" />} />
+                <StatCard title="Average Score" value={analytics.overallScore.toFixed(2)} icon={<Star size={24} className="text-primary" />} />
             </div>
 
             {/* Skill Analysis and Score Trend Section */}
@@ -760,7 +772,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                         variant="primary"
                                         size="sm"
                                         onClick={() => setIsMetricsModalOpen(true)}
-                                        className="flex items-center gap-2 shadow-sm"
+                                        className="flex items-center gap-2"
                                         icon={Sliders}
                                     >
                                         Customize Metrics
@@ -773,7 +785,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                     <div className="flex-1 flex flex-col p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2 text-on-surface">
-                                <List size={18} />
+                                <List size={18} className="text-primary" />
                                 <span className="font-semibold">Skill Rankings</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -792,16 +804,16 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                 <div className="relative flex-1">
                                     {isAnalyzingSkills && (
                                         <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
-                                            <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
+                                            <div className="bg-surface-elevated p-6 rounded-2xl border border-border flex flex-col items-center">
                                                 <Spinner size="lg" />
                                                 <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
                                             </div>
                                         </div>
                                     )}
-                                    <div className="bg-surface rounded-2xl p-4 border border-border h-full min-h-[400px]">
+                                    <div className="bg-goten rounded-moon-s-md p-6 border border-beerus h-full min-h-[400px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart data={radarChartData}>
-                                                <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                                            <RadarChart data={radarChartData} margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                                                <PolarGrid stroke="var(--beerus)" strokeDasharray="3 3" />
                                                 <PolarAngleAxis
                                                     dataKey="skill"
                                                     tick={({ x, y, payload }) => (
@@ -811,7 +823,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                                                 y={0}
                                                                 dy={4}
                                                                 textAnchor="middle"
-                                                                fill="#6b7280"
+                                                                fill="var(--trunks)"
                                                                 fontSize={10}
                                                                 fontWeight={600}
                                                             >
@@ -823,31 +835,33 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                                 <PolarRadiusAxis
                                                     angle={90}
                                                     domain={[0, 10]}
-                                                    tick={{ fill: '#9ca3af', fontSize: 9 }}
+                                                    tick={{ fill: 'var(--trunks)', fontSize: 9 }}
+                                                    axisLine={false}
+                                                    tickLine={false}
                                                 />
                                                 <Radar
                                                     name="Current Proficiency"
                                                     dataKey="current"
-                                                    stroke="#2563eb"
-                                                    fill="#2563eb"
-                                                    fillOpacity={0.25}
-                                                    strokeWidth={3}
+                                                    stroke="#5C62F5"
+                                                    fill="#5C62F5"
+                                                    fillOpacity={0.15}
+                                                    strokeWidth={2}
                                                     animationDuration={1500}
                                                 />
                                                 <Tooltip
                                                     content={({ active, payload }) => {
                                                         if (active && payload && payload.length) {
                                                             return (
-                                                                <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
-                                                                    <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
+                                                                <div className="bg-goten border border-beerus p-3 rounded-moon-s-md">
+                                                                    <p className="text-moon-12 font-bold text-bulma mb-2">{payload[0].payload.skill}</p>
                                                                     <div className="space-y-1.5">
                                                                         {payload.map((entry: any) => (
                                                                             <div key={entry.name} className="flex items-center justify-between gap-4">
                                                                                 <div className="flex items-center gap-1.5">
                                                                                     <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                                                                                    <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
+                                                                                    <span className="text-moon-10 text-trunks">{entry.name}</span>
                                                                                 </div>
-                                                                                <span className="text-[10px] font-bold text-on-surface">{(Number(entry.value) || 0).toFixed(1)}</span>
+                                                                                <span className="text-moon-10 font-bold text-bulma">{(Number(entry.value) || 0).toFixed(1)}</span>
                                                                             </div>
                                                                         ))}
                                                                     </div>
@@ -871,7 +885,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                                     size="md"
                                     onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
                                     disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
-                                    className="mt-6 flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
+                                    className="mt-6 flex items-center gap-2 mx-auto"
                                     icon={Sparkles}
                                 >
                                     {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
@@ -892,17 +906,32 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
                     {filteredReports.length > 1 ? (
                         <div className="flex-1 min-h-[400px] mt-6">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={filteredReports
-                                    .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
-                                    .map(r => ({
-                                        date: formatReportDate(r.submissionDate),
-                                        score: r.evaluationScore
-                                    }))}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                                    <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                    <YAxis domain={[0, 10]} tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <LineChart
+                                    data={filteredReports
+                                        .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
+                                        .map(r => ({
+                                            date: formatReportDate(r.submissionDate),
+                                            score: r.evaluationScore
+                                        }))}
+                                    margin={{ top: 10, right: 20, left: 20, bottom: 30 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--beerus)" vertical={false} strokeOpacity={0.4} />
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fill: 'var(--trunks)', fontSize: 10 }}
+                                        axisLine={{ stroke: 'var(--beerus)' }}
+                                        tickLine={false}
+                                        label={{ value: 'Date', position: 'bottom', offset: 0, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
+                                    />
+                                    <YAxis
+                                        domain={[0, 10]}
+                                        tick={{ fill: 'var(--trunks)', fontSize: 10 }}
+                                        axisLine={{ stroke: 'var(--beerus)' }}
+                                        tickLine={false}
+                                        label={{ value: 'Score', angle: -90, position: 'insideLeft', offset: -10, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
+                                    />
                                     <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
-                                    <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} dot={{ fill: '#2563eb', r: 4, strokeWidth: 2, stroke: '#fff' }} name="Score" />
+                                    <Line type="monotone" dataKey="score" stroke="#5C62F5" strokeWidth={3} dot={{ fill: '#5C62F5', r: 4, strokeWidth: 2, stroke: '#fff' }} name="Score" />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
@@ -964,7 +993,7 @@ const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                         {sortedSkills.map((skill, index) => (
-                            <div key={index} className="bg-surface-elevated p-4 rounded-xl border border-border flex flex-col gap-3 hover:border-primary/30 transition-all duration-200 shadow-sm">
+                            <div key={index} className="bg-surface-elevated p-4 rounded-xl border border-border flex flex-col gap-3 hover:border-primary/30 transition-all duration-200">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-bold text-on-surface line-clamp-1">{skill.name}</span>
                                     <span className="text-sm font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">

@@ -93,7 +93,7 @@ const ViewModeSwitcher: React.FC<ViewModeSwitcherProps> = ({
         return (
             <div style={containerStyle}>
                 <div
-                    className="bg-surface-elevated border-2 border-yellow-500/30 rounded-lg shadow-lg p-4 max-w-[280px]"
+                    className="bg-surface-elevated border-2 border-yellow-500/30 rounded-lg p-4 max-w-[280px]"
                     onMouseDown={handleMouseDown}
                 >
                     <div className="flex items-center gap-2 mb-2 cursor-grab active:cursor-grabbing">
@@ -112,7 +112,7 @@ const ViewModeSwitcher: React.FC<ViewModeSwitcherProps> = ({
 
     return (
         <div style={containerStyle}>
-            <div className="bg-surface-elevated border-2 border-primary/20 rounded-lg shadow-lg p-4 min-w-[280px]">
+            <div className="bg-surface-elevated border-2 border-primary/20 rounded-lg p-4 min-w-[280px]">
                 <div
                     className="flex items-center gap-2 mb-3 cursor-grab active:cursor-grabbing"
                     onMouseDown={handleMouseDown}

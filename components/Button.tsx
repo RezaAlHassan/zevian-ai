@@ -23,20 +23,20 @@ const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-moon-i-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 group';
 
   const variantStyles = {
-    primary: 'bg-primary text-white hover:bg-primary-hover focus:ring-primary',
-    secondary: 'bg-secondary text-white hover:bg-indigo-700 focus:ring-secondary',
-    outline: 'border border-border bg-white text-on-surface hover:bg-surface focus:ring-primary',
-    ghost: 'bg-transparent text-on-surface-secondary hover:bg-surface-hover hover:text-on-surface focus:ring-primary',
-    danger: 'bg-error text-white hover:bg-error-hover focus:ring-error',
+    primary: 'bg-piccolo text-goten hover:bg-piccolo focus:ring-piccolo',
+    secondary: 'bg-transparent text-bulma border border-trunks hover:border-bulma focus:ring-trunks',
+    outline: 'border border-beerus bg-goten text-bulma hover:bg-gohan focus:ring-piccolo',
+    ghost: 'bg-transparent text-trunks hover:bg-heles hover:text-bulma focus:ring-piccolo',
+    danger: 'bg-dodoria text-goten hover:bg-dodoria focus:ring-dodoria',
   };
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-sm gap-1.5',
-    md: 'px-4 py-2 text-sm gap-2',
-    lg: 'px-5 py-2.5 text-sm gap-2',
+    sm: 'h-8 px-3 text-moon-14 gap-1.5',
+    md: 'h-10 px-4 text-moon-14 gap-2',
+    lg: 'h-12 px-4 text-moon-16 gap-2',
   };
 
   const iconSize = {
@@ -64,9 +64,9 @@ const Button: React.FC<ButtonProps> = ({
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
       )}
-      {!isLoading && Icon && iconPosition === 'left' && <Icon size={iconSize[size]} />}
+      {!isLoading && Icon && iconPosition === 'left' && <Icon size={iconSize[size]} className="transition-transform duration-200 group-hover:scale-110" />}
       {children}
-      {!isLoading && Icon && iconPosition === 'right' && <Icon size={iconSize[size]} />}
+      {!isLoading && Icon && iconPosition === 'right' && <Icon size={iconSize[size]} className="transition-transform duration-200 group-hover:scale-110" />}
     </button>
   );
 };

@@ -56,7 +56,7 @@ const Toast: React.FC<ToastProps> = ({
     return (
         <div
             className={`
-        relative flex items-center gap-3 p-4 rounded-xl border shadow-lg 
+        relative flex items-center gap-3 p-4 rounded-xl border 
         transition-all duration-300 transform
         ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-4 opacity-0 scale-95'}
         ${bgColors[type]}

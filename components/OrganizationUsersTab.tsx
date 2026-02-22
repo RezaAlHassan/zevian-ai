@@ -56,23 +56,23 @@ const OrganizationUsersTab: React.FC<OrganizationUsersTabProps> = ({
     const userHeaders = ['Name', 'Email', 'Role', 'Join Date', 'Status'];
     const userRows = filteredEmployees.map(emp => [
         <div key="name" className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-full ${emp.role === 'manager' ? 'bg-primary/10 text-primary' : 'bg-surface-secondary/50 text-on-surface-secondary'}`}>
+            <div className={`p-1.5 rounded-full ${emp.role === 'manager' ? 'bg-piccolo/10 text-piccolo' : 'bg-surface-secondary/50 text-trunks'}`}>
                 {emp.role === 'manager' ? <Shield size={14} /> : <User size={14} />}
             </div>
             <div>
-                <span className="font-medium text-sm text-on-surface block">{emp.name}</span>
-                {emp.title && <span className="textxs text-on-surface-tertiary">{emp.title}</span>}
+                <span className="font-medium text-moon-14 text-bulma block">{emp.name}</span>
+                {emp.title && <span className="textxs text-trunks/70">{emp.title}</span>}
             </div>
         </div>,
-        <span key="email" className="text-sm text-on-surface-secondary">{emp.email}</span>,
-        <span key="role" className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${emp.role === 'manager'
-            ? 'bg-primary/10 text-primary'
-            : 'bg-surface-secondary text-on-surface-secondary'
+        <span key="email" className="text-moon-14 text-trunks">{emp.email}</span>,
+        <span key="role" className={`inline-flex items-center px-2 py-0.5 rounded text-moon-12 font-medium capitalize ${emp.role === 'manager'
+            ? 'bg-piccolo/10 text-piccolo'
+            : 'bg-surface-secondary text-trunks'
             }`}>
             {emp.role}
         </span>,
-        <span key="date" className="text-sm text-on-surface-secondary">{emp.joinDate ? formatTableDate(emp.joinDate) : 'N/A'}</span>,
-        <span key="status" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600">
+        <span key="date" className="text-moon-14 text-trunks">{emp.joinDate ? formatTableDate(emp.joinDate) : 'N/A'}</span>,
+        <span key="status" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-moon-12 font-medium bg-emerald-500/10 text-emerald-600">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             Active
         </span>
@@ -84,13 +84,13 @@ const OrganizationUsersTab: React.FC<OrganizationUsersTabProps> = ({
         const invitedBy = employees.find(e => e.id === inv.invitedBy)?.name || 'Unknown';
         return [
             <div key="email" className="flex items-center gap-2">
-                <Mail size={14} className="text-on-surface-tertiary" />
-                <span className="text-sm text-on-surface">{inv.email}</span>
+                <Mail size={14} className="text-trunks/70" />
+                <span className="text-moon-14 text-bulma">{inv.email}</span>
             </div>,
-            <span key="role" className="capitalize text-sm text-on-surface-secondary">{inv.role}</span>,
-            <span key="by" className="text-sm text-on-surface-secondary">{invitedBy}</span>,
-            <div key="date" className="flex items-center gap-2 text-sm text-on-surface-secondary">
-                <Clock size={14} className="text-on-surface-tertiary" />
+            <span key="role" className="capitalize text-moon-14 text-trunks">{inv.role}</span>,
+            <span key="by" className="text-moon-14 text-trunks">{invitedBy}</span>,
+            <div key="date" className="flex items-center gap-2 text-moon-14 text-trunks">
+                <Clock size={14} className="text-trunks/70" />
                 {formatTableDate(inv.invitedAt)}
             </div>,
             <div key="actions" className="flex items-center gap-2">
@@ -101,10 +101,10 @@ const OrganizationUsersTab: React.FC<OrganizationUsersTabProps> = ({
                                 onDeleteInvitation(inv.id);
                             }
                         }}
-                        className="p-1.5 text-on-surface-tertiary hover:text-error hover:bg-error/10 rounded transition-colors"
+                        className="p-1.5 text-trunks/70 hover:text-dodoria hover:bg-dodoria/10 rounded transition-all duration-200 group"
                         title="Cancel Invitation"
                     >
-                        <Trash2 size={16} />
+                        <Trash2 size={16} className="transition-transform group-hover:scale-110" />
                     </button>
                 )}
             </div>
@@ -113,29 +113,29 @@ const OrganizationUsersTab: React.FC<OrganizationUsersTabProps> = ({
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-surface-elevated rounded-xl p-6 border border-border shadow-sm space-y-6">
+            <div className="bg-goten rounded-moon-s-lg p-6 border border-beerus space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex p-1 bg-surface border border-border rounded-lg">
+                        <div className="flex items-center gap-4 border-b border-beerus w-full sm:w-auto">
                             <button
                                 onClick={() => setSubTab('all')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${subTab === 'all'
-                                    ? 'bg-primary text-white shadow-sm'
-                                    : 'text-on-surface-secondary hover:text-on-surface'
+                                className={`px-6 py-3 text-moon-14 font-medium border-b-2 transition-all duration-200 ${subTab === 'all'
+                                    ? 'border-piccolo text-piccolo bg-piccolo/5'
+                                    : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
                                     }`}
                             >
                                 All Users
                             </button>
                             <button
                                 onClick={() => setSubTab('pending')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${subTab === 'pending'
-                                    ? 'bg-primary text-white shadow-sm'
-                                    : 'text-on-surface-secondary hover:text-on-surface'
+                                className={`px-6 py-3 text-moon-14 font-medium border-b-2 transition-all duration-200 ${subTab === 'pending'
+                                    ? 'border-piccolo text-piccolo bg-piccolo/5'
+                                    : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
                                     }`}
                             >
                                 Pending Invites
                                 {filteredInvitations.length > 0 && (
-                                    <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-white/20 rounded-full">
+                                    <span className={`ml-2 px-1.5 py-0.5 text-[10px] rounded-full transition-colors ${subTab === 'pending' ? 'bg-piccolo text-goten' : 'bg-beerus text-trunks'}`}>
                                         {filteredInvitations.length}
                                     </span>
                                 )}
@@ -146,13 +146,13 @@ const OrganizationUsersTab: React.FC<OrganizationUsersTabProps> = ({
                     {onInvite && (
                         <div className="flex items-center gap-4 flex-1 max-w-md">
                             <div className="relative flex-1">
-                                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary" />
+                                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-trunks/70" />
                                 <input
                                     type="text"
                                     placeholder={`Search ${subTab === 'all' ? 'active users' : 'pending invites'}...`}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface placeholder-on-surface-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                    className="w-full pl-9 pr-3 py-2 bg-gohan border border-beerus rounded-moon-s-md text-moon-14 text-bulma placeholder-on-surface-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                 />
                             </div>
                             <Button
@@ -168,15 +168,15 @@ const OrganizationUsersTab: React.FC<OrganizationUsersTabProps> = ({
                 </div>
 
                 {subTab === 'all' ? (
-                    <div className="border border-border rounded-xl overflow-hidden bg-surface">
+                    <div className="border border-beerus rounded-moon-s-lg overflow-hidden bg-gohan">
                         <Table headers={userHeaders} rows={userRows} />
                     </div>
                 ) : (
-                    <div className="border border-border rounded-xl overflow-hidden bg-surface">
+                    <div className="border border-beerus rounded-moon-s-lg overflow-hidden bg-gohan">
                         {inviteRows.length > 0 ? (
                             <Table headers={inviteHeaders} rows={inviteRows} />
                         ) : (
-                            <div className="p-8 text-center text-on-surface-secondary">
+                            <div className="p-8 text-center text-trunks">
                                 <p>No pending invitations.</p>
                             </div>
                         )}

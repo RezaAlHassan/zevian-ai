@@ -29,6 +29,7 @@ import OnboardingStepper from '../components/OnboardingStepper';
 import ReportDetailModal from '../components/ReportDetailModal';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectGoalsModal from '../components/ProjectGoalsModal';
+import { ProfilePicture } from '../components/Avatar';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -802,9 +803,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
     // Performance bands for the chart
     const performanceBands = [
-        { key: 'High (8.0+)', name: 'High (8.0+)', color: '#10b981' },
-        { key: 'Medium (6.0-7.9)', name: 'Medium (6.0-7.9)', color: '#f59e0b' },
-        { key: 'Low (<6.0)', name: 'Low (<6.0)', color: '#ef4444' }
+        { key: 'High (8.0+)', name: 'High (8.0+)', color: 'var(--roshi)' },
+        { key: 'Medium (6.0-7.9)', name: 'Medium (6.0-7.9)', color: 'var(--hit)' },
+        { key: 'Low (<6.0)', name: 'Low (<6.0)', color: 'var(--dodoria)' }
     ];
 
     // Employee View Calculations
@@ -1369,14 +1370,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
         const goal = goals.find(g => g.id === report.goalId);
         return [
             <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-on-surface-tertiary" />
-                <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
+                <Calendar size={14} className="text-trunks/70" />
+                <span className="capitalize text-trunks">{formatTableDate(report.submissionDate)}</span>
             </div>,
-            <span className="capitalize text-on-surface-secondary truncate">{goal?.name || 'N/A'}</span>,
-            <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(2)}</span>,
+            <span className="capitalize text-trunks truncate">{goal?.name || 'N/A'}</span>,
+            <span className="capitalize text-trunks">{report.evaluationScore.toFixed(2)}</span>,
             <button
                 onClick={() => setSelectedReport(report)}
-                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                className="p-1.5 text-trunks hover:text-primary hover:bg-primary/10 rounded-moon-s-md transition-all duration-200"
                 title="View Details"
             >
                 <Eye size={18} strokeWidth={2} />
@@ -1390,24 +1391,24 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
         return [
             <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-on-surface-tertiary" />
-                <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
+                <Calendar size={14} className="text-trunks/70" />
+                <span className="capitalize text-trunks">{formatTableDate(report.submissionDate)}</span>
             </div>,
             onSelectEmployee && employee ? (
                 <button
                     onClick={() => onSelectEmployee(employee.id)}
-                    className="text-primary hover:underline truncate text-left capitalize text-on-surface-secondary"
+                    className="text-piccolo hover:underline truncate text-left capitalize text-trunks"
                 >
                     {employee.name}
                 </button>
             ) : (
-                <span className="capitalize text-on-surface-secondary truncate">{employee?.name || 'Unknown'}</span>
+                <span className="capitalize text-trunks truncate">{employee?.name || 'Unknown'}</span>
             ),
-            <span className="capitalize text-on-surface-secondary truncate">{goal?.name || 'N/A'}</span>,
-            <span className="capitalize text-on-surface-secondary">{report.evaluationScore.toFixed(2)}</span>,
+            <span className="capitalize text-trunks truncate">{goal?.name || 'N/A'}</span>,
+            <span className="capitalize text-trunks">{report.evaluationScore.toFixed(2)}</span>,
             <button
                 onClick={() => setSelectedReport(report)}
-                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                className="p-1.5 text-trunks hover:text-primary hover:bg-primary/10 rounded-moon-s-md transition-all duration-200"
                 title="View Details"
             >
                 <Eye size={18} strokeWidth={2} />
@@ -1420,21 +1421,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
     return (
         <div className="w-full px-6 py-6 space-y-6">
             {/* Header with Date Selection */}
-            <div className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md p-4 rounded-lg border border-border -mx-4 mb-6 shadow-sm">
+            <div className="sticky top-0 z-20 bg-gohan/90 backdrop-blur-md p-4 rounded-moon-s-lg border border-beerus -mx-4 mb-6">
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                    <h2 className="text-lg font-bold text-on-surface">Dashboard</h2>
+                    <h2 className="text-moon-20 font-bold text-bulma">Dashboard</h2>
                     <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-2 mr-2">
-                            <span className="text-xs font-bold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded">Select duration:</span>
+                            <span className="text-moon-12 font-bold text-piccolo uppercase tracking-wider bg-piccolo/10 px-2 py-1 rounded-moon-i-sm">Select duration:</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-on-surface-secondary" />
-                            <label htmlFor="start-date" className="text-xs font-medium text-on-surface-secondary">From</label>
-                            <Input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="min-w-[130px] py-1 text-sm" />
+                            <Calendar size={16} className="text-trunks" />
+                            <label htmlFor="start-date" className="text-moon-12 font-medium text-trunks">From</label>
+                            <Input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="min-w-[130px] py-1 text-moon-14" />
                         </div>
                         <div className="flex items-center gap-2">
-                            <label htmlFor="end-date" className="text-xs font-medium text-on-surface-secondary">To</label>
-                            <Input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="min-w-[130px] py-1 text-sm" />
+                            <label htmlFor="end-date" className="text-moon-12 font-medium text-trunks">To</label>
+                            <Input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="min-w-[130px] py-1 text-moon-14" />
                         </div>
                     </div>
                 </div>
@@ -1454,14 +1455,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
             {/* Generate Summary Banner (Manager View Only) */}
             {!isEmployeeView && (
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                <div className="bg-piccolo/10 border border-piccolo/30 rounded-moon-s-md p-4">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                                <Sparkles size={18} className="text-on-surface" />
-                                <h3 className="text-base font-semibold text-on-surface">Zevian Performance Summary</h3>
+                                <Sparkles size={18} className="text-bulma" />
+                                <h3 className="text-moon-16 font-semibold text-bulma">Zevian Performance Summary</h3>
                             </div>
-                            <p className="text-sm text-on-surface-secondary ml-7">
+                            <p className="text-moon-14 text-trunks ml-7">
                                 Create a Zevian-powered performance summary for the selected date range based on all reports and evaluation criteria.
                             </p>
                         </div>
@@ -1483,8 +1484,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         </Button>
                     </div>
                     {summary && (
-                        <div className="bg-surface p-4 rounded-lg text-sm text-on-surface-secondary border border-border mt-4 whitespace-pre-wrap">
-                            <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
+                        <div className="bg-goten p-4 rounded-moon-s-md text-moon-14 text-trunks border border-beerus mt-4 whitespace-pre-wrap">
+                            <div className="flex items-center gap-2 mb-2 text-piccolo font-semibold">
                                 <FileText size={16} />
                                 <span>Team Performance Management Summary</span>
                             </div>
@@ -1496,14 +1497,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
             {/* Employee View Content - Performance Summary */}
             {isEmployeeView && (
-                <div className="bg-surface border border-primary/20 rounded-lg p-4">
+                <div className="bg-goten border border-piccolo/20 rounded-moon-s-md p-4">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                                <Sparkles size={16} className="text-primary" />
-                                <h3 className="text-sm font-semibold text-on-surface">Performance Summary</h3>
+                                <Sparkles size={16} className="text-piccolo animate-pulse" />
+                                <h3 className="text-moon-14 font-semibold text-bulma">Performance Summary</h3>
                             </div>
-                            <p className="text-xs text-on-surface-secondary">
+                            <p className="text-moon-12 text-trunks">
                                 Create a Zevian-powered performance summary based on reports.
                             </p>
                         </div>
@@ -1525,8 +1526,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         </Button>
                     </div>
                     {summary && (
-                        <div className="bg-surface-elevated p-3 rounded-lg text-sm text-on-surface-secondary border border-border mt-3 whitespace-pre-wrap">
-                            <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
+                        <div className="bg-gohan p-3 rounded-moon-s-sm text-moon-14 text-trunks border border-beerus mt-3 whitespace-pre-wrap">
+                            <div className="flex items-center gap-2 mb-2 text-piccolo font-semibold">
                                 <User size={14} />
                                 <span>Personal Performance Summary</span>
                             </div>
@@ -1537,26 +1538,26 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Reports" value={filteredReports.length} icon={<FileText size={20} className="text-on-surface-secondary" />} />
+                <StatCard title="Reports" value={filteredReports.length} icon={<FileText size={20} className="text-trunks" />} />
 
                 {/* Modified/New Cards based on request */}
                 <StatCard
                     title="Late Submissions"
                     value={submissionReliability ? Math.max(0, (submissionReliability.expected - submissionReliability.actual)) : 0}
-                    icon={<Clock size={20} className="text-on-surface-secondary" />}
+                    icon={<Clock size={20} className="text-trunks" />}
                     showActionBadge={submissionReliability ? (submissionReliability.expected - submissionReliability.actual) > 0 : false}
                 />
 
                 <StatCard
                     title="Avg Score (Org Metrics)"
                     value={orgMetricsAverage.toFixed(2)}
-                    icon={<Target size={20} className="text-on-surface-secondary" />}
+                    icon={<Target size={20} className="text-trunks" />}
                 />
 
                 <StatCard
                     title="Average Score"
                     value={analytics.overallScore.toFixed(2)}
-                    icon={<Star size={20} className="text-on-surface-secondary" />}
+                    icon={<Star size={20} className="text-trunks" />}
                     showActionBadge={analytics.overallScore < 6.0}
                 />
 
@@ -1569,12 +1570,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                 <>
                     {/* Skill Analysis and Score Trend Section */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                        <section className="bg-surface-elevated rounded-xl border border-border overflow-hidden flex flex-col">
-                            <div className="p-6 border-b border-border bg-surface/30">
+                        <section className="bg-goten rounded-moon-s-lg border border-beerus overflow-hidden flex flex-col">
+                            <div className="p-6 border-b border-beerus bg-gohan/30">
                                 <div className="flex items-center justify-between gap-4">
                                     <div>
-                                        <h3 className="text-xl font-bold text-on-surface">Skill Analysis</h3>
-                                        <p className="text-sm text-on-surface-secondary mt-1">Holistic proficiency across missions</p>
+                                        <h3 className="text-moon-20 font-bold text-bulma">Skill Analysis</h3>
+                                        <p className="text-moon-14 text-trunks mt-1">Holistic proficiency across missions</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {viewMode === 'manager' && (
@@ -1582,7 +1583,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                 variant="primary"
                                                 size="sm"
                                                 onClick={() => setIsMetricsModalOpen(true)}
-                                                className="flex items-center gap-2 shadow-sm"
+                                                className="flex items-center gap-2"
                                                 icon={Sliders}
                                             >
                                                 Customize Metrics
@@ -1594,14 +1595,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
                             <div className="flex-1 flex flex-col p-6">
                                 <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-2 text-on-surface">
+                                    <div className="flex items-center gap-2 text-bulma">
                                         <List size={18} />
                                         <span className="font-semibold">Skill List</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => setIsSkillListModalOpen(true)}
-                                            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1.5 rounded-lg transition-colors border border-primary/20"
+                                            className="flex items-center gap-1.5 text-moon-12 font-semibold text-piccolo hover:bg-primary/10 px-2 py-1.5 rounded-moon-s-md transition-colors border border-piccolo/20"
                                         >
                                             <List size={14} />
                                             Skill List
@@ -1613,17 +1614,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                     <>
                                         <div className="relative flex-1">
                                             {isAnalyzingSkills && (
-                                                <div className="absolute inset-0 bg-surface/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-2xl border border-border/50">
-                                                    <div className="bg-surface-elevated p-6 rounded-2xl shadow-xl border border-border flex flex-col items-center">
+                                                <div className="absolute inset-0 bg-gohan/50 backdrop-blur-md z-10 flex flex-col items-center justify-center rounded-moon-s-xl border border-border/50">
+                                                    <div className="bg-goten p-6 rounded-moon-s-xl border border-beerus flex flex-col items-center">
                                                         <Spinner size="lg" />
-                                                        <p className="mt-4 text-sm font-bold text-primary animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
+                                                        <p className="mt-4 text-moon-14 font-bold text-piccolo animate-pulse tracking-wide uppercase">Synthesizing Zevian Insights...</p>
                                                     </div>
                                                 </div>
                                             )}
-                                            <div className="bg-surface rounded-2xl p-4 border border-border h-full min-h-[400px]">
+                                            <div className="bg-gohan rounded-moon-s-xl p-4 border border-beerus h-full min-h-[400px]">
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <RadarChart data={radarChartData}>
-                                                        <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                                                    <RadarChart data={radarChartData} margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                                                        <PolarGrid stroke="var(--beerus)" strokeDasharray="3 3" />
                                                         <PolarAngleAxis
                                                             dataKey="skill"
                                                             tick={({ x, y, payload }) => (
@@ -1633,9 +1634,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                                         y={0}
                                                                         dy={4}
                                                                         textAnchor="middle"
-                                                                        fill="#6b7280"
-                                                                        fontSize={10}
-                                                                        fontWeight={600}
+                                                                        fill="var(--bulma)"
+                                                                        fontSize={11}
+                                                                        fontWeight={700}
                                                                     >
                                                                         {payload.value}
                                                                     </text>
@@ -1645,31 +1646,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                         <PolarRadiusAxis
                                                             angle={90}
                                                             domain={[0, 10]}
-                                                            tick={{ fill: '#9ca3af', fontSize: 9 }}
+                                                            tick={{ fill: 'var(--trunks)', fontSize: 9 }}
+                                                            axisLine={false}
+                                                            tickLine={false}
                                                         />
                                                         <Radar
                                                             name="Current Proficiency"
                                                             dataKey="current"
-                                                            stroke="#2563eb"
-                                                            fill="#2563eb"
-                                                            fillOpacity={0.25}
-                                                            strokeWidth={3}
+                                                            stroke="#5C62F5"
+                                                            fill="#5C62F5"
+                                                            fillOpacity={0.15}
+                                                            strokeWidth={2}
                                                             animationDuration={1500}
                                                         />
                                                         <Tooltip
                                                             content={({ active, payload }) => {
                                                                 if (active && payload && payload.length) {
                                                                     return (
-                                                                        <div className="bg-surface-elevated border border-border p-3 rounded-lg shadow-xl backdrop-blur-md">
-                                                                            <p className="text-xs font-bold text-on-surface mb-2">{payload[0].payload.skill}</p>
+                                                                        <div className="bg-goten border border-beerus p-3 rounded-moon-s-md">
+                                                                            <p className="text-moon-12 font-bold text-bulma mb-2">{payload[0].payload.skill}</p>
                                                                             <div className="space-y-1.5">
                                                                                 {payload.map((entry: any) => (
                                                                                     <div key={entry.name} className="flex items-center justify-between gap-4">
                                                                                         <div className="flex items-center gap-1.5">
                                                                                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                                                                                            <span className="text-[10px] text-on-surface-secondary">{entry.name}</span>
+                                                                                            <span className="text-moon-10 text-trunks">{entry.name}</span>
                                                                                         </div>
-                                                                                        <span className="text-[10px] font-bold text-on-surface">{Number(entry.value).toFixed(1)}</span>
+                                                                                        <span className="text-moon-10 font-bold text-bulma">{(Number(entry.value) || 0).toFixed(1)}</span>
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
@@ -1685,33 +1688,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                         </div>
 
                                         {/* Detailed Skills List */}
-                                        <div className="mt-8 border-t border-border pt-6">
+                                        <div className="mt-8 border-t border-beerus pt-6">
                                             <div className="flex items-center justify-between mb-4">
-                                                <h4 className="text-sm font-bold text-on-surface uppercase tracking-wider">All Measured Skills</h4>
-                                                <span className="text-xs text-on-surface-secondary">{sortedSkills.length} Skills</span>
+                                                <h4 className="text-moon-14 font-bold text-bulma uppercase tracking-wider">All Measured Skills</h4>
+                                                <span className="text-moon-12 text-trunks">{sortedSkills.length} Skills</span>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {sortedSkills.map((skill, index) => (
-                                                    <div key={index} className="bg-surface p-3 rounded-xl border border-border flex flex-col gap-2 hover:border-primary/30 transition-colors">
+                                                    <div key={index} className="bg-gohan p-3 rounded-moon-s-lg border border-beerus flex flex-col gap-2 hover:border-primary/30 transition-colors">
                                                         <div className="flex items-center justify-between">
-                                                            <span className="text-sm font-semibold text-on-surface line-clamp-1">{skill.name}</span>
-                                                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                            <span className="text-moon-14 font-semibold text-bulma line-clamp-1">{skill.name}</span>
+                                                            <span className="text-moon-12 font-bold px-2 py-0.5 rounded-full bg-piccolo/10 text-piccolo">
                                                                 {skill.averageScore.toFixed(1)}
                                                             </span>
                                                         </div>
-                                                        <div className="w-full bg-surface-elevated rounded-full h-1.5 overflow-hidden">
+                                                        <div className="w-full bg-goten rounded-full h-1.5 overflow-hidden">
                                                             <div
-                                                                className="h-full bg-primary rounded-full"
+                                                                className="h-full bg-piccolo rounded-full"
                                                                 style={{ width: `${(skill.averageScore / 10) * 100}%` }}
                                                             />
                                                         </div>
-                                                        <div className="flex items-center justify-between text-[10px] text-on-surface-secondary">
+                                                        <div className="flex items-center justify-between text-[10px] text-trunks">
                                                             <span>{skill.frequency} Mentions</span>
                                                             <div className="flex items-center gap-1">
                                                                 {skill.averageScore >= 8 ? (
                                                                     <span className="text-green-500 font-bold uppercase tracking-tighter">Expert</span>
                                                                 ) : skill.averageScore >= 6 ? (
-                                                                    <span className="text-primary font-bold uppercase tracking-tighter">Advanced</span>
+                                                                    <span className="text-piccolo font-bold uppercase tracking-tighter">Advanced</span>
                                                                 ) : (
                                                                     <span className="text-amber-500 font-bold uppercase tracking-tighter">Developing</span>
                                                                 )}
@@ -1723,13 +1726,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                         </div>
                                     </>
                                 ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
-                                        <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/10 relative">
+                                    <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-gohan/20 rounded-moon-s-lg border border-dashed border-beerus">
+                                        <div className="w-20 h-20 bg-piccolo/5 rounded-full flex items-center justify-center mx-auto mb-6 border border-piccolo/10 relative">
                                             <Target size={40} className="text-primary/20" />
-                                            <div className="absolute inset-0 border-2 border-dashed border-primary/10 rounded-full animate-spin-slow"></div>
+                                            <div className="absolute inset-0 border-2 border-dashed border-piccolo/10 rounded-full animate-spin-slow"></div>
                                         </div>
-                                        <h4 className="text-base font-bold text-on-surface mb-2">Fingerprint Ready</h4>
-                                        <p className="text-xs text-on-surface-secondary leading-relaxed mb-6">
+                                        <h4 className="text-moon-16 font-bold text-bulma mb-2">Fingerprint Ready</h4>
+                                        <p className="text-moon-12 text-trunks leading-relaxed mb-6">
                                             Generate your Zevian Proficiency Fingerprint to visualize performance across key metrics.
                                         </p>
                                         {(isEmployeeView || viewMode === 'manager') && (
@@ -1738,7 +1741,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                 size="md"
                                                 onClick={() => performSkillAnalysis(organization?.selectedMetrics || [])}
                                                 disabled={isAnalyzingSkills || filteredReports.length === 0 || !organization?.selectedMetrics?.length}
-                                                className="flex items-center gap-2 mx-auto shadow-lg shadow-primary/20"
+                                                className="flex items-center gap-2 mx-auto"
                                                 icon={Sparkles}
                                             >
                                                 {isAnalyzingSkills ? 'Generating...' : 'Generate Zevian Fingerprint'}
@@ -1750,44 +1753,59 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         </section>
 
                         {/* Score Trend Line Chart */}
-                        <div className="bg-surface-elevated p-6 rounded-xl border border-border flex flex-col">
+                        <div className="bg-goten p-6 rounded-moon-s-lg border border-beerus flex flex-col">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <h3 className="text-xl font-bold text-on-surface">Score Trend</h3>
-                                    <p className="text-sm text-on-surface-secondary mt-1">Performance trajectory over time</p>
+                                    <h3 className="text-moon-20 font-bold text-bulma">Score Trend</h3>
+                                    <p className="text-moon-14 text-trunks mt-1">Performance trajectory over time</p>
                                 </div>
                             </div>
                             {filteredReports.length > 1 ? (
                                 <div className="flex-1 min-h-[400px] mt-6">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={filteredReports
-                                            .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
-                                            .map(r => ({
-                                                date: formatReportDate(r.submissionDate),
-                                                score: r.evaluationScore
-                                            }))}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                                            <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis domain={[0, 10]} tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '0.5rem' }} />
-                                            <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} dot={{ fill: '#2563eb', r: 4, strokeWidth: 2, stroke: '#fff' }} name="Score" />
+                                        <LineChart
+                                            data={filteredReports
+                                                .sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime())
+                                                .map(r => ({
+                                                    date: formatReportDate(r.submissionDate),
+                                                    score: r.evaluationScore
+                                                }))}
+                                            margin={{ top: 10, right: 20, left: 20, bottom: 30 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--beerus)" vertical={false} strokeOpacity={0.4} />
+                                            <XAxis
+                                                dataKey="date"
+                                                tick={{ fill: 'var(--trunks)', fontSize: 10 }}
+                                                axisLine={{ stroke: 'var(--beerus)' }}
+                                                tickLine={false}
+                                                label={{ value: 'Date', position: 'bottom', offset: 0, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
+                                            />
+                                            <YAxis
+                                                domain={[0, 10]}
+                                                tick={{ fill: 'var(--trunks)', fontSize: 10 }}
+                                                axisLine={{ stroke: 'var(--beerus)' }}
+                                                tickLine={false}
+                                                label={{ value: 'Score', angle: -90, position: 'insideLeft', offset: -10, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
+                                            />
+                                            <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', color: '#111827', borderRadius: '8px' }} />
+                                            <Line type="monotone" dataKey="score" stroke="#5C62F5" strokeWidth={3} dot={{ fill: '#5C62F5', r: 4, strokeWidth: 2, stroke: '#fff' }} name="Score" />
                                         </LineChart>
                                     </ResponsiveContainer>
                                 </div>
                             ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border mt-6">
-                                    <TrendingUp size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
-                                    <p className="text-sm text-on-surface-secondary">Multiple reports needed to show trend line</p>
+                                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-gohan/20 rounded-moon-s-lg border border-dashed border-beerus mt-6">
+                                    <TrendingUp size={32} className="text-trunks/70 mb-3 opacity-20" />
+                                    <p className="text-moon-14 text-trunks">Multiple reports needed to show trend line</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Report History */}
-                    <div className="bg-surface-elevated p-6 rounded-xl border border-border mb-8">
+                    <div className="bg-goten p-6 rounded-moon-s-lg border border-beerus mb-8">
                         <div className="flex items-center gap-2 mb-6">
-                            <Clock size={24} className="text-on-surface-secondary" />
-                            <h3 className="text-xl font-bold text-on-surface">Report History ({filteredReports.length})</h3>
+                            <Clock size={24} className="text-trunks" />
+                            <h3 className="text-moon-20 font-bold text-bulma">Report History ({filteredReports.length})</h3>
                         </div>
                         {filteredReports.length > 0 ? (
                             <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
@@ -1802,23 +1820,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                         const goal = goals.find(g => g.id === report.goalId);
                                         return [
                                             <div className="flex items-center gap-2">
-                                                <Calendar size={14} className="text-on-surface-tertiary" />
-                                                <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
+                                                <Calendar size={14} className="text-trunks/70" />
+                                                <span className="capitalize text-trunks">{formatTableDate(report.submissionDate)}</span>
                                             </div>,
-                                            <div className="max-w-[150px] lg:max-w-[250px] truncate capitalize text-on-surface-secondary" title={goal?.name}>
+                                            <div className="max-w-[150px] lg:max-w-[250px] truncate capitalize text-trunks" title={goal?.name}>
                                                 {goal?.name || 'N/A'}
                                             </div>,
-                                            <span className="capitalize text-on-surface-secondary">{(report.evaluationScore ?? 0).toFixed(2)}</span>,
+                                            <span className="capitalize text-trunks">{(report.evaluationScore ?? 0).toFixed(2)}</span>,
                                             <button
                                                 type="button"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setSelectedReport(report);
                                                 }}
-                                                className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                                                className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-moon-s-md transition-all duration-200 group"
                                                 title="View Details"
                                             >
-                                                <Eye size={18} strokeWidth={2} />
+                                                <Eye size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
                                             </button>
                                         ];
                                     })}
@@ -1830,9 +1848,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                 />
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center bg-surface/20 rounded-xl border border-dashed border-border">
-                                <FileText size={32} className="text-on-surface-tertiary mb-3 opacity-20" />
-                                <p className="text-on-surface-secondary">No reports in selected date range.</p>
+                            <div className="flex flex-col items-center justify-center py-12 text-center bg-gohan/20 rounded-moon-s-lg border border-dashed border-beerus">
+                                <FileText size={32} className="text-trunks/70 mb-3 opacity-20" />
+                                <p className="text-trunks">No reports in selected date range.</p>
                             </div>
                         )}
                     </div>
@@ -1845,37 +1863,37 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     {/* Top Row: Performance Velocity (3) & Reports (1) */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* Performance Velocity Section (Span 3) */}
-                        <div className="lg:col-span-3 bg-surface-elevated p-6 rounded-lg border border-border flex flex-col">
+                        <div className="lg:col-span-3 bg-goten p-6 rounded-moon-s-md border border-beerus flex flex-col">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <Activity size={24} className="text-on-surface-secondary" />
-                                    <h3 className="text-lg font-semibold text-on-surface">Performance Velocity</h3>
+                                    <Activity size={24} className="text-trunks" />
+                                    <h3 className="text-moon-18 font-semibold text-bulma">Performance Velocity</h3>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2 bg-surface rounded-lg border border-border p-1">
+                                    <div className="flex items-center gap-2 bg-gohan rounded-moon-s-md border border-beerus p-1">
                                         <button
                                             onClick={() => setChartTimePeriod('daily')}
-                                            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartTimePeriod === 'daily'
-                                                ? 'bg-primary text-white'
-                                                : 'text-on-surface-secondary hover:text-on-surface'
+                                            className={`px-3 py-1 text-moon-12 font-medium rounded transition-colors ${chartTimePeriod === 'daily'
+                                                ? 'bg-piccolo text-white'
+                                                : 'text-trunks hover:text-on-surface'
                                                 }`}
                                         >
                                             Daily
                                         </button>
                                         <button
                                             onClick={() => setChartTimePeriod('weekly')}
-                                            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartTimePeriod === 'weekly'
-                                                ? 'bg-primary text-white'
-                                                : 'text-on-surface-secondary hover:text-on-surface'
+                                            className={`px-3 py-1 text-moon-12 font-medium rounded transition-colors ${chartTimePeriod === 'weekly'
+                                                ? 'bg-piccolo text-white'
+                                                : 'text-trunks hover:text-on-surface'
                                                 }`}
                                         >
                                             Weekly
                                         </button>
                                         <button
                                             onClick={() => setChartTimePeriod('monthly')}
-                                            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${chartTimePeriod === 'monthly'
-                                                ? 'bg-primary text-white'
-                                                : 'text-on-surface-secondary hover:text-on-surface'
+                                            className={`px-3 py-1 text-moon-12 font-medium rounded transition-colors ${chartTimePeriod === 'monthly'
+                                                ? 'bg-piccolo text-white'
+                                                : 'text-trunks hover:text-on-surface'
                                                 }`}
                                         >
                                             Monthly
@@ -1883,19 +1901,19 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-sm text-on-surface-secondary mb-6">
+                            <p className="text-moon-14 text-trunks mb-6">
                                 Tracking weighted AI evaluation scores and report volume trends.
                             </p>
 
                             <div className="flex-1 min-h-[400px]">
                                 {chartData.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 30 }}>
                                             <defs>
-                                                <filter id="blue-glow" height="200%">
+                                                <filter id="piccolo-glow" height="200%">
                                                     <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
                                                     <feOffset in="blur" dx="0" dy="4" result="offsetBlur" />
-                                                    <feFlood floodColor="#2563eb" floodOpacity="0.5" result="offsetColor" />
+                                                    <feFlood floodColor="var(--piccolo)" floodOpacity="0.4" result="offsetColor" />
                                                     <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur" />
                                                     <feMerge>
                                                         <feMergeNode in="offsetBlur" />
@@ -1903,66 +1921,47 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                     </feMerge>
                                                 </filter>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--beerus)" strokeOpacity={0.4} />
                                             <XAxis
                                                 dataKey="period"
-                                                tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 500 }}
-                                                axisLine={{ stroke: '#e5e7eb' }}
+                                                tick={{ fill: 'var(--trunks)', fontSize: 10, fontWeight: 500 }}
+                                                axisLine={{ stroke: 'var(--beerus)' }}
                                                 tickLine={false}
                                                 padding={{ left: 10, right: 10 }}
+                                                label={{ value: 'Time Period', position: 'bottom', offset: 0, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
                                             />
                                             <YAxis
                                                 yAxisId="left"
-                                                tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 500 }}
+                                                tick={{ fill: 'var(--trunks)', fontSize: 10, fontWeight: 500 }}
                                                 domain={[0, 10]}
-                                                axisLine={false}
+                                                axisLine={{ stroke: 'var(--beerus)' }}
                                                 tickLine={false}
-                                            />
-                                            <YAxis
-                                                yAxisId="right"
-                                                orientation="right"
-                                                tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
-                                                axisLine={false}
-                                                tickLine={false}
+                                                label={{ value: 'AI Score', angle: -90, position: 'insideLeft', offset: -10, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
                                             />
                                             <Tooltip
                                                 contentStyle={{
-                                                    backgroundColor: '#ffffff',
-                                                    border: '1px solid #e5e7eb',
+                                                    backgroundColor: '#FFFFFF',
+                                                    border: '1px solid #E5E7EB',
                                                     color: '#111827',
-                                                    borderRadius: '0.5rem',
-                                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                                    borderRadius: '8px',
                                                     fontSize: '12px'
                                                 }}
                                             />
-                                            {/* Report Volume Line (Secondary) */}
-                                            <Line
-                                                yAxisId="right"
-                                                type="monotone"
-                                                dataKey="total"
-                                                name="Report Volume"
-                                                stroke="#94a3b8"
-                                                strokeWidth={2}
-                                                dot={false}
-                                                activeDot={{ r: 4, fill: '#94a3b8' }}
-                                                strokeOpacity={0.5}
-                                            />
-                                            {/* Weighted AI Score Line (Primary with Glow) */}
+                                            {/* Weighted AI Score Line (Primary) */}
                                             <Line
                                                 yAxisId="left"
                                                 type="monotone"
                                                 dataKey="averageScore"
                                                 name="Weighted AI Score"
-                                                stroke="#2563eb"
-                                                strokeWidth={4}
-                                                dot={{ fill: '#2563eb', r: 4, strokeWidth: 2, stroke: '#fff' }}
-                                                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
-                                                filter="url(#blue-glow)"
+                                                stroke="#5C62F5"
+                                                strokeWidth={3}
+                                                dot={{ fill: '#5C62F5', r: 4, strokeWidth: 2, stroke: '#FFFFFF' }}
+                                                activeDot={{ r: 6, stroke: '#FFFFFF', strokeWidth: 2 }}
                                             />
                                         </ComposedChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-on-surface-secondary">
+                                    <div className="h-full flex flex-col items-center justify-center text-trunks">
                                         <BarChart3 size={32} className="mb-2 opacity-20" />
                                         <p>No data available for selected period</p>
                                     </div>
@@ -1971,34 +1970,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         </div>
 
                         {/* Recent Reports & Contributors (Span 1) */}
-                        <div className="lg:col-span-1 bg-surface-elevated p-6 rounded-lg border border-border flex flex-col">
+                        <div className="lg:col-span-1 bg-goten p-6 rounded-moon-s-md border border-beerus flex flex-col">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
-                                    <FileText size={20} className="text-on-surface-secondary" />
+                                <h3 className="text-moon-18 font-semibold text-bulma flex items-center gap-2">
+                                    <FileText size={20} className="text-trunks" />
                                     Reports
                                 </h3>
                                 {onNavigate && (
                                     <a
                                         href="#"
                                         onClick={(e) => { e.preventDefault(); onNavigate('all-reports'); }}
-                                        className="text-xs text-primary hover:underline hover:text-primary-hover font-medium"
+                                        className="text-moon-12 text-piccolo hover:underline hover:text-primary-hover font-medium"
                                     >
                                         See All
                                     </a>
                                 )}
                             </div>
 
-                            {/* Simplified Tabs */}
-                            <div className="flex p-1 bg-surface rounded-lg mb-4 text-xs font-medium border border-border">
+                            <div className="flex items-center gap-4 border-b border-beerus mb-4">
                                 <button
                                     onClick={() => setActiveTab('recent')}
-                                    className={`flex-1 py-1.5 rounded-md transition-colors ${activeTab === 'recent' ? 'bg-primary/10 text-primary shadow-sm' : 'text-on-surface-secondary hover:text-on-surface'}`}
+                                    className={`flex-1 py-1.5 text-moon-12 font-medium border-b-2 transition-all duration-200 ${activeTab === 'recent' ? 'border-piccolo text-piccolo bg-piccolo/5' : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'}`}
                                 >
                                     Recent
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('redFlag')}
-                                    className={`flex-1 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1 ${activeTab === 'redFlag' ? 'bg-red-50 text-red-600 shadow-sm' : 'text-on-surface-secondary hover:text-on-surface'}`}
+                                    className={`flex-1 py-1.5 text-moon-12 font-medium border-b-2 transition-all duration-200 flex items-center justify-center gap-1 ${activeTab === 'redFlag' ? 'border-red-500 text-red-600 bg-red-50/50' : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'}`}
                                 >
                                     Red Flag
                                     {redFlagReports.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>}
@@ -2009,58 +2007,142 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                 {activeTab === 'recent' ? (
                                     recentReports.length > 0 ? (
                                         <div className="space-y-3">
-                                            {recentReports.slice(0, 6).map((report) => {
+                                            {recentReports.slice(0, 4).map((report) => {
                                                 const employee = employees.find(e => e.id === report.employeeId);
+                                                const goal = goals.find(g => g.id === report.goalId);
+                                                const isLate = goal?.deadline ? new Date(report.submissionDate) > new Date(goal.deadline) : false;
+                                                const isReviewed = report.isResolved || !!report.reviewedBy;
+
+                                                let scoreColor = 'text-red-500';
+                                                let scoreBg = 'bg-red-500/10';
+                                                if (report.evaluationScore > 7) {
+                                                    scoreColor = 'text-green-500';
+                                                    scoreBg = 'bg-green-500/10';
+                                                } else if (report.evaluationScore >= 5) {
+                                                    scoreColor = 'text-yellow-500';
+                                                    scoreBg = 'bg-yellow-500/10';
+                                                }
+
                                                 return (
                                                     <div
                                                         key={report.id}
-                                                        className="p-3 bg-surface rounded-lg border border-border hover:border-primary/30 cursor-pointer transition-colors"
+                                                        className="p-3 bg-gohan rounded-moon-s-md border border-beerus hover:border-piccolo/40 cursor-pointer transition-all hover:shadow-moon-md group"
                                                         onClick={() => setSelectedReport(report)}
                                                     >
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <div className="font-medium text-sm text-on-surface truncate pr-2">
-                                                                {employee?.name || 'Unknown'}
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <ProfilePicture name={employee?.name || 'Unknown'} size={24} />
+                                                                <span className="font-medium text-moon-14 text-bulma truncate whitespace-nowrap">
+                                                                    {employee?.name || 'Unknown'}
+                                                                </span>
                                                             </div>
-                                                            <div className={`text-xs font-bold ${report.evaluationScore >= 8 ? 'text-primary' : report.evaluationScore < 6 ? 'text-red-500' : 'text-amber-500'}`}>
+                                                            <div className={`px-2 py-0.5 rounded text-moon-12 font-bold ${scoreBg} ${scoreColor}`}>
                                                                 {report.evaluationScore.toFixed(1)}
                                                             </div>
                                                         </div>
-                                                        <div className="text-[10px] text-on-surface-secondary mb-1">
-                                                            {formatReportDate(report.submissionDate)}
+
+                                                        <div className="flex flex-col gap-1 mb-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="text-moon-12 font-medium text-bulma truncate" title={goal?.name}>
+                                                                    {goal?.name || 'N/A'}
+                                                                </div>
+                                                                <div className="text-[10px] text-trunks whitespace-nowrap">
+                                                                    {formatReportDate(report.submissionDate)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {isLate ? (
+                                                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold uppercase tracking-wider">Late</span>
+                                                                ) : (
+                                                                    <span className="px-1.5 py-0.5 bg-green-100 text-green-600 rounded text-[10px] font-bold uppercase tracking-wider">On Time</span>
+                                                                )}
+                                                                {isReviewed ? (
+                                                                    <div className="flex items-center gap-0.5 text-green-600" title="Reviewed">
+                                                                        <CheckCircle2 size={12} />
+                                                                        <span className="text-[10px] font-medium">Reviewed</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="px-1.5 py-0.5 bg-beerus text-trunks rounded text-[10px] font-bold uppercase tracking-wider">Pending Review</span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <p className="text-xs text-on-surface-secondary line-clamp-1 opacity-80">
-                                                            {report.reportText.replace(/<[^>]*>/g, '')}
+
+                                                        <p className="text-moon-12 text-trunks line-clamp-1 opacity-80 italic">
+                                                            "{report.reportText.replace(/<[^>]*>/g, '').substring(0, 100)}..."
                                                         </p>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-8 text-on-surface-tertiary">
+                                        <div className="text-center py-8 text-trunks/70">
                                             <Clock size={24} className="mx-auto mb-2 opacity-30" />
-                                            <p className="text-xs">No recent reports</p>
+                                            <p className="text-moon-12">No recent reports</p>
                                         </div>
                                     )
                                 ) : (
                                     redFlagReports.length > 0 ? (
                                         <div className="space-y-3">
-                                            {redFlagReports.map((report) => {
+                                            {redFlagReports.slice(0, 4).map((report) => {
                                                 const employee = employees.find(e => e.id === report.employeeId);
+                                                const goal = goals.find(g => g.id === report.goalId);
+                                                const isLate = goal?.deadline ? new Date(report.submissionDate) > new Date(goal.deadline) : false;
+                                                const isReviewed = report.isResolved || !!report.reviewedBy;
+
+                                                let scoreColor = 'text-red-500';
+                                                let scoreBg = 'bg-red-500/10';
+                                                if (report.evaluationScore > 7) {
+                                                    scoreColor = 'text-green-500';
+                                                    scoreBg = 'bg-green-500/10';
+                                                } else if (report.evaluationScore >= 5) {
+                                                    scoreColor = 'text-yellow-500';
+                                                    scoreBg = 'bg-yellow-500/10';
+                                                }
+
                                                 return (
                                                     <div
                                                         key={report.id}
-                                                        className="p-3 bg-red-50/20 rounded-lg border border-red-200 hover:border-red-300 cursor-pointer transition-colors"
+                                                        className="p-3 bg-red-50/20 rounded-moon-s-md border border-red-200 hover:border-red-300 cursor-pointer transition-colors"
                                                         onClick={() => setSelectedReport(report)}
                                                     >
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <div className="font-medium text-sm text-on-surface truncate pr-2">
-                                                                {employee?.name || 'Unknown'}
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <ProfilePicture name={employee?.name || 'Unknown'} size={24} />
+                                                                <span className="font-medium text-moon-14 text-bulma truncate whitespace-nowrap">
+                                                                    {employee?.name || 'Unknown'}
+                                                                </span>
                                                             </div>
-                                                            <div className="text-xs font-bold text-red-600">
+                                                            <div className={`px-2 py-0.5 rounded text-moon-12 font-bold ${scoreBg} ${scoreColor}`}>
                                                                 {report.evaluationScore.toFixed(1)}
                                                             </div>
                                                         </div>
-                                                        <div className="text-[10px] text-red-700/70 mb-1">
+
+                                                        <div className="flex flex-col gap-1 mb-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="text-moon-12 font-medium text-bulma truncate" title={goal?.name}>
+                                                                    {goal?.name || 'N/A'}
+                                                                </div>
+                                                                <div className="text-[10px] text-red-700/70 whitespace-nowrap">
+                                                                    {formatReportDate(report.submissionDate)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {isLate ? (
+                                                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold uppercase tracking-wider">Late</span>
+                                                                ) : (
+                                                                    <span className="px-1.5 py-0.5 bg-green-100 text-green-600 rounded text-[10px] font-bold uppercase tracking-wider">On Time</span>
+                                                                )}
+                                                                {isReviewed ? (
+                                                                    <div className="flex items-center gap-0.5 text-green-600" title="Reviewed">
+                                                                        <CheckCircle2 size={12} />
+                                                                        <span className="text-[10px] font-medium">Reviewed</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="px-1.5 py-0.5 bg-red-200 text-red-700 rounded text-[10px] font-bold uppercase tracking-wider">Pending Review</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-[10px] text-red-700/70">
                                                             Critical Issue
                                                         </div>
                                                     </div>
@@ -2068,9 +2150,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-8 text-on-surface-tertiary">
+                                        <div className="text-center py-8 text-trunks/70">
                                             <CheckCircle2 size={24} className="mx-auto mb-2 opacity-30 text-emerald-500" />
-                                            <p className="text-xs">No red flags</p>
+                                            <p className="text-moon-12">No red flags</p>
                                         </div>
                                     )
                                 )}
@@ -2081,23 +2163,23 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                     {/* Bottom Row: Goal Matrix (1) & Projects (1) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Goal Alignment Matrix */}
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                        <div className="bg-goten p-6 rounded-moon-s-md border border-beerus">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-2">
-                                    <Target size={24} className="text-on-surface-secondary" />
-                                    <h3 className="text-lg font-semibold text-on-surface">Goal Alignment</h3>
+                                    <Target size={24} className="text-trunks" />
+                                    <h3 className="text-moon-18 font-semibold text-bulma">Goal Alignment</h3>
                                 </div>
                                 {onNavigate && (
                                     <a
                                         href="#"
                                         onClick={(e) => { e.preventDefault(); onNavigate('goals'); }}
-                                        className="text-sm text-primary hover:text-primary-hover font-medium"
+                                        className="text-moon-14 text-piccolo hover:text-primary-hover font-medium"
                                     >
                                         See All
                                     </a>
                                 )}
                             </div>
-                            <p className="text-sm text-on-surface-secondary mb-6">
+                            <p className="text-moon-14 text-trunks mb-6">
                                 Quality distribution across key organizational goals.
                             </p>
                             {goalAlignmentData.length > 0 ? (
@@ -2106,21 +2188,32 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                         <BarChart
                                             data={goalAlignmentData}
                                             layout="vertical"
-                                            margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
+                                            margin={{ top: 10, right: 30, left: 40, bottom: 30 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-                                            <XAxis type="number" hide />
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} horizontal={false} />
+                                            <XAxis
+                                                type="number"
+                                                tick={{ fill: 'var(--trunks)', fontSize: 10 }}
+                                                axisLine={{ stroke: 'var(--beerus)' }}
+                                                label={{ value: 'Report Volume', position: 'bottom', offset: 0, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
+                                            />
                                             <YAxis
                                                 type="category"
                                                 dataKey="goal"
-                                                tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 500 }}
+                                                tick={{ fill: 'var(--trunks)', fontSize: 10, fontWeight: 500 }}
                                                 width={140}
-                                                axisLine={false}
+                                                axisLine={{ stroke: 'var(--beerus)' }}
                                                 tickLine={false}
+                                                label={{ value: 'Goal Name', angle: -90, position: 'insideLeft', offset: -15, fill: 'var(--trunks)', fontSize: 10, fontWeight: 600 }}
                                             />
                                             <Tooltip
                                                 cursor={{ fill: 'transparent' }}
-                                                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                                                contentStyle={{
+                                                    backgroundColor: '#FFFFFF',
+                                                    borderRadius: '8px',
+                                                    border: '1px solid #E5E7EB',
+                                                    color: '#111827'
+                                                }}
                                             />
                                             {performanceBands.map((band) => (
                                                 <Bar
@@ -2142,31 +2235,31 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                     </ResponsiveContainer>
                                 </div>
                             ) : (
-                                <div className="h-[400px] flex items-center justify-center text-center text-on-surface-secondary">
+                                <div className="h-[400px] flex items-center justify-center text-center text-trunks">
                                     <p>No goal data available</p>
                                 </div>
                             )}
                         </div>
 
                         {/* Ongoing Projects (Cards) */}
-                        <div className="bg-surface-elevated p-6 rounded-lg border border-border">
+                        <div className="bg-goten p-6 rounded-moon-s-md border border-beerus">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-2">
-                                    <FolderKanban size={24} className="text-on-surface-secondary" />
-                                    <h3 className="text-lg font-semibold text-on-surface">Ongoing Projects</h3>
+                                    <FolderKanban size={24} className="text-trunks" />
+                                    <h3 className="text-moon-18 font-semibold text-bulma">Ongoing Projects</h3>
                                 </div>
                                 {onNavigate && (
                                     <a
                                         href="#"
                                         onClick={(e) => { e.preventDefault(); onNavigate('projects'); }}
-                                        className="text-sm text-primary hover:text-primary-hover font-medium"
+                                        className="text-moon-14 text-piccolo hover:text-primary-hover font-medium"
                                     >
                                         View All
                                     </a>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {ongoingProjects.slice(0, 4).map((project) => {
                                     const isHealthy = project.averageScore >= 7.0;
                                     const daysInStage = Math.floor((new Date().getTime() - new Date(project.startDate).getTime()) / (1000 * 3600 * 24));
@@ -2174,63 +2267,70 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                     return (
                                         <div
                                             key={project.id}
-                                            className="bg-surface p-4 rounded-xl border border-border hover:border-primary/40 transition-all cursor-pointer group shadow-sm hover:shadow"
+                                            className="bg-gohan p-6 rounded-moon-s-lg border border-beerus hover:border-primary/40 transition-all cursor-pointer group"
                                             onClick={onSelectProject ? () => onSelectProject(project.id) : undefined}
                                         >
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <h4 className="font-bold text-on-surface text-sm truncate max-w-[120px]" title={project.name}>
-                                                        {project.name}
-                                                    </h4>
-                                                    <div className="flex items-center gap-1.5 text-xs text-on-surface-secondary mt-0.5">
-                                                        <Building2 size={10} />
-                                                        <span>{project.category || 'Internal'}</span>
-                                                    </div>
+                                            <div className="mb-4">
+                                                <h4 className="font-bold text-bulma text-moon-16 truncate" title={project.name}>
+                                                    {project.name}
+                                                </h4>
+                                                <div className="flex items-center gap-1.5 text-moon-14 text-trunks mt-0.5">
+                                                    <Building2 size={14} />
+                                                    <span>{project.category || 'Internal'}</span>
                                                 </div>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${isHealthy ? 'bg-emerald-100/50 text-emerald-700' : 'bg-red-100/50 text-red-700'}`}>
+                                            </div>
+
+                                            <div className="space-y-2 mb-4">
+                                                <div className="flex items-center gap-2 text-moon-14 text-trunks">
+                                                    <Users size={14} className="text-trunks/70" />
+                                                    <span className="truncate">
+                                                        ({project.assignees?.length || 0}) {project.assignees && project.assignees.length > 0
+                                                            ? project.assignees.map(a => employees.find(e => e.id === a.id)?.name.split(' ')[0]).filter(Boolean).join(', ')
+                                                            : 'Unassigned'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-moon-14 text-trunks">
+                                                    <Clock size={14} className="text-trunks/70" />
+                                                    <span>
+                                                        Last report: {(() => {
+                                                            const projectGoalIds = goals.filter(g => g.projectId === project.id).map(g => g.id);
+                                                            const projectReports = reports.filter(r => projectGoalIds.includes(r.goalId));
+                                                            if (projectReports.length === 0) return 'Never';
+                                                            const lastReportDate = new Date(Math.max(...projectReports.map(r => new Date(r.submissionDate).getTime())));
+                                                            return formatReportDate(lastReportDate.toISOString());
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-moon-14 text-trunks">
+                                                    <Trophy size={14} className="text-trunks/70" />
+                                                    <span className="font-semibold text-bulma">
+                                                        {project.averageScore.toFixed(1)}/10
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-3 border-t border-beerus">
+                                                {project.goals.length > 0 ? (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedProjectForGoals(project);
+                                                        }}
+                                                        className="text-moon-12 font-bold text-piccolo hover:underline flex items-center gap-1"
+                                                    >
+                                                        {project.goals.length} Goals
+                                                        <ChevronRight size={12} />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-moon-12 text-trunks/40 italic">No goals</span>
+                                                )}
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${isHealthy
+                                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                                    : 'bg-red-500/10 text-red-600'
+                                                    }`}>
                                                     {isHealthy ? 'Healthy' : 'At Risk'}
                                                 </span>
                                             </div>
-
-                                            <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
-                                                <Users size={12} className="text-on-surface-tertiary" />
-                                                <span className="truncate">
-                                                    ({project.assignees?.length || 0}) {project.assignees && project.assignees.length > 0
-                                                        ? project.assignees.map(a => employees.find(e => e.id === a.id)?.name.split(' ')[0]).filter(Boolean).join(', ')
-                                                        : 'Unassigned'}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
-                                                <Clock size={12} className="text-on-surface-tertiary" />
-                                                <span>
-                                                    Last report: {(() => {
-                                                        const projectGoalIds = goals.filter(g => g.projectId === project.id).map(g => g.id);
-                                                        const projectReports = reports.filter(r => projectGoalIds.includes(r.goalId));
-                                                        if (projectReports.length === 0) return 'Never';
-                                                        const lastReportDate = new Date(Math.max(...projectReports.map(r => new Date(r.submissionDate).getTime())));
-                                                        return formatReportDate(lastReportDate.toISOString());
-                                                    })()}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs text-on-surface-secondary">
-                                                <Trophy size={12} className="text-on-surface-tertiary" />
-                                                <span className="font-semibold text-on-surface">
-                                                    {project.averageScore.toFixed(1)}/10
-                                                </span>
-                                            </div>
-
-                                            {project.goals.length > 0 && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedProjectForGoals(project);
-                                                    }}
-                                                    className="w-full text-left mt-2 pl-1 pt-2 border-t border-border/50 text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
-                                                >
-                                                    {project.goals.length} Goals
-                                                    <ChevronRight size={10} />
-                                                </button>
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -2263,24 +2363,24 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             {
                 selectedGoalId && selectedGoalDetails && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="bg-surface-elevated w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden">
+                        <div className="bg-goten w-full max-w-4xl max-h-[90vh] rounded-moon-s-lg border border-beerus flex flex-col overflow-hidden">
                             {/* Header */}
-                            <div className="p-6 border-b border-border flex items-center justify-between bg-surface">
+                            <div className="p-6 border-b border-beerus flex items-center justify-between bg-gohan">
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <Target className="text-primary" size={20} />
-                                        <h2 className="text-xl font-bold text-on-surface">{selectedGoalDetails.name}</h2>
-                                        <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                                        <Target className="text-piccolo" size={20} />
+                                        <h2 className="text-moon-20 font-bold text-bulma">{selectedGoalDetails.name}</h2>
+                                        <span className="px-2 py-0.5 bg-piccolo/10 text-piccolo text-moon-12 font-semibold rounded-full">
                                             Goal Details
                                         </span>
                                     </div>
-                                    <p className="text-sm text-on-surface-secondary">
+                                    <p className="text-moon-14 text-trunks">
                                         Project: {projects.find(p => p.id === selectedGoalDetails.projectId)?.name || 'Unknown'}
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setSelectedGoalId(null)}
-                                    className="p-2 hover:bg-surface-hover rounded-full transition-colors text-on-surface-tertiary hover:text-on-surface"
+                                    className="p-2 hover:bg-surface-hover rounded-full transition-colors text-trunks/70 hover:text-on-surface"
                                 >
                                     <X size={24} />
                                 </button>
@@ -2290,19 +2390,19 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                 {/* Summary Stats */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="bg-surface p-4 rounded-lg border border-border">
-                                        <div className="text-xs text-on-surface-secondary mb-1">Total Reports</div>
-                                        <div className="text-2xl font-bold text-on-surface">{selectedGoalReports.length}</div>
+                                    <div className="bg-gohan p-4 rounded-moon-s-md border border-beerus">
+                                        <div className="text-moon-12 text-trunks mb-1">Total Reports</div>
+                                        <div className="text-moon-24 font-bold text-bulma">{selectedGoalReports.length}</div>
                                     </div>
-                                    <div className="bg-surface p-4 rounded-lg border border-border">
-                                        <div className="text-xs text-on-surface-secondary mb-1">Average Score</div>
-                                        <div className="text-2xl font-bold text-on-surface">
+                                    <div className="bg-gohan p-4 rounded-moon-s-md border border-beerus">
+                                        <div className="text-moon-12 text-trunks mb-1">Average Score</div>
+                                        <div className="text-moon-24 font-bold text-bulma">
                                             {((selectedGoalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / (selectedGoalReports.length || 1)) || 0).toFixed(1)}/10
                                         </div>
                                     </div>
-                                    <div className="bg-surface p-4 rounded-lg border border-border">
-                                        <div className="text-xs text-on-surface-secondary mb-1">Red Flags</div>
-                                        <div className="text-2xl font-bold text-red-500">
+                                    <div className="bg-gohan p-4 rounded-moon-s-md border border-beerus">
+                                        <div className="text-moon-12 text-trunks mb-1">Red Flags</div>
+                                        <div className="text-moon-24 font-bold text-red-500">
                                             {selectedGoalReports.filter(r => r.evaluationScore < 6).length}
                                         </div>
                                     </div>
@@ -2310,38 +2410,38 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
 
                                 {/* Reports List */}
                                 <div>
-                                    <h3 className="text-sm font-semibold text-on-surface mb-4 uppercase tracking-wider">Reports & AI Reasoning</h3>
+                                    <h3 className="text-moon-14 font-semibold text-bulma mb-4 uppercase tracking-wider">Reports & AI Reasoning</h3>
                                     <div className="space-y-4">
                                         {selectedGoalReports.length > 0 ? (
                                             selectedGoalReports.map((report) => (
                                                 <div
                                                     key={report.id}
-                                                    className={`p-5 rounded-xl border transition-all ${report.evaluationScore < 6
+                                                    className={`p-5 rounded-moon-s-lg border transition-all ${report.evaluationScore < 6
                                                         ? 'bg-red-500/5 border-red-200 hover:border-red-300'
-                                                        : 'bg-surface border-border hover:border-primary/30'
+                                                        : 'bg-gohan border-beerus hover:border-primary/30'
                                                         }`}
                                                 >
                                                     <div className="flex items-start justify-between mb-3">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`p-2 rounded-lg ${report.evaluationScore < 6 ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'}`}>
+                                                            <div className={`p-2 rounded-moon-s-md ${report.evaluationScore < 6 ? 'bg-red-500/10 text-red-500' : 'bg-piccolo/10 text-piccolo'}`}>
                                                                 {report.evaluationScore < 6 ? <AlertCircle size={20} /> : <FileText size={20} />}
                                                             </div>
                                                             <div>
-                                                                <div className="font-semibold text-on-surface">
+                                                                <div className="font-semibold text-bulma">
                                                                     {employees.find(e => e.id === report.employeeId)?.name || 'Unknown Employee'}
                                                                 </div>
-                                                                <div className="text-xs text-on-surface-tertiary">
+                                                                <div className="text-moon-12 text-trunks/70">
                                                                     {new Date(report.submissionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
-                                                            <div className={`text-lg font-bold ${report.evaluationScore < 6 ? 'text-red-600' : 'text-primary'}`}>
+                                                            <div className={`text-moon-18 font-bold ${report.evaluationScore < 6 ? 'text-red-600' : 'text-piccolo'}`}>
                                                                 {(report.evaluationScore ?? 0).toFixed(1)}/10
                                                             </div>
                                                             <button
                                                                 onClick={() => setSelectedReport(report)}
-                                                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 font-medium"
+                                                                className="text-moon-12 text-piccolo hover:underline flex items-center gap-1 mt-1 font-medium"
                                                             >
                                                                 View Full Report <ExternalLink size={12} />
                                                             </button>
@@ -2349,12 +2449,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                     </div>
 
                                                     {/* AI Reasoning Preview */}
-                                                    <div className="bg-surface-elevated/50 p-4 rounded-lg border border-border/50">
-                                                        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-on-surface-secondary uppercase tracking-tight">
+                                                    <div className="bg-surface-elevated/50 p-4 rounded-moon-s-md border border-border/50">
+                                                        <div className="flex items-center gap-2 mb-2 text-moon-12 font-semibold text-trunks uppercase tracking-tight">
                                                             <Sparkles size={14} className="text-amber-500" />
                                                             AI Reasoning Excerpt
                                                         </div>
-                                                        <div className="text-sm text-on-surface leading-relaxed italic">
+                                                        <div className="text-moon-14 text-bulma leading-relaxed italic">
                                                             "{report.evaluationReasoning.length > 300
                                                                 ? report.evaluationReasoning.substring(0, 300) + '...'
                                                                 : report.evaluationReasoning}"
@@ -2362,7 +2462,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                     </div>
 
                                                     {report.evaluationScore < 6 && (
-                                                        <div className="mt-3 flex items-center gap-2 text-xs text-red-600 font-medium bg-red-50 p-2 rounded">
+                                                        <div className="mt-3 flex items-center gap-2 text-moon-12 text-red-600 font-medium bg-red-50 p-2 rounded">
                                                             <AlertCircle size={14} />
                                                             Critical: Red flag report requires immediate attention and follow-up.
                                                         </div>
@@ -2370,9 +2470,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="text-center py-12 bg-surface rounded-xl border border-dashed border-border">
-                                                <Info size={40} className="mx-auto text-on-surface-tertiary mb-3 opacity-20" />
-                                                <p className="text-on-surface-secondary">No reports found for this goal in the selected period.</p>
+                                            <div className="text-center py-12 bg-gohan rounded-moon-s-lg border border-dashed border-beerus">
+                                                <Info size={40} className="mx-auto text-trunks/70 mb-3 opacity-20" />
+                                                <p className="text-trunks">No reports found for this goal in the selected period.</p>
                                             </div>
                                         )}
                                     </div>
@@ -2380,10 +2480,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                             </div>
 
                             {/* Footer */}
-                            <div className="p-6 border-t border-border bg-surface flex justify-end">
+                            <div className="p-6 border-t border-beerus bg-gohan flex justify-end">
                                 <button
                                     onClick={() => setSelectedGoalId(null)}
-                                    className="px-6 py-2 bg-on-surface text-surface rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                                    className="px-6 py-2 bg-on-surface text-surface rounded-moon-s-md font-semibold hover:opacity-90 transition-opacity"
                                 >
                                     Close View
                                 </button>
@@ -2431,28 +2531,28 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
             >
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                        <p className="text-sm text-on-surface-secondary">Detailed breakdown of skills measured by Zevian AI based on your project reports.</p>
-                        <span className="text-xs font-bold px-2 py-1 rounded bg-primary/10 text-primary">{sortedSkills.length} Skills</span>
+                        <p className="text-moon-14 text-trunks">Detailed breakdown of skills measured by Zevian AI based on your project reports.</p>
+                        <span className="text-moon-12 font-bold px-2 py-1 rounded bg-piccolo/10 text-piccolo">{sortedSkills.length} Skills</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                         {sortedSkills.map((skill, index) => (
-                            <div key={index} className="bg-surface-elevated p-4 rounded-xl border border-border flex flex-col gap-3 hover:border-primary/30 transition-all duration-200 shadow-sm">
+                            <div key={index} className="bg-goten p-4 rounded-moon-s-lg border border-beerus flex flex-col gap-3 hover:border-primary/30 transition-all duration-200">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm font-bold text-on-surface line-clamp-1">{skill.name}</span>
-                                    <span className="text-sm font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
+                                    <span className="text-moon-14 font-bold text-bulma line-clamp-1">{skill.name}</span>
+                                    <span className="text-moon-14 font-bold px-2 py-1 rounded-moon-s-md bg-piccolo/10 text-piccolo">
                                         {skill.averageScore.toFixed(1)}
                                     </span>
                                 </div>
-                                <div className="w-full bg-surface rounded-full h-2 overflow-hidden border border-border/50">
+                                <div className="w-full bg-gohan rounded-full h-2 overflow-hidden border border-border/50">
                                     <div
-                                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"
+                                        className="h-full bg-piccolo rounded-full transition-all duration-1000 ease-out"
                                         style={{ width: `${(skill.averageScore / 10) * 100}%` }}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between text-[11px] font-medium text-on-surface-secondary">
+                                <div className="flex items-center justify-between text-[11px] font-medium text-trunks">
                                     <span className="flex items-center gap-1">
-                                        <Activity size={12} className="text-primary" />
+                                        <Activity size={12} className="text-piccolo" />
                                         {skill.frequency} Mentions
                                     </span>
                                     <div className="flex items-center gap-1.5">
@@ -2462,7 +2562,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                                                 <span className="uppercase tracking-wider font-bold text-[10px]">Expert</span>
                                             </div>
                                         ) : skill.averageScore >= 6 ? (
-                                            <div className="flex items-center gap-1 text-primary">
+                                            <div className="flex items-center gap-1 text-piccolo">
                                                 <Award size={12} />
                                                 <span className="uppercase tracking-wider font-bold text-[10px]">Advanced</span>
                                             </div>
@@ -2478,7 +2578,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ reports, goals, projects,
                         ))}
                     </div>
 
-                    <div className="pt-4 border-t border-border flex justify-end gap-3">
+                    <div className="pt-4 border-t border-beerus flex justify-end gap-3">
                         {viewMode === 'manager' && (
                             <Button
                                 variant="outline"

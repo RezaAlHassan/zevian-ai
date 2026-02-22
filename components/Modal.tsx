@@ -48,17 +48,17 @@ const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] p-4 transition-all flex justify-center ${scrollable ? 'items-center overflow-hidden' : 'items-start overflow-y-auto'}`}
+      className={`fixed inset-0 bg-popo/80 backdrop-blur-sm z-[100] p-4 transition-all flex justify-center ${scrollable ? 'items-center overflow-hidden' : 'items-start overflow-y-auto'}`}
       onClick={handleBackdropClick}
     >
       <div
-        className={`bg-surface-elevated rounded-lg w-full ${maxWidthClasses[maxWidth]} ${scrollable ? 'overflow-y-auto' : 'overflow-visible'} border border-border shadow-2xl ${!scrollable ? 'my-8' : ''}`}
+        className={`bg-goten rounded-moon-s-lg w-full ${maxWidthClasses[maxWidth]} ${scrollable ? 'overflow-y-auto' : 'overflow-visible'} border border-beerus ${!scrollable ? 'my-8' : ''}`}
         style={scrollable ? { maxHeight } : {}}
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-surface-elevated px-6 py-4 border-b border-border flex justify-between items-center z-10">
-          <h2 className="text-xl font-semibold text-on-surface">{title}</h2>
-          <button onClick={onClose} className="text-on-surface-secondary hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-hover">
+        <div className="sticky top-0 bg-goten px-6 py-4 border-b border-beerus flex justify-between items-center z-10">
+          <h2 className="text-moon-24 font-semibold text-bulma">{title}</h2>
+          <button onClick={onClose} className="text-trunks hover:text-bulma transition-colors p-2 rounded-moon-i-sm hover:bg-gohan">
             <X size={24} />
           </button>
         </div>

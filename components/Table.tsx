@@ -49,12 +49,12 @@ const Table: React.FC<TableProps> = ({
 
     if (sortColumn === columnKey) {
       if (sortDirection === 'asc') {
-        return <ArrowUp size={14} className="ml-1 text-primary" />;
+        return <ArrowUp size={14} className="ml-1 text-primary drop-shadow-sm transition-transform duration-200" />;
       } else if (sortDirection === 'desc') {
-        return <ArrowDown size={14} className="ml-1 text-primary" />;
+        return <ArrowDown size={14} className="ml-1 text-primary drop-shadow-sm transition-transform duration-200" />;
       }
     }
-    return <ArrowUpDown size={14} className="ml-1 text-on-surface-tertiary" />;
+    return <ArrowUpDown size={14} className="ml-1 text-on-surface-tertiary/50 group-hover:text-primary/70 transition-colors duration-200" />;
   };
 
   const normalizedHeaders = headers.map((header, index) => {
@@ -77,7 +77,7 @@ const Table: React.FC<TableProps> = ({
                   scope="col"
                   className={`
                     px-4 py-3 text-xs font-semibold text-on-surface-tertiary uppercase tracking-wider
-                    ${isSortable ? 'cursor-pointer hover:bg-surface-hover select-none' : ''}
+                    ${isSortable ? 'cursor-pointer hover:bg-surface-hover select-none group' : ''}
                     transition-colors
                   `}
                   onClick={() => handleSort(header.key, isSortable)}

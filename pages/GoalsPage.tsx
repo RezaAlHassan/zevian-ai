@@ -328,32 +328,32 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={() => onSelectGoal(goal.id)}
-            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-lg transition-all duration-200 group"
             title="View Details"
           >
-            <Eye size={18} strokeWidth={2} />
+            <Eye size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
           </button>
           <button
             onClick={() => handleOpenAssignEmployees(goal)}
-            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-lg transition-all duration-200 group"
             title="Assign Members"
           >
-            <UserPlus size={18} strokeWidth={2} />
+            <UserPlus size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
           </button>
           <button
             onClick={() => handleEditGoal(goal)}
-            className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-lg transition-all duration-200 group"
             title="Edit Goal"
           >
-            <Edit2 size={18} strokeWidth={2} />
+            <Edit2 size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
           </button>
           {deleteGoal && canDeleteGoal(goal) && (
             <button
               onClick={() => handleDeleteGoal(goal)}
-              className="p-1.5 text-on-surface-secondary hover:text-error hover:bg-error/10 rounded-lg transition-all duration-200"
+              className="p-1.5 text-trunks hover:text-dodoria hover:bg-dodoria/10 rounded-lg transition-all duration-200 group"
               title="Delete Goal"
             >
-              <Trash2 size={18} strokeWidth={2} />
+              <Trash2 size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
             </button>
           )}
         </div>

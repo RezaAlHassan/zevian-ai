@@ -94,7 +94,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
     return (
-        <div className="bg-surface-elevated border border-border rounded-lg overflow-hidden mb-4 shadow-sm transition-all">
+        <div className="bg-surface-elevated border border-border rounded-lg overflow-hidden mb-4 transition-all">
             <div
                 className="p-3 bg-surface border-b border-border/50 flex items-center justify-between cursor-pointer hover:bg-surface-tertiary/20 transition-colors"
                 onClick={toggleExpand}
@@ -177,7 +177,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                                         flex items-center justify-between p-2 rounded-md transition-all border
                                         ${step.isCompleted
                                             ? 'bg-surface-tertiary/10 border-transparent opacity-50 hover:opacity-100'
-                                            : 'bg-surface border-border/40 hover:border-primary/20 hover:bg-surface-elevated shadow-sm cursor-pointer'}
+                                            : 'bg-surface border-border/40 hover:border-primary/20 hover:bg-surface-elevated cursor-pointer'}
                                     `}
                                     onClick={() => !step.isCompleted && step.onAction()}
                                 >
