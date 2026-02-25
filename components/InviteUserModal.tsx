@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import Modal from './Modal';
-import Input from './Input';
+import { Input } from './ui/input';
 import Select from './Select';
 import { Project, Employee, EmployeeRole, Invitation, Goal } from '../types';
-import Button from './Button';
+import { Button } from './ui/button';
 import { UserPlus, Mail, Copy, CheckCircle, Loader2, ChevronDown, ChevronUp, Check } from 'lucide-react';
-import Checkbox from './Checkbox';
+import { Checkbox } from './ui/checkbox';
 
 interface InviteUserModalProps {
   isOpen: boolean;
@@ -124,7 +124,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
         {!invitation ? (
           <>
             <div>
-              <p className="text-moon-14 text-trunks mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Invite a user to join {organizationName}. Managers can read reports, employees send reports.
               </p>
               <Input
@@ -147,7 +147,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                   { value: 'manager', label: 'Manager (Reads Reports)' },
                 ]}
               />
-              <p className="text-moon-12 text-trunks mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {role === 'manager'
                   ? 'Managers can view and read reports from their team members.'
                   : 'Employees can submit reports for their assigned goals.'}
@@ -158,13 +158,13 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
               {/* Projects Multi-Select (Manager Only) */}
               {role === 'manager' && (
                 <div className="relative">
-                  <label className="block text-moon-14 font-medium text-trunks mb-1">Assign Projects (Optional)</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Assign Projects (Optional)</label>
                   <button
                     type="button"
                     onClick={() => setIsProjectsDropdownOpen(!isProjectsDropdownOpen)}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-goten border border-beerus rounded-moon-i-md text-moon-14 text-bulma focus:outline-none focus:ring-2 focus:ring-piccolo"
+                    className="w-full flex items-center justify-between px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <span className={selectedProjectIds.length === 0 ? "text-trunks" : ""}>
+                    <span className={selectedProjectIds.length === 0 ? "text-muted-foreground" : ""}>
                       {selectedProjectIds.length === 0
                         ? "Select projects..."
                         : `${selectedProjectIds.length} project${selectedProjectIds.length !== 1 ? 's' : ''} selected`}
@@ -173,13 +173,13 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                   </button>
 
                   {isProjectsDropdownOpen && (
-                    <div className="relative z-10 w-full mt-1 bg-goten border border-beerus rounded-moon-s-md max-h-60 overflow-y-auto">
+                    <div className="relative z-10 w-full mt-1 bg-background border border-border rounded-xl max-h-60 overflow-y-auto">
                       {projects.length > 0 ? (
                         projects.map(p => (
                           <div
                             key={p.id}
                             onClick={() => toggleProject(p.id)}
-                            className="flex items-center gap-2 px-3 py-2 hover:bg-heles cursor-pointer"
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-accent cursor-pointer"
                           >
                             <Checkbox
                               checked={selectedProjectIds.includes(p.id)}
@@ -189,7 +189,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                           </div>
                         ))
                       ) : (
-                        <div className="px-3 py-2 text-moon-14 text-trunks">No projects available</div>
+                        <div className="px-3 py-2 text-sm text-muted-foreground">No projects available</div>
                       )}
                     </div>
                   )}
@@ -200,13 +200,13 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
               {role === 'employee' && (
                 <>
                   <div className="relative">
-                    <label className="block text-moon-14 font-medium text-trunks mb-1">Assign Specific Goals (Optional)</label>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">Assign Specific Goals (Optional)</label>
                     <button
                       type="button"
                       onClick={() => setIsGoalsDropdownOpen(!isGoalsDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-goten border border-beerus rounded-moon-i-md text-moon-14 text-bulma focus:outline-none focus:ring-2 focus:ring-piccolo"
+                      className="w-full flex items-center justify-between px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     >
-                      <span className={selectedGoalIds.length === 0 ? "text-trunks" : ""}>
+                      <span className={selectedGoalIds.length === 0 ? "text-muted-foreground" : ""}>
                         {selectedGoalIds.length === 0
                           ? "Select goals..."
                           : `${selectedGoalIds.length} goal${selectedGoalIds.length !== 1 ? 's' : ''} selected`}
@@ -215,28 +215,28 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                     </button>
 
                     {isGoalsDropdownOpen && (
-                      <div className="relative z-10 w-full mt-1 bg-goten border border-beerus rounded-moon-s-md max-h-60 overflow-y-auto">
+                      <div className="relative z-10 w-full mt-1 bg-background border border-border rounded-xl max-h-60 overflow-y-auto">
                         {availableGoals.length > 0 ? (
                           availableGoals.map(g => (
                             <div
                               key={g.id}
                               onClick={() => toggleGoal(g.id)}
-                              className="flex items-center gap-2 px-3 py-2 hover:bg-heles cursor-pointer"
+                              className="flex items-center gap-2 px-3 py-2 hover:bg-accent cursor-pointer"
                             >
                               <Checkbox
                                 checked={selectedGoalIds.includes(g.id)}
                                 onChange={() => toggleGoal(g.id)}
                               />
                               <div className="min-w-0" onClick={() => toggleGoal(g.id)}>
-                                <div className="text-moon-14 text-bulma truncate cursor-pointer">{g.name}</div>
-                                <div className="text-moon-12 text-trunks truncate cursor-pointer">
+                                <div className="text-sm text-foreground truncate cursor-pointer">{g.name}</div>
+                                <div className="text-xs text-muted-foreground truncate cursor-pointer">
                                   {projects.find(p => p.id === g.projectId)?.name || 'Unknown Project'}
                                 </div>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <div className="px-3 py-2 text-moon-14 text-trunks">No additional goals available</div>
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No additional goals available</div>
                         )}
                       </div>
                     )}
@@ -263,11 +263,8 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                 Cancel
               </Button>
               <Button
-                variant="primary"
                 onClick={handleInvite}
-                disabled={!email || !email.includes('@') || isInviting}
-                icon={isInviting ? Loader2 : UserPlus}
-              >
+                disabled={!email || !email.includes('@') || isInviting}>
                 {isInviting ? 'Sending...' : 'Send Invitation'}
               </Button>
             </div>
@@ -278,52 +275,47 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
               <div className="flex items-start gap-3">
                 <CheckCircle size={20} className="text-success flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-semibold text-bulma mb-1">Invitation Sent!</h3>
-                  <p className="text-moon-14 text-trunks">
+                  <h3 className="font-semibold text-foreground mb-1">Invitation Sent!</h3>
+                  <p className="text-sm text-muted-foreground">
                     An invitation has been sent to <strong>{invitation.email}</strong> with role: <strong className="capitalize">{invitation.role}</strong>
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-surface rounded-lg p-4 border border-border">
-              <label className="block text-moon-14 font-medium text-bulma mb-2">
+            <div className="bg-muted rounded-lg p-4 border border-border">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Invitation Link
               </label>
               <div className="flex items-center gap-2">
                 <Input
                   value={`${window.location.origin}/invite/${invitation.token}`}
                   readOnly
-                  className="flex-1 font-mono text-moon-12"
+                  className="flex-1 font-mono text-xs"
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyInviteLink}
-                  icon={copied ? CheckCircle : Copy}
-                >
+                <Button variant="outline" size="sm" onClick={copyInviteLink}>
                   {copied ? 'Copied!' : 'Copy'}
                 </Button>
               </div>
-              <p className="text-moon-12 text-trunks mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 Share this link with the user. The token is saved and will recognize which dashboard and organization to join.
               </p>
             </div>
 
-            <div className="bg-goten rounded-moon-s-md p-4 border border-beerus">
-              <h4 className="text-moon-14 font-semibold text-bulma mb-2">Invitation Details</h4>
+            <div className="bg-background rounded-xl p-4 border border-border">
+              <h4 className="text-sm font-semibold text-foreground mb-2">Invitation Details</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-trunks">Token:</span>
-                  <span className="font-mono text-moon-12 text-bulma">{invitation.token}</span>
+                  <span className="text-muted-foreground">Token:</span>
+                  <span className="font-mono text-xs text-foreground">{invitation.token}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-trunks">Organization:</span>
-                  <span className="text-bulma">{invitation.organizationName || 'N/A'}</span>
+                  <span className="text-muted-foreground">Organization:</span>
+                  <span className="text-foreground">{invitation.organizationName || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-trunks">Expires:</span>
-                  <span className="text-bulma">
+                  <span className="text-muted-foreground">Expires:</span>
+                  <span className="text-foreground">
                     {invitation.expiresAt
                       ? new Date(invitation.expiresAt).toLocaleDateString()
                       : 'Never'}
@@ -331,16 +323,16 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                 </div>
                 {invitation.initialProjectId && (
                   <div className="flex justify-between">
-                    <span className="text-trunks">Initial Project:</span>
-                    <span className="text-bulma">
+                    <span className="text-muted-foreground">Initial Project:</span>
+                    <span className="text-foreground">
                       {projects.find(p => p.id === invitation.initialProjectId)?.name || invitation.initialProjectId}
                     </span>
                   </div>
                 )}
                 {invitation.initialManagerId && (
                   <div className="flex justify-between">
-                    <span className="text-trunks">Initial Team:</span>
-                    <span className="text-bulma">
+                    <span className="text-muted-foreground">Initial Team:</span>
+                    <span className="text-foreground">
                       {managers.find(m => m.id === invitation.initialManagerId)?.name || invitation.initialManagerId}
                     </span>
                   </div>
@@ -353,7 +345,6 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                 Close
               </Button>
               <Button
-                variant="primary"
                 onClick={() => {
                   setInvitation(null);
                   setEmail('');
@@ -361,8 +352,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = ({
                   setSelectedProjectIds([]);
                   setSelectedGoalIds([]);
                   setManagerId('');
-                }}
-              >
+                }}>
                 Invite Another
               </Button>
             </div>

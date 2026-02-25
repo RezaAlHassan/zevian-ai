@@ -17,17 +17,13 @@ Ensure your code is pushed to a Git provider like **GitHub**, **GitLab**, or **B
    git remote add origin <your-repo-url>
    git push -u origin main
    ```
-
 ---
 
 ## 🗄️ 2. Supabase Cloud Setup
 
 If you are already using a Supabase Cloud project, ensure all tables are created.
 
-1. Go to the [Supabase Dashboard](https://app.supabase.com/).
-2. Select your project (or create a new one).
-3. **SQL Schema**: Run the contents of `schema.sql` and `secure_invite_acceptance.sql` in the **SQL Editor** if you haven't already.
-4. **API Keys**: Go to **Settings > API** and copy:
+**API Keys**: Go to **Settings > API** and copy:
    - `Project URL`
    - `anon` (public) key
    - `service_role` key (keep this secret!)

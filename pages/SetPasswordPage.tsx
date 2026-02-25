@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Invitation } from '../types';
 import { CheckCircle, XCircle, Loader2, Lock, AlertTriangle } from 'lucide-react';
-import Button from '../components/Button';
-import Input from '../components/Input';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { authService } from '../services/authService';
 import { invitationService } from '../services/invitationService';
 import { employeeService, projectService } from '../services/databaseService';
@@ -116,10 +116,10 @@ const SetPasswordPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-goten">
+            <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="text-center">
                     <Loader2 className="animate-spin mx-auto mb-4 text-primary" size={48} />
-                    <p className="text-on-surface-secondary">Loading invitation...</p>
+                    <p className="text-muted-foreground">Loading invitation...</p>
                 </div>
             </div>
         );
@@ -127,12 +127,12 @@ const SetPasswordPage: React.FC = () => {
 
     if (error && !invitation) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-goten">
-                <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border text-center">
-                    <XCircle size={48} className="text-error mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-on-surface mb-2">Setup Error</h2>
-                    <p className="text-on-surface-secondary mb-6">{error}</p>
-                    <Button variant="primary" onClick={() => navigate('/login')}>
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="max-w-md w-full bg-card rounded-lg p-8 border border-border text-center">
+                    <XCircle size={48} className="text-destructive mx-auto mb-4" />
+                    <h2 className="text-xl font-semibold text-foreground mb-2">Setup Error</h2>
+                    <p className="text-muted-foreground mb-6">{error}</p>
+                    <Button onClick={() => navigate('/login')}>
                         Go to Login
                     </Button>
                 </div>
@@ -142,11 +142,11 @@ const SetPasswordPage: React.FC = () => {
 
     if (submitting) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-goten">
-                <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border text-center">
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="max-w-md w-full bg-card rounded-lg p-8 border border-border text-center">
                     <CheckCircle size={48} className="text-success mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-on-surface mb-2">Account Created!</h2>
-                    <p className="text-on-surface-secondary mb-6">
+                    <h2 className="text-xl font-semibold text-foreground mb-2">Account Created!</h2>
+                    <p className="text-muted-foreground mb-6">
                         Redirecting to your dashboard...
                     </p>
                     <div className="flex justify-center">
@@ -161,23 +161,23 @@ const SetPasswordPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-surface-elevated rounded-xl border border-border overflow-hidden">
+            <div className="max-w-md w-full bg-card rounded-xl border border-border overflow-hidden">
                 <div className="px-8 py-10">
                     <div className="text-center mb-8">
                         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                             <Lock size={32} className="text-primary" />
                         </div>
-                        <h1 className="text-3xl font-bold text-on-surface mb-2">Create Account</h1>
-                        <p className="text-on-surface-secondary">
+                        <h1 className="text-3xl font-bold text-foreground mb-2">Create Account</h1>
+                        <p className="text-muted-foreground">
                             Create your account to join <strong>{orgName}</strong>
                         </p>
-                        <p className="text-sm text-on-surface-tertiary mt-2">
+                        <p className="text-sm text-muted-foreground mt-2">
                             Role: <strong className="capitalize">{invitation?.role}</strong>
                         </p>
                     </div>
 
                     {error && (
-                        <div className="mb-6 bg-error/10 border border-error/20 rounded-lg p-3 flex items-center gap-2 text-error text-sm">
+                        <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-2 text-destructive text-sm">
                             <AlertTriangle size={16} />
                             <span>{error}</span>
                         </div>
@@ -213,19 +213,13 @@ const SetPasswordPage: React.FC = () => {
                         />
 
                         <div className="pt-2">
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                className="w-full justify-center"
-                                disabled={submitting}
-                                icon={Lock}
-                            >
+                            <Button type="submit" className="w-full justify-center" disabled={submitting}><Lock className="mr-2 h-4 w-4" />
                                 {submitting ? 'Creating Account...' : 'Complete Setup'}
                             </Button>
                         </div>
                     </form>
 
-                    <p className="text-xs text-on-surface-tertiary text-center mt-6">
+                    <p className="text-xs text-muted-foreground text-center mt-6">
                         By completing setup, you agree to join {orgName} and access your dashboard.
                     </p>
                 </div>

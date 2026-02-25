@@ -18,11 +18,23 @@ Welcome to the Performance Tracker documentation! This index will help you find 
 - Security considerations
 - Future roadmap
 
-**When to use**: When you need in-depth technical information about any aspect of the system.
+### 2. [ACCESS_CONTROL.md](./ACCESS_CONTROL.md)
+**Best for**: Developers and security auditors
 
----
+**Contents**:
+- Role-based access control (RBAC) details
+- Permission matrix and logic
+- Organization-level isolation
 
-### 2. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)
+### 3. [AI_SCORING_FIX.md](./AI_SCORING_FIX.md)
+**Best for**: Developers debugging AI evaluation issues
+
+**Contents**:
+- Technical breakdown of AI scoring logic
+- Fixes for common evaluation edge cases
+- Improvements to structured JSON responses
+
+### 4. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)
 **Best for**: Daily users, managers, and anyone needing quick answers
 
 **Contents**:
@@ -37,7 +49,7 @@ Welcome to the Performance Tracker documentation! This index will help you find 
 
 ---
 
-### 3. [FEATURE_HIGHLIGHTS.md](./FEATURE_HIGHLIGHTS.md)
+### 5. [FEATURE_HIGHLIGHTS.md](./FEATURE_HIGHLIGHTS.md)
 **Best for**: Stakeholders, decision-makers, and new users
 
 **Contents**:
@@ -46,6 +58,20 @@ Welcome to the Performance Tracker documentation! This index will help you find 
 - User experience highlights
 - Benefits and use cases
 - Getting started guide
+
+### 6. [PROJECT_VISIBILITY.md](./PROJECT_VISIBILITY.md)
+**Best for**: Managers and project leads
+
+**Contents**:
+- How project visibility and permissions work
+- Assigning employees and managers to projects
+
+### 7. [METRICS_PLACEMENT_UPDATE.md](./METRICS_PLACEMENT_UPDATE.md)
+**Best for**: Developers working on the Dashboard UI
+
+**Contents**:
+- Updates to how performance metrics are displayed
+- New UI elements for dashboard stat cards
 
 **When to use**: When you want to understand what the system can do and why it's valuable.
 
@@ -87,6 +113,9 @@ Welcome to the Performance Tracker documentation! This index will help you find 
 - [COMPREHENSIVE_DOCUMENTATION.md](./COMPREHENSIVE_DOCUMENTATION.md#ai-integration)
 - [FEATURE_HIGHLIGHTS.md](./FEATURE_HIGHLIGHTS.md#1-ai-powered-evaluation-system)
 - [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#ai-features)
+- [AI_SCORING_FIX.md](./AI_SCORING_FIX.md)
+- **Knowledge Base**: [COMPREHENSIVE_DOCUMENTATION.md](./COMPREHENSIVE_DOCUMENTATION.md#ai-integration)
+- **Skill Analysis**: [FEATURE_HIGHLIGHTS.md](./FEATURE_HIGHLIGHTS.md#skill-analysis)
 
 ### User Roles & Permissions
 - [COMPREHENSIVE_DOCUMENTATION.md](./COMPREHENSIVE_DOCUMENTATION.md#user-roles--permissions)
@@ -113,11 +142,14 @@ Welcome to the Performance Tracker documentation! This index will help you find 
 
 | File | Size | Purpose | Audience |
 |------|------|---------|----------|
-| COMPREHENSIVE_DOCUMENTATION.md | ~17KB | Complete technical reference | Developers, Admins |
-| QUICK_REFERENCE.md | ~8KB | Quick lookup guide | All users |
-| FEATURE_HIGHLIGHTS.md | ~12KB | Feature showcase | Stakeholders, New users |
-| schema.sql | ~17KB | Database schema | Developers, DBAs |
-| types.ts | ~4.5KB | TypeScript definitions | Developers |
+| COMPREHENSIVE_DOCUMENTATION.md | ~35KB | Complete technical reference | Developers, Admins |
+| ACCESS_CONTROL.md | ~3KB | RBAC and security details | Developers, Security |
+| AI_SCORING_FIX.md | ~5KB | AI evaluation technical fixes | Developers |
+| QUICK_REFERENCE.md | ~10KB | Quick lookup guide | All users |
+| FEATURE_HIGHLIGHTS.md | ~18KB | Feature showcase | Stakeholders, New users |
+| PROJECT_VISIBILITY.md | ~5KB | Project assignment logic | Managers |
+| schema.sql | ~42KB | Database schema | Developers, DBAs |
+| types.ts | ~6.5KB | TypeScript definitions | Developers |
 | constants.ts | ~9KB | Sample data | Developers |
 
 ---

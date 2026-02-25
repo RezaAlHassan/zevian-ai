@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Circle, ArrowRight, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Employee, Organization } from '../types';
-import Button from './Button';
+import { Button } from './ui/button';
 
 interface OnboardingStepperProps {
     currentEmployee: Employee;
@@ -94,9 +94,9 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
     return (
-        <div className="bg-surface-elevated border border-border rounded-lg overflow-hidden mb-4 transition-all">
+        <div className="bg-card border border-border rounded-lg overflow-hidden mb-4 transition-all">
             <div
-                className="p-3 bg-surface border-b border-border/50 flex items-center justify-between cursor-pointer hover:bg-surface-tertiary/20 transition-colors"
+                className="p-3 bg-muted border-b border-border/50 flex items-center justify-between cursor-pointer hover:bg-muted-tertiary/20 transition-colors"
                 onClick={toggleExpand}
             >
                 <div className="flex items-center gap-3">
@@ -129,11 +129,11 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                     </div>
 
                     <div className="flex flex-col">
-                        <span className="text-base font-semibold text-on-surface leading-tight">
+                        <span className="text-base font-semibold text-foreground leading-tight">
                             {allCompleted ? 'Setup Complete' : 'Getting Started'}
                         </span>
                         {!allCompleted && (
-                            <span className="text-xs text-on-surface-secondary font-medium">
+                            <span className="text-xs text-muted-foreground font-medium">
                                 {completedCount} of {visibleSteps.length} steps complete
                             </span>
                         )}
@@ -142,7 +142,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
 
                 <div className="flex items-center gap-1">
                     <button
-                        className="p-1 text-on-surface-tertiary hover:text-on-surface hover:bg-surface-tertiary rounded transition-colors"
+                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted-tertiary rounded transition-colors"
                         aria-label={isExpanded ? 'Collapse' : 'Expand'}
                     >
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -153,7 +153,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                                 e.stopPropagation();
                                 handleDismiss();
                             }}
-                            className="p-1 text-on-surface-tertiary hover:text-on-surface hover:bg-surface-tertiary rounded transition-colors"
+                            className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted-tertiary rounded transition-colors"
                         >
                             <X size={16} />
                         </button>
@@ -162,10 +162,10 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
             </div>
 
             {isExpanded && (
-                <div className="p-2 bg-surface">
+                <div className="p-2 bg-muted">
                     {allCompleted ? (
                         <div className="text-center py-3">
-                            <p className="text-xs text-on-surface-secondary mb-2">You're all set! Your profile and organization are configured.</p>
+                            <p className="text-xs text-muted-foreground mb-2">You're all set! Your profile and organization are configured.</p>
                             {!isManager && <Button variant="outline" size="sm" onClick={handleDismiss} className="text-sm">Dismiss Guide</Button>}
                         </div>
                     ) : (
@@ -176,8 +176,8 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                                     className={`
                                         flex items-center justify-between p-2 rounded-md transition-all border
                                         ${step.isCompleted
-                                            ? 'bg-surface-tertiary/10 border-transparent opacity-50 hover:opacity-100'
-                                            : 'bg-surface border-border/40 hover:border-primary/20 hover:bg-surface-elevated cursor-pointer'}
+                                            ? 'bg-muted-tertiary/10 border-transparent opacity-50 hover:opacity-100'
+                                            : 'bg-muted border-border/40 hover:border-primary/20 hover:bg-card cursor-pointer'}
                                     `}
                                     onClick={() => !step.isCompleted && step.onAction()}
                                 >
@@ -185,14 +185,14 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                                         {step.isCompleted ? (
                                             <CheckCircle2 size={16} className="text-success shrink-0" />
                                         ) : (
-                                            <Circle size={16} className="text-on-surface-tertiary shrink-0" />
+                                            <Circle size={16} className="text-muted-foreground shrink-0" />
                                         )}
                                         <div className="min-w-0">
-                                            <h4 className={`text-sm font-medium truncate ${step.isCompleted ? 'text-on-surface-secondary line-through' : 'text-on-surface'}`}>
+                                            <h4 className={`text-sm font-medium truncate ${step.isCompleted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                                                 {step.title}
                                             </h4>
                                             {!step.isCompleted && (
-                                                <p className="text-xs text-on-surface-secondary truncate">
+                                                <p className="text-xs text-muted-foreground truncate">
                                                     {step.description}
                                                 </p>
                                             )}
@@ -202,7 +202,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({
                                         <Button
                                             size="sm"
                                             variant="ghost"
-                                            className="text-primary hover:bg-primary/5 hover:text-primary-hover shrink-0 h-8 px-3 text-sm font-medium"
+                                            className="text-primary hover:bg-primary/5 hover:text-primary/80 shrink-0 h-8 px-3 text-sm font-medium"
                                             onClick={step.onAction}
                                         >
                                             <span className="hidden sm:inline">{step.actionLabel}</span>

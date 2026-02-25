@@ -3,10 +3,12 @@ import React, { useState, useMemo } from 'react';
 import { Report, Goal, Employee, Project } from '../types';
 import Modal from '../components/Modal';
 import ReportDetailModal from '../components/ReportDetailModal';
-import Table from '../components/Table';
-import Input from '../components/Input';
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { Badge } from "../components/ui/badge";
+import { Input } from '../components/ui/input';
 import MultiSelect from '../components/MultiSelect';
-import Button from '../components/Button';
+import { Button } from '../components/ui/button';
 import Select from '../components/Select';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
 import { Eye, FileText, Calendar, TrendingUp, Filter, X, Search, Users, FolderKanban, Target, Clock } from 'lucide-react';
@@ -249,87 +251,105 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
     setSortDirection(direction);
   };
 
-  const reportTableHeaders = [
-    { key: 'date', label: 'Date', sortable: true },
-    { key: 'employee', label: 'Employee', sortable: true },
-    { key: 'project', label: 'Project', sortable: true },
-    { key: 'goal', label: 'Goal', sortable: true },
-    { key: 'score', label: 'Zevian Score', sortable: true },
-    { key: 'managerScore', label: 'Manager Score', sortable: true },
-    { key: 'actions', label: 'Actions', sortable: false },
+  const columns: ColumnDef<Report>[] = [
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-primary/70" />
+          <span className="capitalize text-muted-foreground">{formatTableDate(row.original.submissionDate)}</span>
+        </div>
+      )
+    },
+    {
+      id: "employee",
+      header: "Employee",
+      cell: ({ row }) => {
+        const employee = scopedEmployees.find(e => e.id === row.original.employeeId);
+        return <span className="capitalize text-muted-foreground">{employee?.name || 'Unknown'}</span>;
+      }
+    },
+    {
+      id: "project",
+      header: "Project",
+      cell: ({ row }) => {
+        const goal = goals.find(g => g.id === row.original.goalId);
+        const project = goal ? projects.find(p => p.id === goal.projectId) : undefined;
+        return <span className="capitalize text-muted-foreground">{project?.name || '—'}</span>;
+      }
+    },
+    {
+      id: "goal",
+      header: "Goal",
+      cell: ({ row }) => {
+        const goal = goals.find(g => g.id === row.original.goalId);
+        return <span className="capitalize text-muted-foreground">{goal?.name || 'Unknown Goal'}</span>;
+      }
+    },
+    {
+      accessorKey: "evaluationScore",
+      header: "Zevian Score",
+      cell: ({ row }) => (
+        <span className="capitalize text-muted-foreground font-medium">{(row.original.evaluationScore || 0).toFixed(1)}</span>
+      )
+    },
+    {
+      accessorKey: "managerOverallScore",
+      header: "Manager Score",
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          {row.original.managerOverallScore != null ? (
+            <span className="text-primary font-semibold">
+              {row.original.managerOverallScore.toFixed(1)}
+            </span>
+          ) : (
+            <Badge variant="outline" className="px-1.5 py-0.5 bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold">Pending Review</Badge>
+          )}
+        </div>
+      )
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedReport(row.original);
+          }}
+          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
+          title="View Details"
+        >
+          <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
+        </button>
+      )
+    }
   ];
-  const reportTableRows = filteredReports.map((report) => {
-    const goal = goals.find(g => g.id === report.goalId);
-    const project = goal ? projects.find(p => p.id === goal.projectId) : undefined;
-    const employee = scopedEmployees.find(e => e.id === report.employeeId);
-    const previewText = report.reportText.replace(/<[^>]*>/g, '').substring(0, 50);
-
-    return [
-      <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-primary/70" />
-        <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
-      </div>,
-      <span className="capitalize text-on-surface-secondary">{employee?.name || 'Unknown'}</span>,
-      <span className="capitalize text-on-surface-secondary">{project?.name || '—'}</span>,
-      <span className="capitalize text-on-surface-secondary">{goal?.name || 'Unknown Goal'}</span>,
-      <span className="capitalize text-on-surface-secondary font-medium">{(report.evaluationScore || 0).toFixed(1)}</span>,
-      <div className="flex items-center">
-        {report.managerOverallScore != null ? (
-          <span className="text-primary font-semibold">
-            {report.managerOverallScore.toFixed(1)}
-          </span>
-        ) : (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-            <Clock size={10} className="text-[#854d0e]" />
-            Pending Review
-          </div>
-        )}
-      </div>,
-      <button
-        onClick={() => setSelectedReport(report)}
-        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
-        title="View Details"
-      >
-        <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
-      </button>
-    ];
-  });
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-on-surface">Reports</h2>
+          <h2 className="text-xl font-bold text-foreground">Reports</h2>
           {hasActiveFilters && (
-            <span className="px-2 py-1 text-xs bg-primary/20 text-primary rounded-full">
+            <Badge variant="secondary" className="bg-primary/20 text-primary">
               {filteredReports.length} result{filteredReports.length !== 1 ? 's' : ''}
-            </span>
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            onClick={() => setShowFilters(!showFilters)}
-            variant="outline"
-            size="sm"
-            icon={Filter}
-          >
-            {showFilters ? 'Hide' : 'Show'} Filters
+          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" size="sm"><Filter className="mr-2 h-4 w-4" />
+            {showFilters ? 'Hide' : 'Show'}Filters
           </Button>
           {hasActiveFilters && (
-            <Button
-              onClick={clearFilters}
-              variant="ghost"
-              size="sm"
-              icon={X}
-            >
-              Clear Filters
+            <Button onClick={clearFilters} variant="ghost" size="sm"><X className="mr-2 h-4 w-4" />Clear Filters
             </Button>
           )}
         </div>
       </div>
-
       {/* Search Bar */}
-      <div className="bg-surface-elevated rounded-lg p-4 border border-border">
+      <div className="bg-card rounded-lg p-4 border border-border">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="relative flex-1 min-w-[300px]">
             <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary/70 pointer-events-none z-10" />
@@ -343,20 +363,13 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
           </div>
         </div>
       </div>
-
       {/* Advanced Filters */}
       {showFilters && (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+        <div className="bg-card rounded-lg p-6 border border-border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-on-surface">Advanced Filters</h3>
+            <h3 className="text-lg font-semibold text-foreground">Advanced Filters</h3>
             {hasActiveFilters && (
-              <Button
-                onClick={clearFilters}
-                variant="ghost"
-                size="sm"
-                icon={X}
-              >
-                Clear All
+              <Button onClick={clearFilters} variant="ghost" size="sm"><X className="mr-2 h-4 w-4" />Clear All
               </Button>
             )}
           </div>
@@ -393,7 +406,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
             </div>
             <div className="lg:col-span-1">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-on-surface-secondary">Score Range</label>
+                <label className="block text-sm font-medium text-muted-foreground">Score Range</label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
@@ -419,7 +432,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
               </div>
             </div>
             <div className="lg:col-span-1">
-              <label className="block text-sm font-medium text-on-surface-secondary mb-2">Start Date</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Start Date</label>
               <Input
                 type="date"
                 value={dateRange.start}
@@ -427,7 +440,7 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
               />
             </div>
             <div className="lg:col-span-1">
-              <label className="block text-sm font-medium text-on-surface-secondary mb-2">End Date</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">End Date</label>
               <Input
                 type="date"
                 value={dateRange.end}
@@ -437,36 +450,30 @@ const AllReportsPage: React.FC<AllReportsPageProps> = ({
           </div>
         </div>
       )}
-
       {filteredReports.length === 0 ? (
-        <div className="bg-surface-elevated rounded-lg p-12 border border-border text-center">
-          <FileText size={48} className="text-on-surface-tertiary mx-auto mb-4" />
-          <p className="text-lg text-on-surface-secondary mb-2">
+        <div className="bg-card rounded-lg p-12 border border-border text-center">
+          <FileText size={48} className="text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg text-muted-foreground mb-2">
             {hasActiveFilters ? 'No reports match your filters' : 'No reports found'}
           </p>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-primary hover:text-primary-hover text-sm font-medium"
+              className="text-primary hover:text-primary/80 text-sm font-medium"
             >
               Clear filters to see all reports
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-          <Table
-            headers={reportTableHeaders}
-            rows={reportTableRows}
-            sortable
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onRowClick={(index) => setSelectedReport(filteredReports[index])}
+        <div className="bg-card rounded-lg p-6 border border-border">
+          <DataTable
+            columns={columns}
+            data={filteredReports}
+            onRowClick={(row) => setSelectedReport(row)}
           />
         </div>
       )}
-
       {selectedReport && (
         <ReportDetailModal
           report={selectedReport}

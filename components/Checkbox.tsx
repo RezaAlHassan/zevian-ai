@@ -41,10 +41,10 @@ const Checkbox: React.FC<CheckboxProps> = ({
                 onClick={handleChange}
                 onKeyDown={handleKeyDown}
                 className={`
-          flex items-center justify-center w-4 h-4 rounded border transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-piccolo focus-visible:ring-offset-2
+          flex items-center justify-center w-4 h-4 rounded border transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
           ${checked
-                        ? 'bg-piccolo border-piccolo text-white'
-                        : 'bg-goten border-beerus text-transparent hover:border-piccolo/50'}
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border text-transparent hover:border-primary/50'}
           ${disabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}
         `}
             >
@@ -54,7 +54,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
                 <label
                     htmlFor={id}
                     onClick={handleChange}
-                    className={`text-moon-14 font-medium text-bulma cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`text-sm font-medium text-foreground cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     {label}
                 </label>

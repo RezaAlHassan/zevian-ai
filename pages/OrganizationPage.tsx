@@ -6,16 +6,17 @@ import {
 } from 'lucide-react';
 import { Organization, ManagerSettings, Employee, Project, Invitation, Goal, EmployeeRole } from '../types';
 import { STANDARD_METRICS } from '../constants';
-import Input from '../components/Input';
-import Button from '../components/Button';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import Select from '../components/Select';
 import MultiSelect from '../components/MultiSelect';
-import Table from '../components/Table';
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 import { organizationService } from '../services/databaseService';
 import OrganizationUsersTab from '../components/OrganizationUsersTab';
 import { useToast } from '../context/ToastContext';
 import { canSetGlobalFrequency, canViewOrganizationWide, canManageSettings, isAccountOwner } from '../utils/managerPermissions';
-import Checkbox from '../components/Checkbox';
+import { Checkbox } from '../components/ui/checkbox';
 
 interface OrganizationPageProps {
     organization: Organization | null;
@@ -160,7 +161,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-trunks">Loading organization details...</p>
+                <p className="text-muted-foreground">Loading organization details...</p>
             </div>
         );
     }
@@ -176,20 +177,19 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
     return (
         <div className="w-full px-6 py-6 space-y-6 max-w-5xl mx-auto">
             <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-moon-24 font-bold text-bulma">Organization Management</h2>
+                <h2 className="text-2xl font-bold text-foreground">Organization Management</h2>
             </div>
-
             {/* Tab Navigation */}
-            <div className="flex border-b border-beerus mb-6">
+            <div className="flex border-b border-border mb-6">
                 {tabs.filter(t => !t.hidden).map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`
-              flex items-center gap-2 px-6 py-3 border-b-2 transition-all font-medium text-moon-14
+              flex items-center gap-2 px-6 py-3 border-b-2 transition-all font-medium text-sm
               ${activeTab === tab.id
-                                ? 'border-piccolo text-piccolo bg-piccolo/10'
-                                : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
+                                ? 'border-primary text-primary bg-primary/10'
+                                : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
                             }
             `}
                     >
@@ -198,20 +198,19 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                     </button>
                 ))}
             </div>
-
             <div className="space-y-6">
                 {/* Tab: General */}
                 {activeTab === 'general' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         {/* Organization Info */}
-                        <div className="bg-goten rounded-moon-s-lg p-6 border border-beerus space-y-6">
+                        <div className="bg-background rounded-2xl p-6 border border-border space-y-6">
                             <div className="flex items-center gap-2">
-                                <Building2 size={20} className="text-piccolo drop-shadow-sm" />
-                                <h3 className="text-moon-18 font-semibold text-bulma">General Information</h3>
+                                <Building2 size={20} className="text-primary drop-shadow-sm" />
+                                <h3 className="text-lg font-semibold text-foreground">General Information</h3>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="block text-moon-14 font-medium text-bulma">Organization Name</label>
+                                    <label className="block text-sm font-medium text-foreground">Organization Name</label>
                                     <Input
                                         value={orgName}
                                         onChange={(e) => setOrgName(e.target.value)}
@@ -223,17 +222,17 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                         </div>
 
                         {/* Metrics */}
-                        <div className="bg-goten rounded-moon-s-lg p-6 border border-beerus space-y-6">
+                        <div className="bg-background rounded-2xl p-6 border border-border space-y-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <BarChart3 size={20} className="text-piccolo drop-shadow-sm" />
-                                    <h3 className="text-moon-18 font-semibold text-bulma">Organizational Metrics</h3>
+                                    <BarChart3 size={20} className="text-primary drop-shadow-sm" />
+                                    <h3 className="text-lg font-semibold text-foreground">Organizational Metrics</h3>
                                 </div>
-                                <div className="bg-piccolo/5 border border-piccolo/20 rounded-full py-1 px-4 flex items-center gap-2">
-                                    <span className="text-moon-12 text-piccolo font-bold">{selectedMetrics.length} Active</span>
+                                <div className="bg-primary/5 border border-primary/20 rounded-full py-1 px-4 flex items-center gap-2">
+                                    <span className="text-xs text-primary font-bold">{selectedMetrics.length} Active</span>
                                 </div>
                             </div>
-                            <p className="text-moon-14 text-trunks max-w-2xl">
+                            <p className="text-sm text-muted-foreground max-w-2xl">
                                 Choose the performance vectors measured across your organization. These dictate AI evaluation focus.
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -248,22 +247,22 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                             }
                                         }}
                                         className={`
-                        relative p-5 rounded-moon-s-lg border cursor-pointer transition-all duration-200 group
+                        relative p-5 rounded-2xl border cursor-pointer transition-all duration-200 group
                         ${selectedMetrics.includes(metric.id)
-                                                ? 'border-piccolo bg-piccolo/10 ring-1 ring-piccolo/20'
-                                                : 'border-beerus bg-gohan hover:border-trunks/50'
+                                                ? 'border-primary bg-primary/10 ring-1 ring-ring/20'
+                                                : 'border-border bg-muted hover:border-muted-foreground/50'
                                             }
                       `}
                                     >
                                         <div className="flex flex-col gap-1">
                                             <div>
-                                                <h4 className="font-bold text-moon-16 text-bulma mb-0.5 transition-colors group-hover:text-piccolo">
+                                                <h4 className="font-bold text-base text-foreground mb-0.5 transition-colors group-hover:text-primary">
                                                     {metric.friendlyName || metric.name}
                                                 </h4>
-                                                <p className="text-moon-12 text-trunks font-medium mb-2">
+                                                <p className="text-xs text-muted-foreground font-medium mb-2">
                                                     {metric.name}
                                                 </p>
-                                                <p className="text-moon-14 text-trunks line-clamp-3 leading-relaxed">
+                                                <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
                                                     {metric.description}
                                                 </p>
                                             </div>
@@ -274,7 +273,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                         </div>
 
                         <div className="flex justify-end">
-                            <Button onClick={handleSaveOrg} variant="primary" icon={Save} disabled={isSavingOrg}>
+                            <Button onClick={handleSaveOrg} disabled={isSavingOrg}><Save className="mr-2 h-4 w-4" />
                                 {isSavingOrg ? 'Saving...' : 'Save Organization Details'}
                             </Button>
                         </div>
@@ -297,14 +296,14 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                 {/* Tab: Reporting */}
                 {activeTab === 'reporting' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="bg-goten rounded-moon-s-lg p-6 border border-beerus space-y-8">
+                        <div className="bg-background rounded-2xl p-6 border border-border space-y-8">
                             {/* Submission Policy */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2">
-                                    <Settings size={20} className="text-piccolo drop-shadow-sm" />
-                                    <h3 className="text-moon-18 font-semibold text-bulma">Submission Policy</h3>
+                                    <Settings size={20} className="text-primary drop-shadow-sm" />
+                                    <h3 className="text-lg font-semibold text-foreground">Submission Policy</h3>
                                 </div>
-                                <div className="flex items-center gap-3 p-4 bg-gohan rounded-moon-s-md border border-beerus">
+                                <div className="flex items-center gap-3 p-4 bg-muted rounded-xl border border-border">
                                     <Checkbox
                                         id="allowLate"
                                         checked={localSettings.allowLateSubmissions !== false}
@@ -315,36 +314,36 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                             </div>
 
                             {/* Frequency Scope */}
-                            <div className="space-y-4 pt-6 border-t border-beerus">
+                            <div className="space-y-4 pt-6 border-t border-border">
                                 <div className="flex items-center gap-2">
-                                    <Globe size={20} className="text-piccolo drop-shadow-sm" />
-                                    <h3 className="text-moon-18 font-semibold text-bulma">Reporting Frequency</h3>
+                                    <Globe size={20} className="text-primary drop-shadow-sm" />
+                                    <h3 className="text-lg font-semibold text-foreground">Reporting Frequency</h3>
                                 </div>
                                 <div className="flex gap-4">
                                     <button
                                         onClick={() => handleGlobalToggle(true)}
                                         disabled={!canSetGlobal}
-                                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-moon-s-lg border-2 transition-all ${localSettings.globalFrequency
-                                            ? 'border-primary bg-piccolo/5 text-piccolo'
-                                            : 'border-beerus bg-gohan text-trunks hover:bg-surface-hover'
+                                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border-2 transition-all ${localSettings.globalFrequency
+                                            ? 'border-primary bg-primary/5 text-primary'
+                                            : 'border-border bg-muted text-muted-foreground hover:bg-accent'
                                             } ${!canSetGlobal ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         <Globe size={18} />
                                         <div className="text-left">
-                                            <p className="font-bold text-moon-14">Global</p>
+                                            <p className="font-bold text-sm">Global</p>
                                             <p className="text-[10px] opacity-80 uppercase tracking-wider font-semibold">One schedule for all</p>
                                         </div>
                                     </button>
                                     <button
                                         onClick={() => handleGlobalToggle(false)}
-                                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-moon-s-lg border-2 transition-all ${!localSettings.globalFrequency
-                                            ? 'border-primary bg-piccolo/5 text-piccolo'
-                                            : 'border-beerus bg-gohan text-trunks hover:bg-surface-hover'
+                                        className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border-2 transition-all ${!localSettings.globalFrequency
+                                            ? 'border-primary bg-primary/5 text-primary'
+                                            : 'border-border bg-muted text-muted-foreground hover:bg-accent'
                                             }`}
                                     >
                                         <Users size={18} />
                                         <div className="text-left">
-                                            <p className="font-bold text-moon-14">Targeted</p>
+                                            <p className="font-bold text-sm">Targeted</p>
                                             <p className="text-[10px] opacity-80 uppercase tracking-wider font-semibold">Per Team or Project</p>
                                         </div>
                                     </button>
@@ -354,7 +353,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                             {/* Day Selection */}
                             {localSettings.globalFrequency ? (
                                 <div className="space-y-4 animate-in fade-in duration-300">
-                                    <label className="block text-moon-14 font-semibold text-bulma">Select Reporting Days</label>
+                                    <label className="block text-sm font-semibold text-foreground">Select Reporting Days</label>
                                     <div className="flex flex-wrap gap-2">
                                         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
                                             <button
@@ -364,9 +363,9 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                                     const updated = current.includes(day) ? current.filter(d => d !== day) : [...current, day];
                                                     setLocalSettings(prev => ({ ...prev, selectedDays: updated }));
                                                 }}
-                                                className={`px-4 py-2 text-moon-14 rounded-moon-s-md border transition-all ${localSettings.selectedDays?.includes(day)
-                                                    ? 'bg-piccolo text-white border-primary'
-                                                    : 'bg-gohan border-beerus text-trunks hover:border-primary/50'
+                                                className={`px-4 py-2 text-sm rounded-xl border transition-all ${localSettings.selectedDays?.includes(day)
+                                                    ? 'bg-primary text-white border-primary'
+                                                    : 'bg-muted border-border text-muted-foreground hover:border-primary/50'
                                                     }`}
                                             >
                                                 {day.slice(0, 3)}
@@ -376,20 +375,20 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                 </div>
                             ) : (
                                 <div className="space-y-6 animate-in fade-in duration-300">
-                                    <div className="p-4 bg-piccolo/5 border border-piccolo/20 rounded-moon-s-lg flex items-start gap-3">
-                                        <Info size={16} className="text-piccolo mt-0.5 animate-pulse" />
+                                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-start gap-3">
+                                        <Info size={16} className="text-primary mt-0.5 animate-pulse" />
                                         <div className="space-y-1">
-                                            <p className="text-moon-14 font-semibold text-bulma">Reporting Precedence</p>
-                                            <p className="text-moon-12 text-trunks">
+                                            <p className="text-sm font-semibold text-foreground">Reporting Precedence</p>
+                                            <p className="text-xs text-muted-foreground">
                                                 Frequency is determined by the most specific setting available:
-                                                <span className="font-bold text-piccolo ml-1">Global &lt; Project &lt; Employee Override</span>.
+                                                <span className="font-bold text-primary ml-1">Global &lt; Project &lt; Employee Override</span>.
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Project Overrides */}
                                     <div className="space-y-4">
-                                        <label className="text-moon-14 font-semibold text-bulma flex items-center gap-2">
+                                        <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                                             <FolderKanban size={16} />
                                             Project Overrides
                                         </label>
@@ -409,8 +408,8 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                             const project = projects.find(p => p.id === projectId);
                                             if (!project) return null;
                                             return (
-                                                <div key={projectId} className="p-3 bg-gohan rounded-moon-s-md border border-beerus space-y-3">
-                                                    <p className="text-moon-12 font-bold text-bulma uppercase tracking-wider">{project.name}</p>
+                                                <div key={projectId} className="p-3 bg-muted rounded-xl border border-border space-y-3">
+                                                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">{project.name}</p>
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
                                                             <button
@@ -421,8 +420,8 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                                                     handleProjectSelectedDaysChange(projectId, updated);
                                                                 }}
                                                                 className={`px-2 py-1 text-[10px] font-bold rounded border transition-all ${(freq as { selectedDays?: string[] }).selectedDays?.includes(day)
-                                                                    ? 'bg-piccolo text-white border-primary'
-                                                                    : 'bg-white text-trunks border-beerus hover:border-primary/50'
+                                                                    ? 'bg-primary text-white border-primary'
+                                                                    : 'bg-background text-muted-foreground border-border hover:border-primary/50'
                                                                     }`}
                                                             >
                                                                 {day.slice(0, 3)}
@@ -435,8 +434,8 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                     </div>
 
                                     {/* Employee Overrides */}
-                                    <div className="space-y-4 pt-4 border-t border-beerus">
-                                        <label className="text-moon-14 font-semibold text-bulma flex items-center gap-2">
+                                    <div className="space-y-4 pt-4 border-t border-border">
+                                        <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                                             <Users size={16} />
                                             Employee Overrides
                                         </label>
@@ -456,8 +455,8 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                             const employee = employees.find(e => e.id === employeeId);
                                             if (!employee) return null;
                                             return (
-                                                <div key={employeeId} className="p-3 bg-gohan rounded-moon-s-md border border-beerus space-y-3">
-                                                    <p className="text-moon-12 font-bold text-bulma uppercase tracking-wider">{employee.name}</p>
+                                                <div key={employeeId} className="p-3 bg-muted rounded-xl border border-border space-y-3">
+                                                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">{employee.name}</p>
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
                                                             <button
@@ -468,8 +467,8 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                                                                     handleEmployeeSelectedDaysChange(employeeId, updated);
                                                                 }}
                                                                 className={`px-2 py-1 text-[10px] font-bold rounded border transition-all ${(freq as { selectedDays?: string[] }).selectedDays?.includes(day)
-                                                                    ? 'bg-piccolo text-white border-primary'
-                                                                    : 'bg-white text-trunks border-beerus hover:border-primary/50'
+                                                                    ? 'bg-primary text-white border-primary'
+                                                                    : 'bg-background text-muted-foreground border-border hover:border-primary/50'
                                                                     }`}
                                                             >
                                                                 {day.slice(0, 0 + 3)}
@@ -484,7 +483,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                             )}
                         </div>
                         <div className="flex justify-end">
-                            <Button onClick={handleSaveSettings} variant="primary" icon={Save} disabled={isSavingSettings}>
+                            <Button onClick={handleSaveSettings} disabled={isSavingSettings}><Save className="mr-2 h-4 w-4" />
                                 {isSavingSettings ? 'Saving...' : 'Save Reporting Settings'}
                             </Button>
                         </div>
@@ -494,12 +493,12 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                 {/* Tab: Hierarchy */}
                 {activeTab === 'hierarchy' && isOwnerFlag && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="bg-goten rounded-moon-s-lg p-6 border border-beerus space-y-6">
+                        <div className="bg-background rounded-2xl p-6 border border-border space-y-6">
                             <div className="flex items-center gap-2">
-                                <Users size={20} className="text-piccolo drop-shadow-sm" />
-                                <h3 className="text-moon-18 font-semibold text-bulma">Hierarchy & Permissions</h3>
+                                <Users size={20} className="text-primary drop-shadow-sm" />
+                                <h3 className="text-lg font-semibold text-foreground">Hierarchy & Permissions</h3>
                             </div>
-                            <p className="text-moon-14 text-trunks">
+                            <p className="text-sm text-muted-foreground">
                                 Manage the chain of command and delegate senior administrative access.
                             </p>
                             {updateEmployee && (
@@ -516,28 +515,30 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
                 {/* Tab: Danger */}
                 {activeTab === 'danger' && isOwnerFlag && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="bg-goten rounded-moon-s-lg p-6 border border-dodoria/20 space-y-6">
+                        <div className="bg-background rounded-2xl p-6 border border-destructive/20 space-y-6">
                             <div className="flex items-center gap-2">
-                                <AlertTriangle size={20} className="text-dodoria" />
-                                <h3 className="text-moon-18 font-semibold text-bulma">Danger Zone</h3>
+                                <AlertTriangle size={20} className="text-destructive" />
+                                <h3 className="text-lg font-semibold text-foreground">Danger Zone</h3>
                             </div>
                             {/* 
                                 <div className="space-y-1">
-                                    <p className="text-moon-14 font-bold text-bulma">Restart Onboarding</p>
-                                    <p className="text-moon-12 text-trunks leading-relaxed">
+                                    <p className="text-sm font-bold text-foreground">Restart Onboarding</p>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
                                         This will reset your organizational setup process. Existing data will NOT be deleted, but you will be guided through the setup of projects, goals, and team members again.
                                     </p>
                                 </div>
                                 <Button
                                     onClick={onRestartOnboarding}
                                     variant="outline"
-                                    className="border-error/30 text-dodoria hover:bg-error hover:text-white transition-all shadow-none"
-                                    icon={RotateCcw}
+                                    className="border-destructive/30 text-destructive hover:bg-destructive hover:text-white transition-all shadow-none"
+                                     
                                 >
+<RotateCcw className="mr-2 h-4 w-4" />
+
                                     Restart Onboarding Flow
                                 </Button>
                                 */}
-                            <p className="text-moon-14 text-trunks italic text-center py-4">
+                            <p className="text-sm text-muted-foreground italic text-center py-4">
                                 Advanced organization management options are currently restricted.
                             </p>
                         </div>
@@ -547,6 +548,7 @@ const OrganizationPage: React.FC<OrganizationPageProps> = ({
         </div>
     );
 };
+
 
 const PermissionsTable: React.FC<{
     employees: Employee[];
@@ -575,81 +577,147 @@ const PermissionsTable: React.FC<{
         return list;
     }, [employees, managers, showAll, searchQuery]);
 
-    const headers = ['Employee', 'Reports To', 'View Org', 'Settings', 'Global Freq', 'Role'];
-    const rows = displayedEmployees.map(emp => {
-        // Helper to check permission or if owner
-        const hasPerm = (p: keyof import('../types').EmployeePermissions) => emp.isAccountOwner || emp.permissions?.[p];
-
-        // Helper to toggle permission
-        const togglePerm = (p: keyof import('../types').EmployeePermissions) => {
-            if (emp.isAccountOwner) return;
-            const newPerms = { ...emp.permissions, [p]: !emp.permissions?.[p] };
-            updateEmployee({ ...emp, permissions: newPerms });
-        };
-
-        return [
-            <div key="name" className="flex flex-col">
-                <span className="font-semibold text-moon-14">{emp.name}</span>
-                <span className="text-[10px] text-trunks/70 uppercase font-bold">{emp.title || 'No Title'}</span>
-            </div>,
-            <div key="manager" className="w-32">
-                <Select
-                    value={emp.managerId || ''}
-                    onChange={(e) => updateEmployee({ ...emp, managerId: e.target.value })}
-                    options={[{ value: '', label: 'None' }, ...managerOptions.filter(o => o.value !== emp.id)]}
-                    className="text-moon-12 h-8"
-                />
-            </div>,
-            <div key="view" className="flex justify-center">
-                <Checkbox
-                    checked={!!hasPerm('canViewOrganizationWide')}
-                    disabled={emp.role === 'employee'}
-                    onChange={() => togglePerm('canViewOrganizationWide')}
-                />
-            </div>,
-            <div key="settings" className="flex justify-center">
-                <Checkbox
-                    checked={!!hasPerm('canManageSettings')}
-                    disabled={emp.role === 'employee'}
-                    onChange={() => togglePerm('canManageSettings')}
-                />
-            </div>,
-            <div key="freq" className="flex justify-center">
-                <Checkbox
-                    checked={!!hasPerm('canSetGlobalFrequency')}
-                    disabled={emp.role === 'employee'}
-                    onChange={() => togglePerm('canSetGlobalFrequency')}
-                />
-            </div>,
-            <div key="status" className="flex items-center gap-2">
-                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${emp.role === 'manager' ? 'bg-piccolo/10 text-piccolo' : 'bg-surface-secondary text-trunks/70'
-                    }`}>
-                    {emp.role}
-                </span>
-                {emp.id === currentManagerId && <span className="text-[10px] text-trunks/70">(You)</span>}
-            </div>
-        ];
-    });
+    const columns: ColumnDef<Employee>[] = [
+        {
+            id: "employee",
+            header: "Employee",
+            cell: ({ row }) => {
+                const emp = row.original;
+                const isOwner = emp.isAccountOwner;
+                return (
+                    <div className="flex flex-col">
+                        <span className={`font-semibold text-sm ${isOwner ? 'text-primary' : ''}`}>{emp.name}</span>
+                        <span className={`text-[10px] uppercase font-bold ${isOwner ? 'text-primary/70' : 'text-muted-foreground/70'}`}>
+                            {isOwner ? (emp.title || 'Organization Owner') : (emp.title || 'No Title')}
+                        </span>
+                    </div>
+                );
+            }
+        },
+        {
+            id: "reportsTo",
+            header: "Reports To",
+            cell: ({ row }) => {
+                const emp = row.original;
+                if (emp.isAccountOwner) {
+                    return <div className="text-xs font-bold text-primary italic">Root (Owner)</div>;
+                }
+                return (
+                    <div className="w-32">
+                        <Select
+                            value={emp.managerId || ''}
+                            onChange={(e) => updateEmployee({ ...emp, managerId: e.target.value })}
+                            options={[{ value: '', label: 'None' }, ...managerOptions.filter(o => o.value !== emp.id)]}
+                            className="text-xs h-8"
+                        />
+                    </div>
+                );
+            }
+        },
+        {
+            id: "canViewOrganizationWide",
+            header: "View Org",
+            cell: ({ row }) => {
+                const emp = row.original;
+                const hasPerm = emp.isAccountOwner || emp.permissions?.canViewOrganizationWide;
+                if (emp.isAccountOwner) {
+                    return (
+                        <div className="flex justify-center group/perm">
+                            <CheckCircle size={16} className="text-primary drop-shadow-sm transition-all group-hover/perm:scale-125 cursor-help" />
+                        </div>
+                    );
+                }
+                return (
+                    <div className="flex justify-center">
+                        <Checkbox
+                            checked={!!hasPerm}
+                            disabled={emp.role === 'employee'}
+                            onChange={() => {
+                                const newPerms = { ...emp.permissions, canViewOrganizationWide: !emp.permissions?.canViewOrganizationWide };
+                                updateEmployee({ ...emp, permissions: newPerms });
+                            }}
+                        />
+                    </div>
+                );
+            }
+        },
+        {
+            id: "canManageSettings",
+            header: "Settings",
+            cell: ({ row }) => {
+                const emp = row.original;
+                const hasPerm = emp.isAccountOwner || emp.permissions?.canManageSettings;
+                if (emp.isAccountOwner) {
+                    return (
+                        <div className="flex justify-center group/perm">
+                            <CheckCircle size={16} className="text-primary drop-shadow-sm transition-all group-hover/perm:scale-125 cursor-help" />
+                        </div>
+                    );
+                }
+                return (
+                    <div className="flex justify-center">
+                        <Checkbox
+                            checked={!!hasPerm}
+                            disabled={emp.role === 'employee'}
+                            onChange={() => {
+                                const newPerms = { ...emp.permissions, canManageSettings: !emp.permissions?.canManageSettings };
+                                updateEmployee({ ...emp, permissions: newPerms });
+                            }}
+                        />
+                    </div>
+                );
+            }
+        },
+        {
+            id: "canSetGlobalFrequency",
+            header: "Global Freq",
+            cell: ({ row }) => {
+                const emp = row.original;
+                const hasPerm = emp.isAccountOwner || emp.permissions?.canSetGlobalFrequency;
+                if (emp.isAccountOwner) {
+                    return (
+                        <div className="flex justify-center group/perm">
+                            <CheckCircle size={16} className="text-primary drop-shadow-sm transition-all group-hover/perm:scale-125 cursor-help" />
+                        </div>
+                    );
+                }
+                return (
+                    <div className="flex justify-center">
+                        <Checkbox
+                            checked={!!hasPerm}
+                            disabled={emp.role === 'employee'}
+                            onChange={() => {
+                                const newPerms = { ...emp.permissions, canSetGlobalFrequency: !emp.permissions?.canSetGlobalFrequency };
+                                updateEmployee({ ...emp, permissions: newPerms });
+                            }}
+                        />
+                    </div>
+                );
+            }
+        },
+        {
+            id: "role",
+            header: "Role",
+            cell: ({ row }) => {
+                const emp = row.original;
+                if (emp.isAccountOwner) {
+                    return <div className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded">Owner</div>;
+                }
+                return (
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${emp.role === 'manager' ? 'bg-primary/10 text-primary' : 'bg-muted-secondary text-muted-foreground/70'
+                            }`}>
+                            {emp.role}
+                        </span>
+                        {emp.id === currentManagerId && <span className="text-[10px] text-muted-foreground/70">(You)</span>}
+                    </div>
+                );
+            }
+        }
+    ];
 
     // Separate row for Owner as it's static
     const owner = employees.find(e => e.isAccountOwner);
-    const ownerRow = owner ? [
-        <div key="owner-name" className="flex flex-col">
-            <span className="font-bold text-moon-14 text-piccolo">{owner.name}</span>
-            <span className="text-[10px] text-primary/70 uppercase font-bold">{owner.title || 'Organization Owner'}</span>
-        </div>,
-        <div key="owner-manager" className="text-moon-12 font-bold text-piccolo italic">Root (Owner)</div>,
-        <div key="owner-view" className="flex justify-center group/perm">
-            <CheckCircle size={16} className="text-piccolo drop-shadow-sm transition-all group-hover/perm:scale-125 cursor-help" />
-        </div>,
-        <div key="owner-settings" className="flex justify-center group/perm">
-            <CheckCircle size={16} className="text-piccolo drop-shadow-sm transition-all group-hover/perm:scale-125 cursor-help" />
-        </div>,
-        <div key="owner-freq" className="flex justify-center group/perm">
-            <CheckCircle size={16} className="text-piccolo drop-shadow-sm transition-all group-hover/perm:scale-125 cursor-help" />
-        </div>,
-        <div key="owner-status" className="text-[10px] font-bold text-piccolo uppercase bg-piccolo/10 px-1.5 py-0.5 rounded">Owner</div>
-    ] : null;
 
     return (
         <div className="space-y-4">
@@ -657,33 +725,34 @@ const PermissionsTable: React.FC<{
                 <div className="flex items-center gap-6">
                     <button
                         onClick={() => setShowAll(false)}
-                        className={`text-moon-14 font-bold transition-colors ${!showAll ? 'text-piccolo' : 'text-trunks/70 hover:text-on-surface'}`}
+                        className={`text-sm font-bold transition-colors ${!showAll ? 'text-primary' : 'text-muted-foreground/70 hover:text-foreground'}`}
                     >
                         Management Team ({managers.length})
                     </button>
                     <button
                         onClick={() => setShowAll(true)}
-                        className={`text-moon-14 font-bold transition-colors ${showAll ? 'text-piccolo' : 'text-trunks/70 hover:text-on-surface'}`}
+                        className={`text-sm font-bold transition-colors ${showAll ? 'text-primary' : 'text-muted-foreground/70 hover:text-foreground'}`}
                     >
                         All Employees ({employees.length})
                     </button>
                 </div>
 
                 <div className="relative flex-1 max-w-xs">
-                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-trunks/70" />
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70" />
                     <input
                         type="text"
                         placeholder="Search hierarchy..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-1.5 bg-gohan border border-beerus rounded-moon-s-md text-moon-14 text-bulma placeholder-on-surface-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full pl-9 pr-3 py-1.5 bg-muted border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     />
                 </div>
             </div>
-            <div className="border border-beerus rounded-moon-s-lg overflow-hidden bg-gohan">
-                <Table
-                    headers={headers}
-                    rows={ownerRow ? [ownerRow, ...rows] : rows}
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <DataTable
+                    columns={columns}
+                    data={owner ? [owner, ...displayedEmployees] : displayedEmployees}
+                    pagination={false}
                 />
             </div>
         </div>

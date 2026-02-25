@@ -3,7 +3,7 @@ import { Goal, Report, Employee, Project, ManagerSettings, ReportCriterionScore,
 import { evaluateReport } from '../services/geminiService';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
-import Button from '../components/Button';
+import { Button } from '../components/ui/button';
 import { CheckCircle, AlertTriangle, Target, Paperclip, Send, FolderKanban, Info, X, FileText, Loader2 } from 'lucide-react';
 import { STANDARD_METRICS } from '../constants';
 import { storageService } from '../services/storageService';
@@ -230,27 +230,26 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
     <div className="w-full max-w-7xl mx-auto px-6 py-8 space-y-8">
       {/* 1. Minimalist Header */}
       <header className="flex flex-col gap-1 border-b border-border pb-6">
-        <h1 className="text-2xl font-bold text-on-surface tracking-tight">Submit Report</h1>
-        <p className="text-sm text-on-surface-secondary opacity-60">Document your results and align with organizational excellence.</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Submit Report</h1>
+        <p className="text-sm text-muted-foreground opacity-60">Document your results and align with organizational excellence.</p>
       </header>
-
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Main Reporting Flow */}
         <div className="lg:col-span-3 space-y-6">
 
           {/* 2. Selection Header (Compact Horizontal Bar) */}
-          <div className="bg-surface/30 border border-border/50 rounded-2xl p-4 space-y-4">
+          <div className="bg-muted/30 border border-border/50 rounded-2xl p-4 space-y-4">
             <div className="space-y-2">
-              <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest px-1">Project Selection</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Project Selection</span>
               <div className="flex flex-wrap gap-2">
                 {availableProjects.map(p => (
                   <button
                     key={p.id}
                     onClick={() => handleProjectChange(p.id)}
-                    className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all ${selectedProjectId === p.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-white hover:border-primary/20'}`}
+                    className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all ${selectedProjectId === p.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-background hover:border-primary/20'}`}
                   >
-                    <FolderKanban size={14} className={selectedProjectId === p.id ? 'text-primary' : 'text-on-surface-tertiary'} />
-                    <span className={`text-[11px] font-bold ${selectedProjectId === p.id ? 'text-primary' : 'text-on-surface'}`}>{p.name}</span>
+                    <FolderKanban size={14} className={selectedProjectId === p.id ? 'text-primary' : 'text-muted-foreground'} />
+                    <span className={`text-[11px] font-bold ${selectedProjectId === p.id ? 'text-primary' : 'text-foreground'}`}>{p.name}</span>
                     {selectedProjectId === p.id && <CheckCircle size={10} className="text-primary ml-1" />}
                   </button>
                 ))}
@@ -259,7 +258,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
             {selectedProjectId && (
               <div className="space-y-2 pt-2 border-t border-border/10">
-                <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest px-1">Alignment Goals</span>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-1">Alignment Goals</span>
                 <div className="flex flex-wrap gap-2">
                   {availableGoals.map(g => {
                     const isSelected = selectedGoalIds.includes(g.id);
@@ -267,10 +266,10 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
                       <button
                         key={g.id}
                         onClick={() => handleGoalToggle(g.id)}
-                        className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-white hover:border-primary/20'}`}
+                        className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border bg-background hover:border-primary/20'}`}
                       >
-                        <Target size={14} className={isSelected ? 'text-primary' : 'text-on-surface-tertiary'} />
-                        <span className={`text-[11px] font-bold ${isSelected ? 'text-primary' : 'text-on-surface'}`}>{g.name}</span>
+                        <Target size={14} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
+                        <span className={`text-[11px] font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>{g.name}</span>
                         {isSelected && <CheckCircle size={10} className="text-primary ml-1" />}
                       </button>
                     );
@@ -282,15 +281,15 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
           {/* 3. The Focus Zone - Clean Editor */}
           {selectedGoalIds.length > 0 && (
-            <section className="bg-white border border-border rounded-[2.5rem] overflow-hidden focus-within:ring-2 focus-within:ring-primary/5 transition-all animate-in fade-in duration-300">
+            <section className="bg-background border border-border rounded-[2.5rem] overflow-hidden focus-within:ring-2 focus-within:ring-primary/5 transition-all animate-in fade-in duration-300">
               {/* Chips Context Area directly above Textarea */}
-              <div className="px-8 pt-8 pb-4 border-b border-border/30 bg-surface/5">
+              <div className="px-8 pt-8 pb-4 border-b border-border/30 bg-muted/5">
                 <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest mr-2">Alignment:</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mr-2">Alignment:</span>
                   {metricsToShow.map(m => {
                     const metric = STANDARD_METRICS.find(std => std.id === m);
                     return metric && (
-                      <div key={m} className="px-3 py-1 bg-white border border-border rounded-lg text-[10px] font-bold text-on-surface-secondary">
+                      <div key={m} className="px-3 py-1 bg-background border border-border rounded-lg text-[10px] font-bold text-muted-foreground">
                         {metric.friendlyName}
                       </div>
                     );
@@ -310,28 +309,31 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
                   value={reportText}
                   onChange={(e) => setReportText(e.target.value)}
                   placeholder="Focus on your impact, data, and results..."
-                  className="w-full min-h-[450px] bg-transparent border-none focus:ring-0 text-lg font-medium leading-relaxed text-on-surface placeholder:text-on-surface-tertiary/20 resize-none"
+                  className="w-full min-h-[450px] bg-transparent border-none focus:ring-0 text-lg font-medium leading-relaxed text-foreground placeholder:text-muted-foreground/20 resize-none"
                 />
 
                 <div className="mt-8 flex items-center justify-between border-t border-border/50 pt-8">
                   <div className="flex items-center gap-8">
-                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 text-on-surface-secondary hover:text-primary transition-colors group">
-                      <div className="w-10 h-10 rounded-xl bg-surface group-hover:bg-primary/5 flex items-center justify-center transition-all">
+                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                      <div className="w-10 h-10 rounded-xl bg-muted group-hover:bg-primary/5 flex items-center justify-center transition-all">
                         {isUploading ? <Loader2 size={16} className="animate-spin text-primary" /> : <Paperclip size={16} />}
                       </div>
                       <span className="font-bold text-xs">{isUploading ? 'Uploading...' : 'Attach'}</span>
                     </button>
                     <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
 
-                    <div className="text-[10px] font-black text-on-surface-tertiary tracking-widest font-mono uppercase">
-                      <span className={textLength > 2800 ? 'text-error' : ''}>{textLength.toLocaleString()}</span>
+                    <div className="text-[10px] font-black text-muted-foreground tracking-widest font-mono uppercase">
+                      <span className={textLength > 2800 ? 'text-destructive' : ''}>{textLength.toLocaleString()}</span>
                       <span className="opacity-30 ml-1">/ 3,000</span>
                     </div>
                   </div>
 
                   <div className="flex gap-3">
-                    <Button onClick={handleEvaluateReport} variant="outline" isLoading={isEvaluating} className="h-11 px-6 rounded-xl font-bold text-xs">Analyze Draft</Button>
-                    <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} icon={Send} className="h-11 px-6 rounded-xl font-bold text-xs">Submit Final</Button>
+                    <Button onClick={handleEvaluateReport} variant="outline" disabled={true} className="opacity-50 cursor-not-allowed h-11 px-6 rounded-xl font-bold text-xs">Analyze Draft</Button>
+                    <Button
+                      onClick={handleFinalSubmit}
+                      disabled={true}
+                      className="opacity-50 cursor-not-allowed h-11 px-6 rounded-xl font-bold text-xs">Submit Final</Button>
                   </div>
                 </div>
               </div>
@@ -341,16 +343,16 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
         {/* 4. Streamlined Context Sidebar */}
         <aside className="lg:col-span-1">
-          <div className="bg-surface/50 border border-border rounded-[2rem] p-6 lg:sticky lg:top-8 space-y-8">
-            <h3 className="text-[10px] font-black text-on-surface-tertiary tracking-widest uppercase flex items-center gap-2">
+          <div className="bg-muted/50 border border-border rounded-[2rem] p-6 lg:sticky lg:top-8 space-y-8">
+            <h3 className="text-[10px] font-black text-muted-foreground tracking-widest uppercase flex items-center gap-2">
               <Info size={14} className="text-primary" /> Context
             </h3>
 
             {selectedProject ? (
               <div className="space-y-8 animate-in fade-in duration-300">
                 <div>
-                  <h4 className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest mb-1 opacity-50">Locked Project</h4>
-                  <p className="text-sm font-bold text-on-surface leading-snug">{selectedProject.name}</p>
+                  <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 opacity-50">Locked Project</h4>
+                  <p className="text-sm font-bold text-foreground leading-snug">{selectedProject.name}</p>
 
                   {selectedProject.knowledgeBaseLink && (
                     <a href={selectedProject.knowledgeBaseLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest mt-4 hover:underline">
@@ -361,12 +363,12 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
                 {uploadedDocuments.length > 0 && (
                   <div className="space-y-3 pt-6 border-t border-border/50">
-                    <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest opacity-50">Project Files</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-50">Project Files</span>
                     <div className="space-y-1.5">
                       {uploadedDocuments.map(d => (
-                        <div key={d.id} className="group p-2.5 rounded-xl bg-white/40 border border-border/20 flex items-center justify-between transition-colors hover:bg-white/60">
+                        <div key={d.id} className="group p-2.5 rounded-xl bg-background/40 border border-border/20 flex items-center justify-between transition-colors hover:bg-background/60">
                           <span className="text-[11px] font-bold truncate pr-4">{d.fileName}</span>
-                          <button onClick={() => handleRemoveFile(d.id)} className="text-on-surface-tertiary hover:text-error opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
+                          <button onClick={() => handleRemoveFile(d.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
                         </div>
                       ))}
                     </div>
@@ -375,12 +377,12 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
 
                 {selectedGoals.length > 0 && (
                   <div className="space-y-4 pt-6 border-t border-border/50">
-                    <span className="text-[10px] font-black text-on-surface-tertiary uppercase tracking-widest opacity-50">Goal Guidelines</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-50">Goal Guidelines</span>
                     <div className="space-y-3">
                       {selectedGoals.map(g => (
                         <div key={g.id} className="p-4 rounded-2xl bg-primary/5 border border-primary/10 transition-colors hover:bg-primary/10">
                           <p className="text-[10px] font-black text-primary uppercase mb-1.5">{g.name}</p>
-                          <p className="text-[11px] text-on-surface-secondary leading-relaxed line-clamp-3">{g.instructions || 'Standard evaluation apply.'}</p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">{g.instructions || 'Standard evaluation apply.'}</p>
                         </div>
                       ))}
                     </div>
@@ -396,41 +398,42 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
           </div>
         </aside>
       </div>
-
       {/* Preview Modal */}
       <Modal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} title="Analysis Preview">
         <div className="space-y-8 max-h-[75vh] overflow-y-auto pr-4">
           {Array.from(evaluationPreviews).map(([id, data]: [string, any]) => {
             const goal = goals.find(g => g.id === id);
             return (
-              <div key={id} className="bg-white rounded-3xl p-8 border border-border">
+              <div key={id} className="bg-background rounded-3xl p-8 border border-border">
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
                   <Target size={24} className="text-primary" /> {goal?.name}
                 </h3>
-                <div className="bg-surface p-8 rounded-2xl border border-border flex items-center justify-between mb-8">
+                <div className="bg-muted p-8 rounded-2xl border border-border flex items-center justify-between mb-8">
                   <div>
-                    <span className="text-xs font-black text-on-surface-tertiary uppercase tracking-widest block mb-1">Score Estimate</span>
+                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1">Score Estimate</span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-black text-primary">{data.evaluationScore.toFixed(1)}</span>
-                      <span className="text-lg font-bold text-on-surface-tertiary">/ 10</span>
+                      <span className="text-lg font-bold text-muted-foreground">/ 10</span>
                     </div>
                   </div>
                   <CheckCircle size={40} className="text-primary/10" />
                 </div>
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black text-on-surface-tertiary uppercase tracking-widest">AI Feedback</h4>
-                  <p className="text-sm font-medium leading-relaxed italic text-on-surface-secondary">"{data.evaluationReasoning}"</p>
+                  <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest">AI Feedback</h4>
+                  <p className="text-sm font-medium leading-relaxed italic text-muted-foreground">"{data.evaluationReasoning}"</p>
                 </div>
               </div>
             );
           })}
-          <div className="flex gap-4 pt-6 border-t border-border sticky bottom-1 bg-white">
+          <div className="flex gap-4 pt-6 border-t border-border sticky bottom-1 bg-background">
             <Button onClick={() => setIsPreviewModalOpen(false)} variant="outline" className="flex-1 h-14 rounded-2xl font-bold">Revise</Button>
-            <Button onClick={handleFinalSubmit} variant="primary" isLoading={isSubmitting} className="flex-1 h-14 rounded-2xl font-bold">Finalize Submission</Button>
+            <Button
+              onClick={handleFinalSubmit}
+              disabled={true}
+              className="opacity-50 cursor-not-allowed flex-1 h-14 rounded-2xl font-bold">Finalize Submission</Button>
           </div>
         </div>
       </Modal>
-
       {/* Notifications */}
       {success && (
         <div className="fixed bottom-10 right-10 bg-success text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
@@ -438,7 +441,7 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
         </div>
       )}
       {error && (
-        <div className="fixed bottom-10 right-10 bg-error text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
+        <div className="fixed bottom-10 right-10 bg-destructive text-white px-8 py-4 rounded-full font-bold animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-3">
           <AlertTriangle size={20} /> {error}
         </div>
       )}

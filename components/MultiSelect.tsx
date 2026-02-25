@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, ChevronDown, Search, Check } from 'lucide-react';
-import Checkbox from './Checkbox';
+import { Checkbox } from './ui/checkbox';
 
 interface Option {
   value: string;
@@ -89,7 +89,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-on-surface mb-2">
+        <label className="block text-sm font-medium text-foreground mb-2">
           {label}
         </label>
       )}
@@ -97,19 +97,19 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
         <div
           onClick={() => !disabled && setIsOpen(!isOpen)}
           className={`
-            w-full min-h-[38px] px-3 py-2 bg-white border rounded-lg
-            text-on-surface text-left text-sm cursor-pointer
-            focus:bg-surface-hover outline-none
-            ${disabled ? 'bg-gray-50 text-on-surface-tertiary cursor-not-allowed' : ''}
+            w-full min-h-[38px] px-3 py-2 bg-background border rounded-lg
+            text-foreground text-left text-sm cursor-pointer
+            focus:bg-accent outline-none
+            ${disabled ? 'bg-gray-50 text-muted-foreground cursor-not-allowed' : ''}
             transition-all
             flex items-center justify-between gap-2
-            ${error ? 'border-error' : 'border-border'}
+            ${error ? 'border-destructive' : 'border-border'}
             ${isOpen ? 'ring-1 ring-primary border-primary' : ''}
           `}
         >
           <div className="flex-1 flex flex-wrap gap-1.5 items-center min-h-[22px]">
             {selectedLabels.length === 0 ? (
-              <span className="text-on-surface-tertiary">{placeholder}</span>
+              <span className="text-muted-foreground">{placeholder}</span>
             ) : (
               selectedLabels.map((item) => (
                 <span
@@ -132,25 +132,25 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
           </div>
           <ChevronDown
             size={18}
-            className={`text-on-surface-tertiary transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
           />
         </div>
 
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-border rounded-lg max-h-60 overflow-hidden">
+          <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg max-h-60 overflow-hidden">
             {searchable && (
               <div className="p-2 border-b border-border">
                 <div className="relative">
                   <Search
                     size={16}
-                    className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-on-surface-tertiary"
+                    className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground"
                   />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-border rounded-lg text-on-surface text-sm focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                    className="w-full pl-8 pr-3 py-1.5 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-1 focus:ring-primary focus:border-primary transition-all"
                     autoFocus
                   />
                 </div>
@@ -158,7 +158,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
             )}
             <div className="overflow-y-auto max-h-48">
               {filteredOptions.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-on-surface-tertiary text-center">
+                <div className="px-3 py-2 text-sm text-muted-foreground text-center">
                   No options found
                 </div>
               ) : (
@@ -174,7 +174,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                         flex items-center gap-2
                         ${isSelected
                           ? 'bg-primary/10 text-primary'
-                          : 'text-on-surface hover:bg-surface-hover'
+                          : 'text-foreground hover:bg-accent'
                         }
                       `}
                     >
@@ -189,14 +189,14 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
               )}
             </div>
             {selectedValues.length > 0 && (
-              <div className="px-3 py-2 border-t border-border bg-surface">
+              <div className="px-3 py-2 border-t border-border bg-muted">
                 <button
                   type="button"
                   onClick={() => {
                     onChange([]);
                     setSearchQuery('');
                   }}
-                  className="text-xs text-on-surface-secondary hover:text-on-surface transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Clear all
                 </button>
@@ -206,10 +206,10 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
         )}
       </div>
       {error && (
-        <p className="mt-2 text-sm text-error">{error}</p>
+        <p className="mt-2 text-sm text-destructive">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-2 text-sm text-on-surface-secondary">{helperText}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{helperText}</p>
       )}
     </div>
   );

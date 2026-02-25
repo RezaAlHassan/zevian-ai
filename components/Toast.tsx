@@ -65,14 +65,14 @@ const Toast: React.FC<ToastProps> = ({
         >
             <div className="flex-shrink-0">{icons[type]}</div>
             <div className="flex-grow">
-                <p className="text-sm font-medium text-on-surface">{message}</p>
+                <p className="text-sm font-medium text-foreground">{message}</p>
                 {actionLabel && onAction && (
                     <button
                         onClick={() => {
                             onAction();
                             handleClose();
                         }}
-                        className="mt-2 text-xs font-bold text-primary hover:text-primary-hover underline underline-offset-2"
+                        className="mt-2 text-xs font-bold text-primary hover:text-primary/80 underline underline-offset-2"
                     >
                         {actionLabel}
                     </button>
@@ -80,7 +80,7 @@ const Toast: React.FC<ToastProps> = ({
             </div>
             <button
                 onClick={handleClose}
-                className="flex-shrink-0 p-1 rounded-lg hover:bg-on-surface/5 transition-colors text-on-surface-tertiary"
+                className="flex-shrink-0 p-1 rounded-lg hover:bg-on-surface/5 transition-colors text-muted-foreground"
             >
                 <X className="w-4 h-4" />
             </button>

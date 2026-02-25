@@ -1,45 +1,91 @@
-
 import React from 'react';
+import {
+  Select as ShadcnSelect,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
   label?: string;
   error?: string;
   helperText?: string;
   options: { value: string; label: string }[];
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onValueChange?: (value: string) => void;
 }
 
-const Select: React.FC<SelectProps> = ({ label, error, helperText, options, className = '', ...props }) => {
+const Select: React.FC<SelectProps> = ({
+  label,
+  error,
+  helperText,
+  options,
+  className = '',
+  onChange,
+  onValueChange,
+  value,
+  defaultValue,
+  disabled,
+  ...props
+}) => {
+
+  const handleValueChange = (val: string) => {
+    if (onValueChange) {
+      onValueChange(val);
+    }
+    if (onChange) {
+      onChange({
+        target: { value: val, name: props.name, id: props.id },
+        currentTarget: { value: val, name: props.name, id: props.id }
+      } as React.ChangeEvent<HTMLSelectElement>);
+    }
+  };
+
+  // Convert empty values to something Radix accepts, or filter them.
+  // Radix SelectItem value cannot be empty string in some versions, but usually it's fine.
+  // Actually, Radix requires value to be present. If it's empty, we should map it to "none" or something.
+  // It's safer to just let it be if it works, otherwise map empty to "_empty".
+  const sanitizeValue = (v: any) => (v === '' ? '_empty' : v?.toString());
+
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={props.id} className="block text-moon-14 font-medium text-bulma mb-2">
+        <label htmlFor={props.id} className="block text-sm font-medium text-foreground mb-2">
           {label}
         </label>
       )}
-      <select
-        {...props}
-        className={`
-          py-2 px-3 pe-9 block w-full border rounded-moon-i-md text-moon-14
-          bg-goten text-bulma
-          focus:border-piccolo focus:ring-piccolo focus:ring-1
-          disabled:bg-gohan disabled:text-trunks disabled:cursor-not-allowed
-          transition-all appearance-none
-          bg-[url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")] bg-[length:1.5em_1.5em] bg-[center_right_0.5rem] bg-no-repeat
-          ${error ? 'border-dodoria focus:border-dodoria focus:ring-dodoria' : 'border-beerus'}
-          ${className}
-        `}
+
+      <ShadcnSelect
+        value={value !== undefined ? sanitizeValue(value) : undefined}
+        defaultValue={defaultValue !== undefined ? sanitizeValue(defaultValue) : undefined}
+        onValueChange={(v) => handleValueChange(v === '_empty' ? '' : v)}
+        disabled={disabled}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value} disabled={option.value === '' && option.label.includes('--')}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          id={props.id}
+          className={`w-full bg-background text-foreground ${error ? 'border-destructive focus:ring-destructive ring-destructive' : 'border-input'} ${className}`}
+        >
+          <SelectValue placeholder={props.placeholder || "Select an option"} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem
+              key={option.value || '_empty'}
+              value={sanitizeValue(option.value)}
+              disabled={option.value === '' && option.label.includes('--')}
+            >
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </ShadcnSelect>
+
       {error && (
-        <p className="mt-2 text-moon-12 text-dodoria">{error}</p>
+        <p className="mt-2 text-xs text-destructive font-medium">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-2 text-moon-12 text-trunks">{helperText}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{helperText}</p>
       )}
     </div>
   );

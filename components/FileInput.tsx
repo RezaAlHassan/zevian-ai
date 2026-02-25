@@ -49,7 +49,7 @@ const FileInput: React.FC<FileInputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-on-surface-secondary mb-1.5">
+        <label className="block text-sm font-medium text-muted-foreground mb-1.5">
           {label}
         </label>
       )}
@@ -61,17 +61,17 @@ const FileInput: React.FC<FileInputProps> = ({
           onClick={() => !disabled && fileInputRef.current?.click()}
           disabled={disabled}
           className={`
-            w-full px-4 py-3 bg-surface border rounded-md
-            text-on-surface
+            w-full px-4 py-3 bg-muted border rounded-md
+            text-foreground
             focus:ring-2 focus:ring-primary focus:border-primary
-            disabled:bg-surface-pressed disabled:text-on-surface-tertiary disabled:cursor-not-allowed
+            disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
             transition-all duration-150
             flex items-center justify-center gap-2
-            hover:bg-surface-hover
-            ${error ? 'border-error' : 'border-border'}
+            hover:bg-accent
+            ${error ? 'border-destructive' : 'border-border'}
           `}
         >
-          <Upload size={18} className="text-on-surface-tertiary" />
+          <Upload size={18} className="text-muted-foreground" />
           <span className="text-sm font-medium">
             {files.length === 0 ? 'Click to upload files' : 'Add more files'}
           </span>
@@ -93,14 +93,14 @@ const FileInput: React.FC<FileInputProps> = ({
             {files.map((file, index) => (
               <div
                 key={index}
-                className="flex items-center gap-3 p-3 bg-surface-elevated border border-border rounded-md hover:bg-surface-hover transition-colors"
+                className="flex items-center gap-3 p-3 bg-card border border-border rounded-md hover:bg-accent transition-colors"
               >
                 <File size={18} className="text-primary flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-on-surface truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {file.name}
                   </p>
-                  <p className="text-xs text-on-surface-tertiary">
+                  <p className="text-xs text-muted-foreground">
                     {formatFileSize(file.size)}
                   </p>
                 </div>
@@ -108,7 +108,7 @@ const FileInput: React.FC<FileInputProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(index)}
-                    className="text-error hover:text-error-hover transition-colors p-1 rounded hover:bg-error/10"
+                    className="text-destructive hover:text-destructive/80 transition-colors p-1 rounded hover:bg-destructive/10"
                   >
                     <X size={16} />
                   </button>
@@ -120,10 +120,10 @@ const FileInput: React.FC<FileInputProps> = ({
       </div>
 
       {error && (
-        <p className="mt-1.5 text-sm text-error">{error}</p>
+        <p className="mt-1.5 text-sm text-destructive">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-1.5 text-xs text-on-surface-tertiary">{helperText}</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">{helperText}</p>
       )}
     </div>
   );

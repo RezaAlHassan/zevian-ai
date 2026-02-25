@@ -11,27 +11,27 @@ const Input: React.FC<InputProps> = ({ label, error, helperText, className = '',
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={props.id} className="block text-moon-14 font-medium text-bulma mb-2">
+        <label htmlFor={props.id} className="block text-sm font-medium text-foreground mb-2">
           {label}
         </label>
       )}
       <input
         {...props}
         className={`
-          py-2 px-3 block w-full border rounded-moon-i-md text-moon-14
-          bg-goten text-bulma placeholder-trunks
-          focus:border-piccolo focus:ring-piccolo focus:ring-1
-          disabled:bg-gohan disabled:text-trunks disabled:cursor-not-allowed
+          py-2 px-3 block w-full border rounded-xl text-sm
+          bg-background text-foreground placeholder-muted-foreground
+          focus:border-ring focus:ring-ring focus:ring-1
+          disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
           transition-all
-          ${error ? 'border-dodoria focus:border-dodoria focus:ring-dodoria' : 'border-beerus'}
+          ${error ? 'border-destructive focus:border-destructive focus:ring-destructive' : 'border-border'}
           ${className}
         `}
       />
       {error && (
-        <p className="mt-2 text-moon-12 text-dodoria">{error}</p>
+        <p className="mt-2 text-xs text-destructive">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-2 text-moon-12 text-trunks">{helperText}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{helperText}</p>
       )}
     </div>
   );

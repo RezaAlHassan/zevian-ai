@@ -3,8 +3,8 @@ import React, { useState, useRef } from 'react';
 import { X, CheckCircle, ArrowRight, ArrowLeft, Rocket, Info, File, Paperclip, BarChart3 } from 'lucide-react'; // Added BarChart3
 import { Employee, Project, Goal, Criterion, ManagerSettings } from '../types';
 import { STANDARD_METRICS } from '../constants';
-import Input from './Input';
-import Button from './Button';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import Select from './Select';
 import Textarea from './Textarea';
 import MultiSelect from './MultiSelect';
@@ -216,17 +216,17 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
           <div className="space-y-6">
             <div className="text-center space-y-1">
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center p-2 border border-border">
+                <div className="w-16 h-16 bg-background rounded-full flex items-center justify-center p-2 border border-border">
                   <img src="/logo.png" alt="Performance Tracker Logo" className="w-10 h-10 object-contain" />
                 </div>
               </div>
-              <h3 className="text-2xl font-semibold text-on-surface">Zevian</h3>
-              <p className="text-on-surface-secondary max-w-md mx-auto text-sm">
+              <h3 className="text-2xl font-semibold text-foreground">Zevian</h3>
+              <p className="text-muted-foreground max-w-md mx-auto text-sm">
                 Track performance with Zevian-powered evaluations. Create projects, set goals with criteria, and generate objective reports that reduce bias and save time.
               </p>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-on-surface">Organization Name</label>
+              <label className="block text-sm font-medium text-foreground">Organization Name</label>
               <Input
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
@@ -240,8 +240,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
         return (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-xl font-semibold text-on-surface">Select Organizational Metrics</h3>
-              <p className="text-on-surface-secondary text-sm">
+              <h3 className="text-xl font-semibold text-foreground">Select Organizational Metrics</h3>
+              <p className="text-muted-foreground text-sm">
                 Choose the metrics your organization values most. These will be used to track progress and generate insights.
               </p>
             </div>
@@ -261,7 +261,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                     p-4 rounded-xl border-2 cursor-pointer transition-all
                     ${selectedMetrics.includes(metric.id)
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border bg-surface-elevated hover:border-on-surface-tertiary'
+                      : 'border-border bg-card hover:border-on-surface-tertiary'
                     }
                   `}
                 >
@@ -273,8 +273,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                       {selectedMetrics.includes(metric.id) && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
                     <div>
-                      <h4 className="font-semibold text-on-surface">{metric.friendlyName}</h4>
-                      <p className="text-xs text-on-surface-secondary mt-1 leading-relaxed">
+                      <h4 className="font-semibold text-foreground">{metric.friendlyName}</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                         {metric.description}
                       </p>
                     </div>
@@ -289,14 +289,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
         return (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-xl font-semibold text-on-surface">Set Reporting Frequency</h3>
-              <p className="text-on-surface-secondary text-sm">
+              <h3 className="text-xl font-semibold text-foreground">Set Reporting Frequency</h3>
+              <p className="text-muted-foreground text-sm">
                 Configure how often reports should be submitted. You can customize this per project later.
               </p>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-on-surface">Reporting Frequency</label>
+              <label className="block text-sm font-medium text-foreground">Reporting Frequency</label>
               <Select
                 value={globalFrequency}
                 onChange={(e) => setGlobalFrequency(e.target.value as any)}
@@ -311,7 +311,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
 
             {globalFrequency === 'custom' && (
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-on-surface">Select Days</label>
+                <label className="block text-sm font-medium text-foreground">Select Days</label>
                 <div className="grid grid-cols-4 gap-2">
                   {weekDays.map((day) => (
                     <button
@@ -327,7 +327,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                         px-3 py-2 text-sm rounded-md border text-center transition-colors
                         ${selectedDays.includes(day)
                           ? 'bg-primary text-white border-primary'
-                          : 'bg-white text-on-surface border-border hover:border-primary'
+                          : 'bg-background text-foreground border-border hover:border-primary'
                         }
                       `}
                     >
@@ -335,7 +335,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-on-surface-secondary">
+                <p className="text-xs text-muted-foreground">
                   Reports will be generated on these days each week.
                 </p>
               </div>
@@ -347,15 +347,15 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
         return (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-xl font-semibold text-on-surface">Create Your First Project</h3>
-              <p className="text-on-surface-secondary text-sm">
+              <h3 className="text-xl font-semibold text-foreground">Create Your First Project</h3>
+              <p className="text-muted-foreground text-sm">
                 Projects act as containers to organize related goals and track collective analytics. Think of them as folders for your work.
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-2">Project Name *</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Project Name *</label>
                 <Input
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
@@ -365,7 +365,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-2">Category *</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Category *</label>
                 <Input
                   value={projectCategory}
                   onChange={(e) => setProjectCategory(e.target.value)}
@@ -375,7 +375,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-2">Project Description *</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Project Description *</label>
                 <RichTextEditor
                   value={projectDescription}
                   onChange={setProjectDescription}
@@ -388,12 +388,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                 {projectFiles.length > 0 && (
                   <div className="mt-2 space-y-2">
                     {projectFiles.map((file, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm text-on-surface bg-surface border border-border px-3 py-2 rounded-md">
+                      <div key={index} className="flex items-center gap-2 text-sm text-foreground bg-muted border border-border px-3 py-2 rounded-md">
                         <File size={14} className="text-primary" />
                         <span className="truncate flex-1">{file.name}</span>
                         <button
                           onClick={() => handleRemoveFile(index)}
-                          className="text-on-surface-tertiary hover:text-destructive transition-colors"
+                          className="text-muted-foreground hover:text-destructive transition-colors"
                         >
                           <X size={14} />
                         </button>
@@ -412,7 +412,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
 
                 <div className="mt-2 flex gap-2 items-start bg-primary/5 border border-primary/20 rounded-lg p-2">
                   <Info size={14} className="text-primary flex-shrink-0 mt-0.5" />
-                  <p className="text-[10px] leading-tight text-on-surface-secondary">
+                  <p className="text-[10px] leading-tight text-muted-foreground">
                     This description, along with goal instructions and criteria, will be used by Zevian to generate a comprehensive Knowledge Base for evaluating employee reports.
                   </p>
                 </div>
@@ -425,15 +425,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
         return (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-xl font-semibold text-on-surface">Create Your First Goal</h3>
-              <p className="text-on-surface-secondary text-sm">
+              <h3 className="text-xl font-semibold text-foreground">Create Your First Goal</h3>
+              <p className="text-muted-foreground text-sm">
                 Goals are what employees submit reports against. Define objective rules (instructions) and scoring categories (criteria) for Zevian evaluation.
               </p>
             </div>
-
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-2">Goal Name *</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Goal Name *</label>
                 <Input
                   value={goalName}
                   onChange={(e) => setGoalName(e.target.value)}
@@ -442,7 +441,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-2">Deadline (Optional)</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Deadline (Optional)</label>
                 <Input
                   type="datetime-local"
                   value={deadline}
@@ -451,8 +450,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               </div>
 
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-on-surface">Evaluation Criteria *</label>
-                <p className="text-xs text-on-surface-secondary">
+                <label className="block text-sm font-medium text-foreground">Evaluation Criteria *</label>
+                <p className="text-xs text-muted-foreground">
                   Add criteria with weights. Total must equal 100%.
                 </p>
                 <div className="flex gap-2">
@@ -469,17 +468,17 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                     type="number"
                     className="w-24"
                   />
-                  <Button onClick={handleAddCriterion} variant="primary">
+                  <Button onClick={handleAddCriterion}>
                     Add
                   </Button>
                 </div>
                 {criteria.length > 0 && (
                   <div className="space-y-2">
                     {criteria.map(crit => (
-                      <div key={crit.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
+                      <div key={crit.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                         <div>
-                          <p className="font-medium text-on-surface">{crit.name}</p>
-                          <p className="text-sm text-on-surface-secondary">{crit.weight}%</p>
+                          <p className="font-medium text-foreground">{crit.name}</p>
+                          <p className="text-sm text-muted-foreground">{crit.weight}%</p>
                         </div>
                         <button
                           onClick={() => handleRemoveCriterion(crit.id)}
@@ -497,8 +496,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               </div>
 
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-on-surface">Instructions *</label>
-                <p className="text-xs text-on-surface-secondary">
+                <label className="block text-sm font-medium text-foreground">Instructions *</label>
+                <p className="text-xs text-muted-foreground">
                   Specific, objective instructions for Zevian to follow during evaluation.
                 </p>
                 <Textarea
@@ -516,8 +515,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
         return (
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-xl font-semibold text-on-surface">Invite Users</h3>
-              <p className="text-on-surface-secondary text-sm">
+              <h3 className="text-xl font-semibold text-foreground">Invite Users</h3>
+              <p className="text-muted-foreground text-sm">
                 Invite users to your organization. Managers can read reports, employees send reports. You can skip this step and invite users later.
               </p>
             </div>
@@ -548,7 +547,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                     ]}
                     className="flex-1"
                   />
-                  <Button onClick={handleAddEmployee} variant="primary">
+                  <Button onClick={handleAddEmployee}>
                     Add
                   </Button>
                 </div>
@@ -556,11 +555,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               {employees.length > 0 && (
                 <div className="space-y-2">
                   {employees.map(emp => (
-                    <div key={emp.id} className="flex items-center justify-between p-3 bg-surface rounded-lg">
+                    <div key={emp.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div>
-                        <p className="font-medium text-on-surface">{emp.name}</p>
-                        <p className="text-sm text-on-surface-secondary">{emp.email}</p>
-                        <p className="text-xs text-on-surface-tertiary capitalize mt-1">
+                        <p className="font-medium text-foreground">{emp.name}</p>
+                        <p className="text-sm text-muted-foreground">{emp.email}</p>
+                        <p className="text-xs text-muted-foreground capitalize mt-1">
                           {emp.role === 'manager' ? 'Manager (Reads Reports)' : 'Employee (Sends Reports)'}
                         </p>
                       </div>
@@ -587,58 +586,58 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                   <CheckCircle className="w-8 h-8 text-success" />
                 </div>
               </div>
-              <h3 className="text-2xl font-semibold text-on-surface">You're Ready to Go Live!</h3>
-              <p className="text-on-surface-secondary text-sm">Review your configuration before completing the setup.</p>
+              <h3 className="text-2xl font-semibold text-foreground">You're Ready to Go Live!</h3>
+              <p className="text-muted-foreground text-sm">Review your configuration before completing the setup.</p>
             </div>
 
-            <div className="bg-surface rounded-lg p-6 space-y-4 text-sm overflow-y-auto max-h-[400px]">
-              <h4 className="font-semibold text-on-surface">Setup Summary</h4>
+            <div className="bg-muted rounded-lg p-6 space-y-4 text-sm overflow-y-auto max-h-[400px]">
+              <h4 className="font-semibold text-foreground">Setup Summary</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-on-surface-secondary">Organization:</span>
-                  <span className="font-medium text-on-surface">{organizationName}</span>
+                  <span className="text-muted-foreground">Organization:</span>
+                  <span className="font-medium text-foreground">{organizationName}</span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2 mb-2">
-                  <span className="text-on-surface-secondary">Metrics:</span>
-                  <span className="font-medium text-on-surface">{selectedMetrics.length} selected</span>
+                  <span className="text-muted-foreground">Metrics:</span>
+                  <span className="font-medium text-foreground">{selectedMetrics.length} selected</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-on-surface-secondary">Employees:</span>
-                  <span className="font-medium text-on-surface">{employees.length}</span>
+                  <span className="text-muted-foreground">Employees:</span>
+                  <span className="font-medium text-foreground">{employees.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-on-surface-secondary">Report Frequency:</span>
-                  <span className="font-medium text-on-surface capitalize">{globalFrequency}</span>
+                  <span className="text-muted-foreground">Report Frequency:</span>
+                  <span className="font-medium text-foreground capitalize">{globalFrequency}</span>
                 </div>
                 {projectName && (
                   <div className="flex justify-between">
-                    <span className="text-on-surface-secondary">Project:</span>
-                    <span className="font-medium text-on-surface">{projectName}</span>
+                    <span className="text-muted-foreground">Project:</span>
+                    <span className="font-medium text-foreground">{projectName}</span>
                   </div>
                 )}
                 {goalName && (
                   <div className="flex justify-between">
-                    <span className="text-on-surface-secondary">Goal:</span>
-                    <span className="font-medium text-on-surface">{goalName}</span>
+                    <span className="text-muted-foreground">Goal:</span>
+                    <span className="font-medium text-foreground">{goalName}</span>
                   </div>
                 )}
                 {goalName && (
                   <div className="flex justify-between">
-                    <span className="text-on-surface-secondary">Criteria:</span>
-                    <span className="font-medium text-on-surface">{criteria.length}</span>
+                    <span className="text-muted-foreground">Criteria:</span>
+                    <span className="font-medium text-foreground">{criteria.length}</span>
                   </div>
                 )}
                 {goalName && (
                   <div className="flex justify-between">
-                    <span className="text-on-surface-secondary">Instructions:</span>
-                    <span className="font-medium text-on-surface">{instructions ? 'Yes' : 'No'}</span>
+                    <span className="text-muted-foreground">Instructions:</span>
+                    <span className="font-medium text-foreground">{instructions ? 'Yes' : 'No'}</span>
                   </div>
                 )}
               </div>
             </div>
 
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
-              <p className="text-sm text-on-surface">
+              <p className="text-sm text-foreground">
                 <strong>Next Steps:</strong> Start creating reports against your goal. Zevian will evaluate them based on your criteria and objective rules.
               </p>
             </div>
@@ -653,13 +652,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
       <div
-        className="bg-surface-elevated rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-border"
+        className="bg-card rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-border"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-surface-elevated px-6 py-4 border-b border-border flex justify-between items-center">
+        <div className="sticky top-0 bg-card px-6 py-4 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-on-surface">Setup your Organization</h2>
-            <span className="text-sm text-on-surface-secondary">
+            <h2 className="text-xl font-semibold text-foreground">Setup your Organization</h2>
+            <span className="text-sm text-muted-foreground">
               Step {currentStep} of {totalSteps}
             </span>
           </div>
@@ -672,7 +671,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
               {Array.from({ length: totalSteps }).map((_, index) => (
                 <div
                   key={index}
-                  className={`flex-1 h-2 rounded-full transition-colors ${index + 1 <= currentStep ? 'bg-primary' : 'bg-surface'
+                  className={`flex-1 h-2 rounded-full transition-colors ${index + 1 <= currentStep ? 'bg-primary' : 'bg-muted'
                     }`}
                 />
               ))}
@@ -686,7 +685,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                   <span
                     className={`text-xs font-medium transition-colors ${index + 1 <= currentStep
                       ? 'text-primary'
-                      : 'text-on-surface-tertiary'
+                      : 'text-muted-foreground'
                       }`}
                   >
                     {label}
@@ -700,7 +699,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
         </div>
 
 
-        <div className="sticky bottom-0 bg-surface-elevated px-6 py-4 border-t border-border flex justify-between items-center">
+        <div className="sticky bottom-0 bg-card px-6 py-4 border-t border-border flex justify-between items-center">
           <Button
             onClick={handleBack}
             variant="secondary"
@@ -720,20 +719,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ isOpen, onComplete }) => {
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               )}
-              <Button
-                onClick={handleNext}
-                variant="primary"
-                disabled={!canProceed()}
-              >
+              <Button onClick={handleNext} disabled={!canProceed()}>
                 Next
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </>
           ) : (
-            <Button
-              onClick={handleFinish}
-              variant="primary"
-            >
+            <Button onClick={handleFinish}>
               Complete Setup
               <CheckCircle className="w-4 h-4 ml-2" />
             </Button>

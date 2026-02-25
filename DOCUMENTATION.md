@@ -56,7 +56,8 @@ Employees have access to:
    ↓
 5. AI Evaluation Process:
    - Report text is sent to Gemini API
-   - AI evaluates against goal criteria
+   - AI evaluates against goal criteria + Standard Metrics
+   - AI grounds evaluation in Project Knowledge Base
    - Returns scores for each criterion + overall reasoning
    ↓
 6. Preview Modal Shows:
@@ -179,10 +180,10 @@ Employees have access to:
    - Generates strengths and improvements
    ↓
 5. Dashboard displays:
-   - Stat cards (Reports count, Average score, etc.)
-   - Radar chart (Criteria performance)
+   - Stat cards (Reports count, Average score, Late/On-time badges)
+   - Radar chart (Skill Analysis / Criteria performance)
    - Overall score display
-   - Career Coach insights
+   - Career Coach insights & recommendations
    - Report history table
    ↓
 6. Optional: Click "Generate Summary"
@@ -739,7 +740,8 @@ performance-tracker/
 │   ├── TeamsPage.tsx
 │   ├── GoalsPage.tsx
 │   ├── SettingsPage.tsx
-│   └── EmployeeDetailPage.tsx
+│   ├── EmployeeDetailPage.tsx
+│   └── InviteAcceptPage.tsx
 ├── services/           # API services
 │   └── geminiService.ts
 ├── types.ts            # TypeScript types

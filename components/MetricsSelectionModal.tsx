@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
-import Button from './Button';
+import { Button } from './ui/button';
 import { STANDARD_METRICS } from '../constants';
 import { Settings, Check } from 'lucide-react';
 
@@ -39,7 +39,7 @@ const MetricsSelectionModal: React.FC<MetricsSelectionModalProps> = ({
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Customize Radar Chart Metrics">
             <div className="space-y-4">
-                <p className="text-on-surface-secondary text-sm">
+                <p className="text-muted-foreground text-sm">
                     Select up to 8 metrics to display on the performance radar chart.
                     These metrics will be evaluated by AI for every report.
                 </p>
@@ -55,20 +55,20 @@ const MetricsSelectionModal: React.FC<MetricsSelectionModalProps> = ({
                                     cursor-pointer p-4 rounded-xl border-2 transition-all flex flex-col gap-1
                                     ${isSelected
                                         ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                                        : 'border-border hover:border-primary/50 bg-surface'
+                                        : 'border-border hover:border-primary/50 bg-muted'
                                     }
                                 `}
                             >
                                 <div className="flex justify-between items-start">
-                                    <span className={`font-bold ${isSelected ? 'text-primary' : 'text-on-surface'}`}>
+                                    <span className={`font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
                                         {metric.friendlyName}
                                     </span>
                                     {isSelected && <Check className="w-4 h-4 text-primary" />}
                                 </div>
-                                <span className="text-xs font-medium text-on-surface-secondary">
+                                <span className="text-xs font-medium text-muted-foreground">
                                     {metric.name}
                                 </span>
-                                <p className="text-xs text-on-surface-secondary mt-1 leading-relaxed">
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                                     {metric.description}
                                 </p>
                             </div>
@@ -77,18 +77,14 @@ const MetricsSelectionModal: React.FC<MetricsSelectionModalProps> = ({
                 </div>
 
                 <div className="flex justify-between items-center pt-4 border-t border-border">
-                    <span className="text-sm font-medium text-on-surface-secondary">
+                    <span className="text-sm font-medium text-muted-foreground">
                         {tempSelected.length} metrics selected
                     </span>
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleSave}
-                            disabled={tempSelected.length === 0}
-                        >
+                        <Button onClick={handleSave} disabled={tempSelected.length === 0}>
                             Save Changes
                         </Button>
                     </div>

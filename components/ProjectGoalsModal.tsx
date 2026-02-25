@@ -47,27 +47,27 @@ const ProjectGoalsModal: React.FC<ProjectGoalsModalProps> = ({
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Goals for ${project.name}`} size="lg">
             <div className="space-y-4">
-                <div className="flex justify-between items-center mb-4 text-sm text-on-surface-secondary">
+                <div className="flex justify-between items-center mb-4 text-sm text-muted-foreground">
                     <p>{project.description || "No description provided."}</p>
-                    <span className="px-2 py-1 bg-surface-secondary rounded text-xs">{project.category}</span>
+                    <span className="px-2 py-1 bg-muted-secondary rounded text-xs">{project.category}</span>
                 </div>
 
                 <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
                     {sortedGoals.length > 0 ? (
                         sortedGoals.map(goal => (
-                            <div key={goal.id} className="p-3 bg-surface border border-border rounded-lg hover:border-primary/30 transition-colors">
+                            <div key={goal.id} className="p-3 bg-muted border border-border rounded-lg hover:border-primary/30 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
                                         <Target size={18} className="text-primary" />
-                                        <h4 className="font-medium text-on-surface">{goal.name}</h4>
+                                        <h4 className="font-medium text-foreground">{goal.name}</h4>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-secondary text-xs font-medium">
+                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted-secondary text-xs font-medium">
                                         {getStatusIcon(goal.status)}
-                                        <span className="text-on-surface-secondary">{getStatusText(goal.status)}</span>
+                                        <span className="text-muted-foreground">{getStatusText(goal.status)}</span>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 text-xs text-on-surface-secondary mt-1">
+                                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mt-1">
                                     <div className="flex items-center gap-1.5">
                                         <Calendar size={14} />
                                         <span>Due: {formatTableDate(goal.deadline)}</span>
@@ -81,13 +81,13 @@ const ProjectGoalsModal: React.FC<ProjectGoalsModalProps> = ({
                                         </span>
                                     </div>
                                 </div>
-                                <div className="mt-2 text-xs text-on-surface-tertiary">
+                                <div className="mt-2 text-xs text-muted-foreground">
                                     {goal.description}
                                 </div>
                             </div>
                         ))
                     ) : (
-                        <div className="text-center py-8 text-on-surface-tertiary">
+                        <div className="text-center py-8 text-muted-foreground">
                             <Target size={32} className="mx-auto mb-2 opacity-50" />
                             <p>No goals found for this project.</p>
                         </div>
@@ -97,7 +97,7 @@ const ProjectGoalsModal: React.FC<ProjectGoalsModalProps> = ({
                 <div className="flex justify-end pt-4 border-t border-border">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-surface hover:bg-surface-hover border border-border rounded-lg text-sm font-medium transition-colors"
+                        className="px-4 py-2 bg-muted hover:bg-accent border border-border rounded-lg text-sm font-medium transition-colors"
                     >
                         Close
                     </button>

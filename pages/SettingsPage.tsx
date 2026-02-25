@@ -3,12 +3,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ManagerSettings, Employee, Project } from '../types';
 import { Settings, Save, Calendar, Users, Globe, Building2, FolderKanban, RotateCcw, AlertTriangle } from 'lucide-react';
 import Select from '../components/Select';
-import Input from '../components/Input';
-import Button from '../components/Button';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import MultiSelect from '../components/MultiSelect';
-import Table from '../components/Table';
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 import { canSetGlobalFrequency, canViewOrganizationWide, canManageSettings, isAccountOwner } from '../utils/managerPermissions';
-import Checkbox from '../components/Checkbox';
+import { Checkbox } from '../components/ui/checkbox';
 
 interface SettingsPageProps {
   settings: ManagerSettings;
@@ -190,19 +191,18 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
   return (
     <div className="w-full px-6 py-6 space-y-6">
       <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-xl font-bold text-on-surface">Manager Settings</h2>
+        <h2 className="text-xl font-bold text-foreground">Manager Settings</h2>
       </div>
-
       {/* Report Submission Settings */}
-      <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+      <div className="bg-card rounded-lg p-6 border border-border">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar size={20} className="text-on-surface-secondary" />
-          <h3 className="text-xl font-semibold text-on-surface">Report Submission Settings</h3>
+          <Calendar size={20} className="text-muted-foreground" />
+          <h3 className="text-xl font-semibold text-foreground">Report Submission Settings</h3>
         </div>
 
         {/* Allow Late Submissions Toggle */}
         <div className="mb-6 pb-6 border-b border-border">
-          <label className="block text-sm font-medium text-on-surface mb-3">
+          <label className="block text-sm font-medium text-foreground mb-3">
             Late Submission Policy
           </label>
           <div className="flex items-center gap-4">
@@ -212,7 +212,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               label="Allow late submissions after goal deadline"
             />
           </div>
-          <p className="mt-2 text-sm text-on-surface-secondary">
+          <p className="mt-2 text-sm text-muted-foreground">
             {localSettings.allowLateSubmissions !== false
               ? 'Reports can be submitted even after the goal deadline has passed.'
               : 'Reports cannot be submitted after the goal deadline has passed.'}
@@ -220,15 +220,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         <div className="flex items-center gap-2 mb-4">
-          <Calendar size={20} className="text-on-surface-secondary" />
-          <h3 className="text-xl font-semibold text-on-surface">Report Submission Frequency</h3>
+          <Calendar size={20} className="text-muted-foreground" />
+          <h3 className="text-xl font-semibold text-foreground">Report Submission Frequency</h3>
         </div>
 
         <div className="space-y-6">
           {/* Global vs Per-Employee/Team Toggle */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-on-surface">
+              <label className="block text-sm font-medium text-foreground">
                 Frequency Scope
               </label>
               {!canSetGlobal && (
@@ -244,7 +244,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 disabled={!canSetGlobal}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg border transition-all ${localSettings.globalFrequency
                   ? 'bg-on-surface-secondary text-white border-on-surface-secondary'
-                  : 'bg-surface border-border text-on-surface-secondary hover:bg-surface-hover'
+                  : 'bg-muted border-border text-muted-foreground hover:bg-accent'
                   } ${!canSetGlobal ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Globe size={18} />
@@ -254,7 +254,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 onClick={() => handleGlobalToggle(false)}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg border transition-all ${!localSettings.globalFrequency
                   ? 'bg-on-surface-secondary text-white border-on-surface-secondary'
-                  : 'bg-surface border-border text-on-surface-secondary hover:bg-surface-hover'
+                  : 'bg-muted border-border text-muted-foreground hover:bg-accent'
                   }`}
               >
                 <Users size={18} />
@@ -262,7 +262,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
               </button>
             </div>
             {!canSetGlobal && (
-              <p className="mt-2 text-sm text-on-surface-secondary">
+              <p className="mt-2 text-sm text-muted-foreground">
                 You need the "Set global frequency settings" permission to configure global frequency.
                 Contact your account owner to request this permission.
               </p>
@@ -274,7 +274,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="space-y-4">
               {/* Day Selection */}
               <div>
-                <label className="block text-sm font-medium text-on-surface mb-3">
+                <label className="block text-sm font-medium text-foreground mb-3">
                   Select Days for Reporting
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -283,7 +283,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                       key={day}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${localSettings.selectedDays?.includes(day)
                         ? 'bg-primary/10 text-primary border-primary/20'
-                        : 'bg-surface border-border text-on-surface hover:bg-surface-hover'
+                        : 'bg-muted border-border text-foreground hover:bg-accent'
                         }`}
                     >
                       <Checkbox
@@ -301,7 +301,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-sm text-on-surface-secondary">
+                <p className="mt-2 text-sm text-muted-foreground">
                   {localSettings.selectedDays && localSettings.selectedDays.length > 0
                     ? `Reports will be required on: ${localSettings.selectedDays.join(', ')} every week`
                     : 'Select at least one day for reporting'}
@@ -315,9 +315,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             <div className="space-y-6">
               {/* Per-Project Settings */}
               <div>
-                <label className="block text-base font-medium text-on-surface mb-3">
+                <label className="block text-base font-medium text-foreground mb-3">
                   Project Settings
-                  <span className="text-xs text-on-surface-tertiary ml-2">(Precedence: Global &lt; Project &lt; Per-Employee)</span>
+                  <span className="text-xs text-muted-foreground ml-2">(Precedence: Global &lt; Project &lt; Per-Employee)</span>
                 </label>
                 <div className="space-y-4">
                   {/* Project Selection */}
@@ -343,14 +343,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         };
 
                         return (
-                          <div key={projectId} className="p-4 bg-surface rounded-lg border border-border space-y-3">
+                          <div key={projectId} className="p-4 bg-muted rounded-lg border border-border space-y-3">
                             <div className="flex items-center gap-2">
-                              <FolderKanban size={18} className="text-on-surface-secondary" />
-                              <p className="font-medium text-on-surface">{project.name}</p>
+                              <FolderKanban size={18} className="text-muted-foreground" />
+                              <p className="font-medium text-foreground">{project.name}</p>
                             </div>
                             {/* Day Selection */}
                             <div>
-                              <label className="block text-xs font-medium text-on-surface mb-2">
+                              <label className="block text-xs font-medium text-foreground mb-2">
                                 Select Days for Reporting
                               </label>
                               <div className="flex flex-wrap gap-2">
@@ -359,7 +359,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                     key={day}
                                     className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer transition-all text-xs ${projectSettings.selectedDays?.includes(day)
                                       ? 'bg-primary/10 text-primary border-primary/20'
-                                      : 'bg-surface border-border text-on-surface hover:bg-surface-hover'
+                                      : 'bg-muted border-border text-foreground hover:bg-accent'
                                       }`}
                                   >
                                     <Checkbox
@@ -377,7 +377,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                   </label>
                                 ))}
                               </div>
-                              <p className="mt-2 text-xs text-on-surface-secondary">
+                              <p className="mt-2 text-xs text-muted-foreground">
                                 {projectSettings.selectedDays && projectSettings.selectedDays.length > 0
                                   ? `Reports will be required on: ${projectSettings.selectedDays.join(', ')} every week`
                                   : 'Select at least one day for reporting'}
@@ -393,7 +393,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
               {/* Per-Employee Settings */}
               <div>
-                <label className="block text-base font-medium text-on-surface mb-3">
+                <label className="block text-base font-medium text-foreground mb-3">
                   Employee Settings
                 </label>
                 <div className="space-y-4">
@@ -420,17 +420,17 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         };
 
                         return (
-                          <div key={employeeId} className="p-4 bg-surface rounded-lg border border-border space-y-3">
+                          <div key={employeeId} className="p-4 bg-muted rounded-lg border border-border space-y-3">
                             <div>
-                              <p className="font-medium text-on-surface">{employee.name}</p>
+                              <p className="font-medium text-foreground">{employee.name}</p>
                               {employee.title && (
-                                <p className="text-sm text-on-surface-secondary font-medium">{employee.title}</p>
+                                <p className="text-sm text-muted-foreground font-medium">{employee.title}</p>
                               )}
-                              <p className="text-sm text-on-surface-secondary">{employee.email}</p>
+                              <p className="text-sm text-muted-foreground">{employee.email}</p>
                             </div>
                             {/* Day Selection */}
                             <div>
-                              <label className="block text-xs font-medium text-on-surface mb-2">
+                              <label className="block text-xs font-medium text-foreground mb-2">
                                 Select Days for Reporting
                               </label>
                               <div className="flex flex-wrap gap-2">
@@ -439,7 +439,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                     key={day}
                                     className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer transition-all text-xs ${employeeSettings.selectedDays?.includes(day)
                                       ? 'bg-primary/10 text-primary border-primary/20'
-                                      : 'bg-surface border-border text-on-surface hover:bg-surface-hover'
+                                      : 'bg-muted border-border text-foreground hover:bg-accent'
                                       }`}
                                   >
                                     <Checkbox
@@ -457,7 +457,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                   </label>
                                 ))}
                               </div>
-                              <p className="mt-2 text-xs text-on-surface-secondary">
+                              <p className="mt-2 text-xs text-muted-foreground">
                                 {employeeSettings.selectedDays && employeeSettings.selectedDays.length > 0
                                   ? `Reports will be required on: ${employeeSettings.selectedDays.join(', ')} every week`
                                   : 'Select at least one day for reporting'}
@@ -475,15 +475,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
           )}
         </div>
       </div>
-
       {/* Permissions Management Section - Only for Account Owners */}
       {isOwnerFlag && (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+        <div className="bg-card rounded-lg p-6 border border-border">
           <div className="flex items-center gap-2 mb-4">
-            <Users size={20} className="text-on-surface-secondary" />
-            <h3 className="text-xl font-semibold text-on-surface">Hierarchy & Permissions</h3>
+            <Users size={20} className="text-muted-foreground" />
+            <h3 className="text-xl font-semibold text-foreground">Hierarchy & Permissions</h3>
           </div>
-          <p className="text-on-surface-secondary text-sm mb-4">
+          <p className="text-muted-foreground text-sm mb-4">
             Manage reporting structure and permissions. Assign managers to a "Reports To" manager to create a hierarchy.
             Grant "Full (Senior)" access to delegate organization-wide control.
           </p>
@@ -495,48 +494,41 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
             />
           )}
           {!updateEmployee && (
-            <p className="text-sm text-on-surface-secondary italic">
+            <p className="text-sm text-muted-foreground italic">
               Employee update function not available. This is a read-only view.
             </p>
           )}
         </div>
       )}
-
       {/* Onboarding Section - Hidden for now
       {onRestartOnboarding && (
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+        <div className="bg-card rounded-lg p-6 border border-border">
           <div className="flex items-center gap-2 mb-4">
-            <RotateCcw size={20} className="text-on-surface-secondary" />
-            <h3 className="text-xl font-semibold text-on-surface">Onboarding</h3>
+            <RotateCcw size={20} className="text-muted-foreground" />
+            <h3 className="text-xl font-semibold text-foreground">Onboarding</h3>
           </div>
-          <p className="text-on-surface-secondary text-sm mb-4">
+          <p className="text-muted-foreground text-sm mb-4">
             Restart the onboarding process to set up your organization, employees, teams, projects, and goals from scratch.
           </p>
           <div className="flex gap-3">
             <Button
               onClick={onRestartOnboarding}
               variant="outline"
-              icon={RotateCcw}
+               
             >
+<RotateCcw className="mr-2 h-4 w-4" />
+
               Restart Onboarding
             </Button>
           </div>
         </div>
       )}
       */}
-
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button
-          onClick={handleSave}
-          variant="primary"
-          size="lg"
-          icon={Save}
-        >
-          Save Settings
+        <Button onClick={handleSave} size="lg"><Save className="mr-2 h-4 w-4" />Save Settings
         </Button>
       </div>
-
       {/* Success Message */}
       {saved && (
         <div className="fixed bottom-4 right-4 bg-success/20 border border-success/30 text-success px-4 py-3 rounded-lg flex items-center gap-2">
@@ -587,71 +579,98 @@ const PermissionsManager: React.FC<PermissionsManagerProps> = ({ employees, curr
       });
     }
   };
-
   const managerOptions = employees
     .filter(e => e.role === 'manager' || e.isAccountOwner)
     .map(e => ({ value: e.id, label: e.name }));
 
-  const tableHeaders = ['Manager', 'Reports To', 'Access Level', 'Status'];
-  const tableRows = localManagers.map(employee => {
-    const isFullAccess = employee.permissions?.canViewOrganizationWide && employee.permissions?.canManageSettings;
+  const columns: ColumnDef<Employee>[] = [
+    {
+      id: "manager",
+      header: "Manager",
+      cell: ({ row }) => (
+        <div>
+          <span className="font-medium text-foreground block">{row.original.name}</span>
+          <span className="text-sm text-muted-foreground">{row.original.email}</span>
+        </div>
+      )
+    },
+    {
+      id: "reportsTo",
+      header: "Reports To",
+      cell: ({ row }) => {
+        const employee = row.original;
+        const validManagerOptions = managerOptions.filter(opt => opt.value !== employee.id);
 
-    // Filter out self from manager options to prevent cycles (basic check)
-    // A robust check would prevent cycles in DFS, but simple 'not self' is a start.
-    const validManagerOptions = managerOptions.filter(opt => opt.value !== employee.id);
+        return (
+          <div className="w-48">
+            {!employee.isAccountOwner ? (
+              <Select
+                value={employee.managerId || ''}
+                onChange={(e) => handleManagerChange(employee.id, e.target.value)}
+                options={[{ value: '', label: 'No Manager' }, ...validManagerOptions]}
+                className="text-sm"
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">N/A (Owner)</span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      id: "accessLevel",
+      header: "Access Level",
+      cell: ({ row }) => {
+        const employee = row.original;
+        const isFullAccess = employee.permissions?.canViewOrganizationWide && employee.permissions?.canManageSettings;
 
-    return [
-      <div>
-        <span className="font-medium text-on-surface block">{employee.name}</span>
-        <span className="text-sm text-on-surface-secondary">{employee.email}</span>
-      </div>,
-      <div className="w-48">
-        {!employee.isAccountOwner ? (
-          <Select
-            value={employee.managerId || ''}
-            onChange={(e) => handleManagerChange(employee.id, e.target.value)}
-            options={[{ value: '', label: 'No Manager' }, ...validManagerOptions]}
-            className="text-sm"
-          />
-        ) : (
-          <span className="text-sm text-on-surface-secondary">N/A (Owner)</span>
-        )}
-      </div>,
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            checked={!isFullAccess}
-            disabled={employee.isAccountOwner}
-            onChange={() => !employee.isAccountOwner && handleToggleFullAccess(employee.id, false)}
-            className="w-4 h-4 text-primary focus:ring-primary focus:ring-2"
-          />
-          <span className="text-sm text-on-surface">Limited</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            checked={!!isFullAccess || employee.isAccountOwner}
-            disabled={employee.isAccountOwner}
-            onChange={() => !employee.isAccountOwner && handleToggleFullAccess(employee.id, true)}
-            className="w-4 h-4 text-primary focus:ring-primary focus:ring-2"
-          />
-          <span className="text-sm text-on-surface">Full (Senior)</span>
-        </label>
-      </div>,
-      <div className="text-sm text-on-surface-secondary">
-        {employee.id === currentManagerId && <span className="italic mr-2">(You)</span>}
-        {employee.isAccountOwner && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded text-xs font-medium">Owner</span>}
-      </div>,
-    ];
-  });
+        return (
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={!isFullAccess}
+                disabled={employee.isAccountOwner}
+                onChange={() => !employee.isAccountOwner && handleToggleFullAccess(employee.id, false)}
+                className="w-4 h-4 text-primary focus:ring-primary focus:ring-2"
+              />
+              <span className="text-sm text-foreground">Limited</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={!!isFullAccess || employee.isAccountOwner}
+                disabled={employee.isAccountOwner}
+                onChange={() => !employee.isAccountOwner && handleToggleFullAccess(employee.id, true)}
+                className="w-4 h-4 text-primary focus:ring-primary focus:ring-2"
+              />
+              <span className="text-sm text-foreground">Full (Senior)</span>
+            </label>
+          </div>
+        );
+      }
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const employee = row.original;
+        return (
+          <div className="text-sm text-muted-foreground">
+            {employee.id === currentManagerId && <span className="italic mr-2">(You)</span>}
+            {employee.isAccountOwner && <span className="px-2 py-0.5 bg-primary/20 text-primary rounded text-xs font-medium">Owner</span>}
+          </div>
+        );
+      }
+    }
+  ];
 
   return (
     <div className="space-y-4">
-      <div className="bg-surface rounded-lg p-4 border border-border">
-        <Table headers={tableHeaders} rows={tableRows} />
+      <div className="bg-card rounded-lg p-4 border border-border">
+        <DataTable columns={columns} data={localManagers} pagination={false} />
       </div>
-      <div className="text-xs text-on-surface-secondary space-y-1">
+      <div className="text-xs text-muted-foreground space-y-1">
         <p><strong>Limited Manager:</strong> Can only view and manage their direct (and indirect) reporting chain.</p>
         <p><strong>Full (Senior) Manager:</strong> Has "Account Owner" specific content controls, full organization visibility, and can manage settings.</p>
       </div>

@@ -51,9 +51,11 @@
 The system integrates **Google Gemini AI** to provide:
 
 - **Automated Report Scoring**: AI evaluates employee reports against predefined criteria
+- **Knowledge Base Grounding**: AI evaluations are grounded in project-specific context and technical lexicon
 - **Weighted Criteria Evaluation**: Each criterion can have custom weights (e.g., Code Quality: 40%, Communication: 25%)
 - **Detailed Reasoning**: AI provides comprehensive explanations for scores
 - **Real-time Feedback**: Employees receive instant feedback on report quality before submission
+- **Skill Proficiency Analysis**: AI performs holistic skill assessments based on historical report data
 - **Performance Insights**: AI generates strengths and improvement recommendations
 
 **Example Evaluation:**
@@ -210,8 +212,8 @@ Global Settings < Project Settings < Per-Employee Settings
 │   Supabase (PostgreSQL)   │   │  Google Gemini AI    │
 │  - Organizations          │   │  - Report Evaluation │
 │  - Employees              │   │  - Feedback          │
-│  - Projects               │   │  - Insights          │
-│  - Goals                  │   │  - Summarization     │
+│  - Projects               │   │  - Skill Analysis    │
+│  - Goals                  │   │  - Knowledge Base    │
 │  - Reports                │   └──────────────────────┘
 │  - Invitations            │
 └───────────────────────────┘
@@ -407,11 +409,11 @@ npm run preview
 
 **Features**:
 - **Performance Trends**: Line charts showing score trends over time
-- **Team Overview**: Table of all team members with latest scores
+- **Team Overview**: Table of all team members with latest scores and late/on-time badges
 - **Project Analytics**: Performance breakdown by project
 - **Goal Progress**: Visual indicators of goal completion
 - **Filters**: Date range, employee, project, and goal filters
-- **AI Insights**: Strengths and improvement areas
+- **AI Insights & Career Coach**: Strengths, improvement areas, and career growth recommendations.
 
 **Data Flow**:
 ```
@@ -484,11 +486,11 @@ Goal {
 **Features**:
 - Rich text editor for report writing
 - Real-time AI feedback
-- Automated AI evaluation
-- Manager override capabilities
-- Detailed criterion scores
-- Historical tracking
-- Export functionality
+- Automated AI evaluation with Knowledge Base grounding
+- Manager override capabilities with reasoning
+- Detailed criterion scores and Standard Metrics alignment
+- Historical tracking and trend analysis
+- Export functionality (CSV/PDF)
 
 **Report Submission Flow**:
 ```
@@ -793,11 +795,33 @@ Output: "Your report is quite brief. Consider adding:
 
 **Function**: `summarizePerformance(reasonings, averageScores)`
 
-**Purpose**: Generate comprehensive performance summaries
+**Purpose**: Generate comprehensive performance summaries for individual employees
 
-**Model**: `gemini-2.5-pro`
+**Model**: `gemini-2.5-flash`
 
-**Use Case**: Dashboard insights and periodic reviews
+#### 4. **Team Performance Summarization**
+
+**Function**: `summarizeTeamPerformance(params)`
+
+**Purpose**: Generate organization-level summaries of team progress and performance trends
+
+**Model**: `gemini-2.5-flash`
+
+#### 5. **Knowledge Base Generation**
+
+**Function**: `generateKnowledgeBase(params)`
+
+**Purpose**: Synthesize project data, high-performance reports, and pinned rules into a structured JSON knowledge base for context-aware evaluations.
+
+**Model**: `gemini-2.5-flash`
+
+#### 6. **Skill Metrics Analysis**
+
+**Function**: `analyzeSkillMetrics(reports, metrics, knowledgeBase?)`
+
+**Purpose**: Perform a holistic assessment of an employee's skills based on a history of their work reports and project context.
+
+**Model**: `gemini-2.5-flash`
 
 #### 4. **Insights Generation**
 

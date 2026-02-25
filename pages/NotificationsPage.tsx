@@ -93,7 +93,7 @@ export const NotificationsPage: React.FC = () => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-background rounded-lg shadow overflow-hidden">
                 <div className="border-b border-gray-200">
                     <nav className="-mb-px flex">
                         <button

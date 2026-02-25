@@ -38,7 +38,21 @@ update was crucial for the frontend team."
 
 ---
 
-## 2. 📊 Advanced Analytics Dashboard
+## 2. 🧠 Project Knowledge Base
+
+### What It Does
+Acts as the central "ground truth" for the AI, synthesizing project descriptions, technical lexicon, operational priorities, and high-performance examples into a structured context for evaluation.
+
+### Key Benefits
+- ✅ **Context-Aware Evaluation**: AI understands project-specific terminology and priorities
+- ✅ **Standardized Lexicon**: Ensures consistent grading based on company-wide definitions
+- ✅ **Success Modeling**: Learns from high-scoring historical reports to set benchmarks
+- ✅ **Dynamic Updates**: Evolves as more reports are submitted and project goals change
+
+### How It Synthesizes Data
+```
+Goals + Reports + Manual Rules + File Uploads → Knowledge Base → Evaluation Engine
+```
 
 ### What It Does
 Provides comprehensive performance visualization and insights for managers and employees.
@@ -56,7 +70,8 @@ Provides comprehensive performance visualization and insights for managers and e
 - 📊 **Personal Metrics**: Individual performance scores and trends
 - 🎯 **Goal Tracking**: Progress on assigned goals
 - 📝 **Report History**: All submitted reports with scores
-- 💡 **AI Insights**: Strengths and areas for improvement
+- 🧠 **Skill Analysis**: Holistic proficiency assessment across historical reports
+- 💡 **AI Insights & Career Coach**: Strengths, improvement areas, and growth advice
 
 ### Visual Components
 ```
@@ -203,9 +218,10 @@ Streamlines report submission with AI-powered feedback and evaluation.
 
 #### During Evaluation
 - 🤖 **AI Analysis**: Automatic evaluation against criteria
+- 🧠 **Knowledge Base Grounding**: Evaluations are informed by project-specific context
 - ⚖️ **Weighted Scoring**: Criteria weights applied automatically
-- 📊 **Detailed Breakdown**: Individual scores for each criterion
-- 💭 **Reasoning**: Comprehensive explanation of scores
+- 📊 **Detailed Breakdown**: Individual scores for each criterion and Standard Metrics
+- 💭 **Reasoning**: Comprehensive explanation of scores based on context
 
 #### After Submission
 - 👀 **Manager Review**: Managers can review and override scores
@@ -450,7 +466,7 @@ metrics and outcomes."
 
 ### Performance Metrics
 - 📊 **Trend Analysis**: Performance over time
-- 📈 **Comparative Analytics**: Team benchmarking
+- 📈 **Skill Analysis**: Radar charts showing proficiency in specific areas (Logic, Communication, etc.)
 - 🎯 **Goal Achievement**: Success rate tracking
 - 📉 **Anomaly Detection**: Identify unusual patterns
 

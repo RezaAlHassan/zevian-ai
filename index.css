@@ -1,64 +1,110 @@
-/* Moon Theme Design System */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
-:root {
-  --piccolo: #5C62F5;
-  --hit: #FFD000;
-  --roshi: #0D9B54;
-  --dodoria: #EF5451;
-  --krillin: #FF8F1F;
-  --goku: #F9FAFB;
-  --gohan: #F3F4F6;
-  --goten: #FFFFFF;
-  --bulma: #111827;
-  --trunks: #6B7280;
-  --beerus: #E5E7EB;
-  --popo: #000000;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 11%;
+    --card: 0 0% 99%;
+    --card-foreground: 345 3% 11%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 0 0% 11%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 287 6% 38%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 300 13% 80%;
+    --accent-foreground: 287 7% 34%;
+    --destructive: 341 16% 39%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 343 10% 78%;
+    --input: 343 10% 78%;
+    --ring: 0 0% 0%;
+    --radius: 0.5rem;
+    --chart-1: 0 0% 0%;
+    --chart-2: 287 6% 38%;
+    --chart-3: 0 0% 11%;
+    --chart-4: 343 10% 78%;
+    --chart-5: 343 14% 91%;
+  }
+
+  .dark {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 89%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 89%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 89%;
+    --primary: 0 0% 78%;
+    --primary-foreground: 0 0% 19%;
+    --secondary: 300 29% 91%;
+    --secondary-foreground: 287 11% 20%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 20%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 344 39% 82%;
+    --destructive-foreground: 343 27% 21%;
+    --border: 343 5% 29%;
+    --input: 343 5% 29%;
+    --ring: 0 0% 78%;
+    --radius: 0.5rem;
+    --chart-1: 0 0% 78%;
+    --chart-2: 300 29% 91%;
+    --chart-3: 0 0% 89%;
+    --chart-4: 343 5% 29%;
+    --chart-5: 0 0% 68%;
+  }
 }
 
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #FFFFFF;
-  /* goten */
-  color: #111827;
-  /* bulma */
-}
-
-/* Scrollbar Styling - Light Theme */
+/* Scrollbar Styling - Dark Theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f8f9fa;
+  background: hsl(var(--muted));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: hsl(var(--muted-foreground) / 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Focus styles - Preline */
+/* Focus styles */
 *:focus-visible {
-  outline: 2px solid #5c62f5;
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
   border-radius: 0.5rem;
 }
 
-/* Button base styles - Datadog */
+/* Button base styles */
 button {
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 500;
@@ -70,7 +116,7 @@ button:disabled {
   opacity: 0.6;
 }
 
-/* Input/Select/Textarea base styles - Datadog */
+/* Input/Select/Textarea base styles */
 input,
 textarea,
 select {
@@ -84,55 +130,53 @@ input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: #5c62f5;
-  box-shadow: 0 0 0 3px rgba(92, 98, 245, 0.1);
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #9ca3af;
+  color: hsl(var(--muted-foreground));
 }
 
-/* Datadog table styles */
+/* Table styles */
 table {
   border-collapse: separate;
   border-spacing: 0;
 }
 
-/* Link styles - Preline */
+/* Link styles */
 a {
-  color: #5c62f5;
+  color: hsl(var(--primary));
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 a:hover {
-  color: #4b4fcf;
   text-decoration: underline;
 }
 
-/* Radio button styles - Preline */
+/* Radio button styles */
 input[type="radio"] {
   appearance: none;
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 2px solid #d1d5db;
+  border: 2px solid hsl(var(--border));
   border-radius: 50%;
-  background-color: #ffffff;
+  background-color: hsl(var(--background));
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
 }
 
 input[type="radio"]:hover {
-  border-color: #6b7280;
-  background-color: #f9fafb;
+  border-color: hsl(var(--muted-foreground));
 }
 
 input[type="radio"]:checked {
-  border-color: #5c62f5;
-  background-color: #5c62f5;
+  border-color: hsl(var(--primary));
+  background-color: hsl(var(--primary));
 }
 
 input[type="radio"]:checked::after {
@@ -144,12 +188,12 @@ input[type="radio"]:checked::after {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #ffffff;
+  background-color: hsl(var(--primary-foreground));
 }
 
 input[type="radio"]:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
 }
 
 input[type="radio"]:disabled {
@@ -157,28 +201,28 @@ input[type="radio"]:disabled {
   cursor: not-allowed;
 }
 
-/* Checkbox styles - Preline */
+/* Checkbox styles */
 input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 2px solid #d1d5db;
+  border: 2px solid hsl(var(--border));
   border-radius: 0.25rem;
-  background-color: rgba(92, 98, 245, 0.1);
+  background-color: hsl(var(--primary) / 0.1);
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
 }
 
 input[type="checkbox"]:hover {
-  border-color: #5c62f5;
-  background-color: rgba(92, 98, 245, 0.15);
+  border-color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 0.15);
 }
 
 input[type="checkbox"]:checked {
-  border-color: #5c62f5;
-  background-color: #5c62f5;
+  border-color: hsl(var(--primary));
+  background-color: hsl(var(--primary));
 }
 
 input[type="checkbox"]:checked::after {
@@ -187,7 +231,7 @@ input[type="checkbox"]:checked::after {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #ffffff;
+  color: hsl(var(--primary-foreground));
   font-size: 12px;
   font-weight: bold;
   line-height: 1;
@@ -195,7 +239,7 @@ input[type="checkbox"]:checked::after {
 
 input[type="checkbox"]:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(92, 98, 245, 0.1);
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
 }
 
 input[type="checkbox"]:disabled {
@@ -217,21 +261,19 @@ input[type="checkbox"]:disabled {
   animation: spin-slow 12s linear infinite;
 }
 
-/* Interactive Icon States - Moon Design System style */
+/* Interactive Icon States */
 .interactive-icon {
   @apply transition-all duration-200 cursor-pointer;
-  color: var(--trunks);
-  /* Default color using trunks token */
+  color: hsl(var(--muted-foreground));
 }
 
 .interactive-icon:hover {
-  color: var(--piccolo);
-  /* Primary color on hover */
+  color: hsl(var(--primary));
   transform: scale(1.1);
 }
 
 .interactive-icon:focus-visible {
-  outline: 2px solid var(--piccolo);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -241,10 +283,9 @@ input[type="checkbox"]:disabled {
   opacity: 0.8;
 }
 
-/* Primary variant for icons that should always be primary color */
 .interactive-icon-primary {
   @apply interactive-icon;
-  color: var(--piccolo);
+  color: hsl(var(--primary));
 }
 
 .interactive-icon-primary:hover {

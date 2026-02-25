@@ -2,14 +2,15 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Project, Employee, Goal, Report } from '../types';
 import { FolderKanban, Plus, Search, Eye, Edit2, Bot, MoreHorizontal, Trash2, File, X, UserPlus, Users } from 'lucide-react';
-import Table from '../components/Table';
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 import { StackedAvatars, ProfilePicture } from '../components/Avatar';
-import Input from '../components/Input';
+import { Input } from '../components/ui/input';
 import Select from '../components/Select';
 import MultiSelect from '../components/MultiSelect';
 import Textarea from '../components/Textarea';
 import RichTextEditor from '../components/RichTextEditor';
-import Button from '../components/Button';
+import { Button } from '../components/ui/button';
 import Modal from '../components/Modal';
 import FileInput from '../components/FileInput';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
@@ -300,104 +301,142 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
     setAssigningProject(null);
   };
 
-  const projectTableHeaders = ['Project Name', 'Category', 'Assignees', 'Creator', 'Has Direct Reports', 'Frequency', 'Actions'];
-  const projectTableRows = filteredProjects.map(project => {
-    const assigneeNames = getAssigneeNames(project.assignees);
-    const creatorName = getCreatorName(project.createdBy);
-    const hasDirectReports = hasDirectReportsOnProject.get(project.id) || false;
+  const columns: ColumnDef<Project>[] = [
+    {
+      accessorKey: "name",
+      header: "Project Name",
+      cell: ({ row }) => <span className="capitalize text-muted-foreground">{row.original.name}</span>
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      cell: ({ row }) => <span className="capitalize text-muted-foreground">{row.original.category || '—'}</span>
+    },
+    {
+      id: "assignees",
+      header: "Assignees",
+      cell: ({ row }) => {
+        const assignedEmployees = row.original.assignees
+          ?.map(a => employees.find(e => e.id === a.id))
+          .filter((e): e is Employee => !!e) || [];
 
-    const assignedEmployees = project.assignees
-      ?.map(a => employees.find(e => e.id === a.id))
-      .filter((e): e is Employee => !!e) || [];
-
-    return [
-      <span className="capitalize text-trunks">{project.name}</span>,
-      <span className="capitalize text-trunks">{project.category || '—'}</span>,
-      <div className="flex items-center">
-        {assignedEmployees.length > 0 ? (
-          <StackedAvatars
-            employees={assignedEmployees}
-            maxVisible={3}
-            size={32}
-            onSeeMore={() => setViewingAssigneesProject(project)}
-          />
-        ) : (
-          <span className="text-trunks/70 text-moon-14">Unassigned</span>
-        )}
-      </div>,
-      <span className="capitalize text-trunks">{creatorName}</span>,
-      <div className="flex items-center">
-        {viewMode === 'manager' && currentManagerId ? (
-          <span className={`px-2 py-0.5 text-moon-12 font-semibold rounded-full ${hasDirectReports
-            ? 'bg-piccolo/10 text-piccolo border border-piccolo/20'
-            : 'bg-gohan text-trunks/70 border border-beerus'
-            }`}>
-            {hasDirectReports ? 'Yes' : 'No'}
-          </span>
-        ) : (
-          <span className="text-trunks/70">—</span>
-        )}
-      </div>,
-      <span className="capitalize text-trunks">{project.reportFrequency?.replace('-', ' ') || 'N/A'}</span>,
-      <div className="flex items-center gap-1">
-        {onSelectProject && (
-          <button
-            onClick={() => onSelectProject(project.id)}
-            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-moon-s-md transition-all duration-200 group"
-            title="View Details"
-          >
-            <Eye size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
-          </button>
-        )}
-        {viewMode === 'manager' && (
-          <>
+        return (
+          <div className="flex items-center">
+            {assignedEmployees.length > 0 ? (
+              <StackedAvatars
+                employees={assignedEmployees}
+                maxVisible={3}
+                size={32}
+                onSeeMore={() => setViewingAssigneesProject(row.original)}
+              />
+            ) : (
+              <span className="text-muted-foreground/70 text-sm">Unassigned</span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      id: "creator",
+      header: "Creator",
+      cell: ({ row }) => <span className="capitalize text-muted-foreground">{getCreatorName(row.original.createdBy)}</span>
+    },
+    {
+      id: "hasDirectReports",
+      header: "Has Direct Reports",
+      cell: ({ row }) => {
+        const hasDirectReports = hasDirectReportsOnProject.get(row.original.id) || false;
+        return (
+          <div className="flex items-center">
+            {viewMode === 'manager' && currentManagerId ? (
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${hasDirectReports
+                ? 'bg-primary/10 text-primary border border-primary/20'
+                : 'bg-muted text-muted-foreground/70 border border-border'
+                }`}>
+                {hasDirectReports ? 'Yes' : 'No'}
+              </span>
+            ) : (
+              <span className="text-muted-foreground/70">—</span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: "reportFrequency",
+      header: "Frequency",
+      cell: ({ row }) => <span className="capitalize text-muted-foreground">{row.original.reportFrequency?.replace('-', ' ') || 'N/A'}</span>
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          {onSelectProject && (
             <button
-              onClick={() => handleOpenAssignModal(project)}
-              className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-moon-s-md transition-all duration-200 group"
-              title="Assign Members"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectProject(row.original.id);
+              }}
+              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all duration-200 group"
+              title="View Details"
             >
-              <UserPlus size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
+              <Eye size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
             </button>
-            <Dropdown
-              buttonText=""
-              buttonClassName="p-1.5 border border-beerus bg-gohan hover:bg-surface-hover hover:border-primary/30 rounded-moon-s-md transition-colors"
-              variant="ghost"
-              size="sm"
-              icon={<MoreHorizontal size={18} className="text-trunks transition-transform group-hover:scale-110" />}
-              align="right"
-            >
-              <DropdownItem
-                onClick={() => handleOpenEditModal(project)}
+          )}
+          {viewMode === 'manager' && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenAssignModal(row.original);
+                }}
+                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all duration-200 group"
+                title="Assign Members"
               >
-                <div className="flex items-center gap-2">
-                  <Edit2 size={16} className="text-trunks" />
-                  <span>Edit Project</span>
-                </div>
-              </DropdownItem>
-              {deleteProject && (
-                <>
-                  <DropdownDivider />
-                  <DropdownItem
-                    onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete "${project.name}"? This action cannot be undone.`)) {
-                        deleteProject(project.id);
-                      }
-                    }}
-                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Trash2 size={16} />
-                      <span>Delete</span>
-                    </div>
-                  </DropdownItem>
-                </>
-              )}
-            </Dropdown>
-          </>
-        )}
-      </div>
-    ];
-  });
+                <UserPlus size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
+              </button>
+              <Dropdown
+                buttonText=""
+                buttonClassName="p-1.5 border border-border bg-muted hover:bg-accent hover:border-primary/30 rounded-xl transition-colors"
+                variant="ghost"
+                size="sm"
+                icon={<MoreHorizontal size={18} className="text-muted-foreground transition-transform group-hover:scale-110" />}
+                align="right"
+              >
+                <DropdownItem
+                  onClick={() => handleOpenEditModal(row.original)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Edit2 size={16} className="text-muted-foreground" />
+                    <span>Edit Project</span>
+                  </div>
+                </DropdownItem>
+                {deleteProject && (
+                  <>
+                    <DropdownDivider />
+                    <DropdownItem
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete "${row.original.name}"? This action cannot be undone.`)) {
+                          deleteProject(row.original.id);
+                        }
+                      }}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Trash2 size={16} />
+                        <span>Delete</span>
+                      </div>
+                    </DropdownItem>
+                  </>
+                )}
+              </Dropdown>
+            </>
+          )}
+        </div>
+      )
+    }
+  ];
 
   return (
     <>
@@ -405,15 +444,10 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         {/* Header with Create Button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-moon-20 font-bold text-bulma">Projects</h2>
+            <h2 className="text-xl font-bold text-foreground">Projects</h2>
           </div>
           {viewMode === 'manager' && (
-            <Button
-              onClick={() => setShowCreateModal(true)}
-              variant="primary"
-              icon={Plus}
-            >
-              Create New Project
+            <Button onClick={() => setShowCreateModal(true)}><Plus className="mr-2 h-4 w-4" />Create New Project
             </Button>
           )}
         </div>
@@ -426,8 +460,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
 
           if (!hasFullEdit && isAssigned) {
             return (
-              <div className="bg-piccolo/5 border border-piccolo/20 rounded-moon-s-md p-3 text-moon-14 text-trunks flex items-start gap-2">
-                <Bot size={18} className="text-piccolo mt-0.5 animate-pulse" />
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-sm text-muted-foreground flex items-start gap-2">
+                <Bot size={18} className="text-primary mt-0.5 animate-pulse" />
                 <p>
                   You are an assigned manager for this project. You can add or remove members from your reporting team,
                   but other project details can only be modified by the project creator or an administrator.
@@ -441,36 +475,29 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         {/* Search - Removed local search, now global */}
 
         {/* Projects Table */}
-        <div className="bg-goten rounded-moon-s-md p-6 border border-beerus">
+        <div className="bg-background rounded-xl p-6 border border-border">
           {filteredProjects.length > 0 ? (
             <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
-              <Table
-                headers={projectTableHeaders}
-                rows={projectTableRows}
-                onRowClick={onSelectProject ? (index) => onSelectProject(filteredProjects[index].id) : undefined}
+              <DataTable
+                columns={columns}
+                data={filteredProjects}
+                onRowClick={onSelectProject ? (row) => onSelectProject(row.id) : undefined}
               />
             </div>
           ) : (
             <div className="text-center py-12">
-              <FolderKanban size={48} className="text-trunks/70 mx-auto mb-4" />
-              <p className="text-moon-18 text-trunks mb-2">
+              <FolderKanban size={48} className="text-muted-foreground/70 mx-auto mb-4" />
+              <p className="text-lg text-muted-foreground mb-2">
                 {searchQuery ? 'No projects found matching your search' : 'No projects created yet'}
               </p>
               {viewMode === 'manager' && !searchQuery && (
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  variant="primary"
-                  className="mt-4"
-                  icon={Plus}
-                >
-                  Create Your First Project
+                <Button onClick={() => setShowCreateModal(true)} className="mt-4"><Plus className="mr-2 h-4 w-4" />Create Your First Project
                 </Button>
               )}
             </div>
           )}
         </div>
       </div>
-
       {/* Create Project Modal */}
       <Modal
         isOpen={showCreateModal}
@@ -501,7 +528,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
           />
 
           <div>
-            <label className="block text-moon-14 font-medium text-bulma mb-2">Project Description *</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Project Description *</label>
             <RichTextEditor
               value={projectDescription}
               onChange={setProjectDescription}
@@ -515,12 +542,12 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             {projectFiles.length > 0 && (
               <div className="mt-2 space-y-2">
                 {projectFiles.map((file, index) => (
-                  <div key={index} className="flex items-center gap-2 text-moon-14 text-bulma bg-gohan border border-beerus px-3 py-2 rounded-md">
-                    <File size={14} className="text-piccolo" />
+                  <div key={index} className="flex items-center gap-2 text-sm text-foreground bg-muted border border-border px-3 py-2 rounded-md">
+                    <File size={14} className="text-primary" />
                     <span className="truncate flex-1">{file.name}</span>
                     <button
                       onClick={() => handleRemoveFile(index)}
-                      className="text-trunks/70 hover:text-destructive transition-colors"
+                      className="text-muted-foreground/70 hover:text-destructive transition-colors"
                       disabled={editingProject ? !(isOwner || canManage || editingProject.createdBy === currentManagerId) : false}
                     >
                       <X size={14} />
@@ -538,7 +565,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
               onChange={handleFileSelect}
             />
 
-            <p className="mt-1 text-moon-12 text-trunks">
+            <p className="mt-1 text-xs text-muted-foreground">
               This description will be used as the foundation for the AI-generated Knowledge Base
             </p>
           </div>
@@ -599,7 +626,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
 
           {reportFrequency === 'custom' && (
             <div className="space-y-4">
-              <label className="block text-moon-14 font-medium text-bulma">Select Days</label>
+              <label className="block text-sm font-medium text-foreground">Select Days</label>
               <div className="grid grid-cols-4 gap-2">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
                   <button
@@ -611,8 +638,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
                       // I need to add state `const [selectedDays, setSelectedDays] = useState<string[]>([]);` to ProjectsPage.
                     }}
                     className={`
-                      px-3 py-2 text-moon-14 rounded-md border text-center transition-colors
-                      bg-white text-bulma border-beerus hover:border-primary
+                      px-3 py-2 text-sm rounded-md border text-center transition-colors
+                      bg-background text-foreground border-border hover:border-primary
                     `}
                   >
                     {day.slice(0, 3)}
@@ -622,7 +649,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-beerus">
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button
               onClick={() => {
                 setShowCreateModal(false);
@@ -640,15 +667,12 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             </Button>
             <Button
               onClick={handleAddProject}
-              disabled={!projectName || !projectCategory || !projectDescription}
-              variant="primary"
-            >
+              disabled={!projectName || !projectCategory || !projectDescription}>
               {editingProject ? 'Update Project' : 'Save Project'}
             </Button>
           </div>
         </div>
       </Modal>
-
       {/* Quick Assign Members Modal */}
       <Modal
         isOpen={showAssignModal}
@@ -657,7 +681,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
         scrollable={false}
       >
         <div className="space-y-6">
-          <p className="text-moon-14 text-trunks">
+          <p className="text-sm text-muted-foreground">
             Select members to assign to this project. Assigned employees will be required to submit reports based on the project frequency.
           </p>
 
@@ -676,17 +700,14 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
             searchable
           />
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-beerus">
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <Button
               variant="outline"
               onClick={() => setShowAssignModal(false)}
             >
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              onClick={handleSaveAssignments}
-            >
+            <Button onClick={handleSaveAssignments}>
               Save Assignments
             </Button>
           </div>
@@ -705,20 +726,20 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ projects, addProject, updat
                 .map(a => employees.find(e => e.id === a.id))
                 .filter((e): e is Employee => !!e)
                 .map(employee => (
-                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-moon-s-md border border-transparent hover:border-border transition-colors">
+                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-accent rounded-xl border border-transparent hover:border-border transition-colors">
                     <ProfilePicture name={employee.name} size={40} />
                     <div>
-                      <div className="font-medium text-bulma">{employee.name}</div>
-                      <div className="text-moon-12 text-trunks capitalize">{employee.role}</div>
+                      <div className="font-medium text-foreground">{employee.name}</div>
+                      <div className="text-xs text-muted-foreground capitalize">{employee.role}</div>
                     </div>
                   </div>
                 ))
               }
             </div>
           ) : (
-            <p className="text-trunks text-center py-4">No members assigned.</p>
+            <p className="text-muted-foreground text-center py-4">No members assigned.</p>
           )}
-          <div className="flex justify-end pt-4 border-t border-beerus">
+          <div className="flex justify-end pt-4 border-t border-border">
             <Button
               variant="outline"
               onClick={() => setViewingAssigneesProject(null)}

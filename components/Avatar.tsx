@@ -1,7 +1,8 @@
 import React from 'react';
 import { Employee } from '../types';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-// Profile Picture Component (Discord style)
+// Profile Picture Component
 export const ProfilePicture: React.FC<{ name: string; size?: number; className?: string }> = ({ name, size = 32, className = '' }) => {
     const initials = name
         .split(' ')
@@ -22,12 +23,11 @@ export const ProfilePicture: React.FC<{ name: string; size?: number; className?:
     const bgColor = colors[colorIndex];
 
     return (
-        <div
-            className={`rounded-full ${bgColor} flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
-            style={{ width: size, height: size, fontSize: size * 0.4 }}
-        >
-            {initials}
-        </div>
+        <Avatar className={className} style={{ width: size, height: size }}>
+            <AvatarFallback className={`${bgColor} text-white font-semibold flex-shrink-0 w-full h-full`} style={{ fontSize: size * 0.4 }}>
+                {initials}
+            </AvatarFallback>
+        </Avatar>
     );
 };
 
@@ -42,30 +42,30 @@ export const StackedAvatars: React.FC<{
     const remaining = employees.length - maxVisible;
 
     return (
-        <div className="flex items-center" style={{ gap: size * -0.25 }}>
+        <div className="flex items-center hover:z-10 relative" style={{ gap: size * -0.25 }}>
             {visible.map((employee, index) => (
                 <div
                     key={employee.id}
-                    className="relative"
+                    className="relative transition-transform hover:z-50 hover:-translate-y-1"
                     style={{ zIndex: maxVisible - index }}
+                    title={employee.name}
                 >
                     <ProfilePicture
                         name={employee.name}
                         size={size}
-                        className="border-2 border-white"
+                        className="border-2 border-background shadow-xs"
                     />
                 </div>
             ))}
             {remaining > 0 && (
                 <button
                     onClick={onSeeMore}
-                    className="relative rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white font-semibold hover:bg-blue-600 transition-colors cursor-pointer"
+                    className="relative rounded-full bg-muted border-2 border-background flex items-center justify-center text-foreground font-semibold hover:bg-muted/80 transition-colors shadow-xs"
                     style={{
                         width: size,
                         height: size,
                         fontSize: size * 0.35,
                         zIndex: 0,
-                        marginLeft: size * -0.25 > 0 ? `${size * -0.25}px` : '0px'
                     }}
                 >
                     +{remaining}

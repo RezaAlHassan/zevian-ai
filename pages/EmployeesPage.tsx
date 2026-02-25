@@ -3,9 +3,11 @@ import React, { useState, useMemo } from 'react';
 import { Employee, Report, EmployeeRole, Invitation, Project, Goal } from '../types';
 import { User, Users, Search, Star, MessageSquare, ClipboardCheck, Briefcase, Target, Eye } from 'lucide-react';
 import { formatTableDate } from '../utils/dateFormat';
-import Table from '../components/Table';
+import { Badge } from "../components/ui/badge";
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 import StatCard from '../components/StatCard';
-import Button from '../components/Button';
+import { Button } from '../components/ui/button';
 import InviteUserModal from '../components/InviteUserModal';
 import UserProjectsModal from '../components/UserProjectsModal'; // NEW
 import { isEmployeeInManagerScope } from '../utils/employeeFilter';
@@ -132,53 +134,96 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   // --- Render Tables ---
 
   const renderEmployeeTable = () => {
-    const headers = ['Name', 'Role/Title', 'Time in Org', 'Active Goals', 'Avg Score', 'Reports', 'Actions'];
-    const rows = filteredEmployees.map(emp => {
-      const m = employeeMetrics[emp.id] || { daysJoined: 0, activeGoalCount: 0, avgScore: 0, reportCount: 0 };
-
-      return [
-        <div key="name">
-          <span className="font-medium text-sm text-on-surface block">{emp.name}</span>
-          <span className="text-xs text-on-surface-secondary">{emp.email}</span>
-        </div>,
-        <span key="title" className="text-sm text-on-surface-secondary">{emp.title || 'N/A'}</span>,
-        <span key="time" className="text-sm text-on-surface-secondary">{m.daysJoined} days</span>,
-        <button
-          key="goals"
-          onClick={() => setSelectedUserForProjects(emp)}
-          className="flex items-center gap-2 hover:bg-surface-secondary px-2 py-1 rounded transition-colors group"
-        >
-          <Target size={16} className="text-piccolo group-hover:scale-110 transition-transform" />
-          <span className="font-bold text-bulma group-hover:text-piccolo transition-colors">{m.activeGoalCount}</span>
-        </button>,
-        <div key="score" className="flex items-center gap-1">
-          <Star size={14} className={m.avgScore > 0 ? "text-yellow-500 fill-yellow-500" : "text-on-surface-tertiary"} />
-          <span className={`font-medium ${m.avgScore > 0 ? 'text-on-surface' : 'text-on-surface-tertiary'}`}>
-            {m.avgScore > 0 ? m.avgScore.toFixed(1) : '-'}
-          </span>
-        </div>,
-        <span key="reports" className="text-sm text-on-surface-secondary">{m.reportCount}</span>,
-        emp.id !== currentManagerId ? (
-          <button
-            key="action"
-            onClick={() => onSelectEmployee(emp.id)}
-            className="p-1.5 text-piccolo hover:bg-piccolo/10 rounded-lg transition-colors group"
-            title="View Details"
-          >
-            <Eye size={18} className="transition-transform group-hover:scale-110" />
-          </button>
-        ) : <div key="action" />
-      ];
-    });
+    const columns: ColumnDef<Employee>[] = [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+          <div>
+            <span className="font-medium text-sm text-foreground block">{row.original.name}</span>
+            <span className="text-xs text-muted-foreground">{row.original.email}</span>
+          </div>
+        )
+      },
+      {
+        accessorKey: "title",
+        header: "Role/Title",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.title || 'N/A'}</span>
+      },
+      {
+        id: "timeInOrg",
+        header: "Time in Org",
+        cell: ({ row }) => {
+          const m = employeeMetrics[row.original.id] || { daysJoined: 0 };
+          return <span className="text-sm text-muted-foreground">{m.daysJoined} days</span>;
+        }
+      },
+      {
+        id: "activeGoals",
+        header: "Active Goals",
+        cell: ({ row }) => {
+          const m = employeeMetrics[row.original.id] || { activeGoalCount: 0 };
+          return (
+            <button
+              onClick={() => setSelectedUserForProjects(row.original)}
+              className="flex items-center gap-2 hover:bg-muted-secondary px-2 py-1 rounded transition-colors group"
+            >
+              <Target size={16} className="text-primary group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-foreground group-hover:text-primary transition-colors">{m.activeGoalCount}</span>
+            </button>
+          );
+        }
+      },
+      {
+        id: "avgScore",
+        header: "Avg Score",
+        cell: ({ row }) => {
+          const m = employeeMetrics[row.original.id] || { avgScore: 0 };
+          return (
+            <div className="flex items-center gap-1">
+              <Star size={14} className={m.avgScore > 0 ? "text-amber-500 fill-amber-500" : "text-muted-foreground"} />
+              {m.avgScore > 0 ? (
+                <Badge variant="secondary" className="bg-primary/10 text-primary font-bold">{m.avgScore.toFixed(1)}</Badge>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </div>
+          );
+        }
+      },
+      {
+        id: "reports",
+        header: "Reports",
+        cell: ({ row }) => {
+          const m = employeeMetrics[row.original.id] || { reportCount: 0 };
+          return <span className="text-sm text-muted-foreground">{m.reportCount}</span>;
+        }
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          if (row.original.id === currentManagerId) return <div />;
+          return (
+            <button
+              onClick={() => onSelectEmployee(row.original.id)}
+              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors group"
+              title="View Details"
+            >
+              <Eye size={18} className="transition-transform group-hover:scale-110" />
+            </button>
+          );
+        }
+      }
+    ];
 
     return (
-      <Table
-        headers={headers}
-        rows={rows}
-        onRowClick={(index) => {
-          const emp = filteredEmployees[index];
-          if (emp.id !== currentManagerId) {
-            onSelectEmployee(emp.id);
+      <DataTable
+        columns={columns}
+        data={filteredEmployees}
+        onRowClick={(row) => {
+          if (row.id !== currentManagerId) {
+            onSelectEmployee(row.id);
           }
         }}
       />
@@ -186,53 +231,89 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   };
 
   const renderManagerTable = () => {
-    const headers = ['Name', 'Role/Title', 'Active Projects', 'Feedbacks', 'Reports Reviewed', 'Actions'];
-    const rows = filteredEmployees.map(mgr => {
-      const m = managerMetrics[mgr.id] || { feedbacksLeft: 0, reportsReviewed: 0, projectCount: 0 };
-
-      return [
-        <div key="name">
-          <span className="font-medium text-sm text-on-surface block">{mgr.name}</span>
-          <span className="text-xs text-on-surface-secondary">{mgr.email}</span>
-        </div>,
-        <span key="title" className="text-sm text-on-surface-secondary">{mgr.title || 'Manager'}</span>,
-        <button
-          key="projects"
-          onClick={() => setSelectedUserForProjects(mgr)}
-          className="flex items-center gap-2 hover:bg-surface-secondary px-2 py-1 rounded transition-colors group"
-        >
-          <Briefcase size={16} className="text-piccolo group-hover:scale-110 transition-transform" />
-          <span className="font-bold text-bulma group-hover:text-piccolo transition-colors">{m.projectCount}</span>
-        </button>,
-        <div key="feedbacks" className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-blue-500" />
-          <span className="font-medium text-on-surface">{m.feedbacksLeft}</span>
-        </div>,
-        <div key="reviewed" className="flex items-center gap-2">
-          <ClipboardCheck size={16} className="text-emerald-500" />
-          <span className="font-medium text-on-surface">{m.reportsReviewed}</span>
-        </div>,
-        mgr.id !== currentManagerId ? (
-          <button
-            key="action"
-            onClick={() => onSelectEmployee(mgr.id)}
-            className="p-1.5 text-piccolo hover:bg-piccolo/10 rounded-lg transition-colors group"
-            title="View Activity"
-          >
-            <Eye size={18} className="transition-transform group-hover:scale-110" />
-          </button>
-        ) : <div key="action" />
-      ];
-    });
+    const columns: ColumnDef<Employee>[] = [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+          <div>
+            <span className="font-medium text-sm text-foreground block">{row.original.name}</span>
+            <span className="text-xs text-muted-foreground">{row.original.email}</span>
+          </div>
+        )
+      },
+      {
+        accessorKey: "title",
+        header: "Role/Title",
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.title || 'Manager'}</span>
+      },
+      {
+        id: "activeProjects",
+        header: "Active Projects",
+        cell: ({ row }) => {
+          const m = managerMetrics[row.original.id] || { projectCount: 0 };
+          return (
+            <button
+              onClick={() => setSelectedUserForProjects(row.original)}
+              className="flex items-center gap-2 hover:bg-muted-secondary px-2 py-1 rounded transition-colors group"
+            >
+              <Briefcase size={16} className="text-primary group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-foreground group-hover:text-primary transition-colors">{m.projectCount}</span>
+            </button>
+          );
+        }
+      },
+      {
+        id: "feedbacks",
+        header: "Feedbacks",
+        cell: ({ row }) => {
+          const m = managerMetrics[row.original.id] || { feedbacksLeft: 0 };
+          return (
+            <div className="flex items-center gap-2">
+              <MessageSquare size={16} className="text-blue-500" />
+              <span className="font-medium text-foreground">{m.feedbacksLeft}</span>
+            </div>
+          );
+        }
+      },
+      {
+        id: "reviewed",
+        header: "Reports Reviewed",
+        cell: ({ row }) => {
+          const m = managerMetrics[row.original.id] || { reportsReviewed: 0 };
+          return (
+            <div className="flex items-center gap-2">
+              <ClipboardCheck size={16} className="text-emerald-500" />
+              <span className="font-medium text-foreground">{m.reportsReviewed}</span>
+            </div>
+          );
+        }
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          if (row.original.id === currentManagerId) return <div />;
+          return (
+            <button
+              onClick={() => onSelectEmployee(row.original.id)}
+              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors group"
+              title="View Activity"
+            >
+              <Eye size={18} className="transition-transform group-hover:scale-110" />
+            </button>
+          );
+        }
+      }
+    ];
 
     return (
-      <Table
-        headers={headers}
-        rows={rows}
-        onRowClick={(index) => {
-          const mgr = filteredEmployees[index];
-          if (mgr.id !== currentManagerId) {
-            onSelectEmployee(mgr.id);
+      <DataTable
+        columns={columns}
+        data={filteredEmployees}
+        onRowClick={(row) => {
+          if (row.id !== currentManagerId) {
+            onSelectEmployee(row.id);
           }
         }}
       />
@@ -242,31 +323,31 @@ const EmployeesPage: React.FC<EmployeesPageProps> = ({
   return (
     <div className="w-full px-6 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-on-surface">Performance Overview</h2>
+        <h2 className="text-xl font-bold text-foreground">Performance Overview</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <StatCard title="Total Employees" value={employees.filter(e => e.role === 'employee').length} icon={<User size={24} className="text-on-surface-secondary" />} />
-        <StatCard title="Total Managers" value={employees.filter(e => e.role === 'manager').length} icon={<Users size={24} className="text-on-surface-secondary" />} />
+        <StatCard title="Total Employees" value={employees.filter(e => e.role === 'employee').length} icon={<User size={24} className="text-muted-foreground" />} />
+        <StatCard title="Total Managers" value={employees.filter(e => e.role === 'manager').length} icon={<Users size={24} className="text-muted-foreground" />} />
       </div>
 
-      <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+      <div className="bg-card rounded-lg p-6 border border-border">
         {/* Tabs */}
-        <div className="flex items-center gap-4 mb-6 border-b border-beerus">
+        <div className="flex items-center gap-4 mb-6 border-b border-border">
           <button
             onClick={() => setActiveTab('employees')}
-            className={`px-6 py-3 text-moon-14 font-medium border-b-2 transition-all duration-200 ${activeTab === 'employees'
-              ? 'border-piccolo text-piccolo bg-piccolo/5'
-              : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${activeTab === 'employees'
+              ? 'border-primary text-primary bg-primary/5'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
           >
             Employees
           </button>
           <button
             onClick={() => setActiveTab('managers')}
-            className={`px-6 py-3 text-moon-14 font-medium border-b-2 transition-all duration-200 ${activeTab === 'managers'
-              ? 'border-piccolo text-piccolo bg-piccolo/5'
-              : 'border-transparent text-trunks hover:text-bulma hover:bg-gohan'
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${activeTab === 'managers'
+              ? 'border-primary text-primary bg-primary/5'
+              : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
           >
             Managers

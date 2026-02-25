@@ -2,9 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { Goal, Report, Employee, Criterion, Project } from '../types';
 import { ArrowLeft, Plus, Trash2, Edit2, Save, X, File, Calendar, User, Users, Target, Trophy, Award, Eye, CheckCircle, RotateCcw, Search, Clock } from 'lucide-react';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Table from '../components/Table';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Badge } from "../components/ui/badge";
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 import Modal from '../components/Modal';
 import { ProfilePicture, StackedAvatars } from '../components/Avatar';
 import { formatReportDate, formatTableDate } from '../utils/dateFormat';
@@ -203,45 +205,66 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const reportTableHeaders = [
-    { key: 'date', label: 'Date', sortable: true },
-    { key: 'employee', label: 'Employee', sortable: true },
-    { key: 'score', label: 'Zevian Score', sortable: true },
-    { key: 'managerScore', label: 'Manager Score', sortable: true },
-    { key: 'actions', label: 'Actions', sortable: false },
+  const columns: ColumnDef<Report>[] = [
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-muted-foreground" />
+          <span className="capitalize text-muted-foreground">{formatTableDate(row.original.submissionDate)}</span>
+        </div>
+      )
+    },
+    {
+      id: "employee",
+      header: "Employee",
+      cell: ({ row }) => {
+        const employee = employees.find(e => e.id === row.original.employeeId);
+        return <span className="capitalize text-muted-foreground">{employee?.name || 'Unknown'}</span>;
+      }
+    },
+    {
+      accessorKey: "evaluationScore",
+      header: "Zevian Score",
+      cell: ({ row }) => (
+        <span className="capitalize text-muted-foreground">
+          {row.original.evaluationScore.toFixed(1)}
+        </span>
+      )
+    },
+    {
+      accessorKey: "managerOverallScore",
+      header: "Manager Score",
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          {row.original.managerOverallScore != null ? (
+            <span className="text-primary font-semibold">
+              {row.original.managerOverallScore.toFixed(1)}
+            </span>
+          ) : (
+            <Badge variant="outline" className="px-1.5 py-0.5 bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold">Pending Review</Badge>
+          )}
+        </div>
+      )
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedReport(row.original);
+          }}
+          className="text-primary hover:text-primary/80 hover:underline font-medium text-sm flex items-center gap-1 transition-colors group"
+        >
+          <Eye size={16} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
+          View Details
+        </button>
+      )
+    }
   ];
-  const reportTableRows = goalReports.map(report => {
-    const employee = employees.find(e => e.id === report.employeeId);
-    return [
-      <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-on-surface-secondary" />
-        <span className="capitalize text-on-surface-secondary">{formatTableDate(report.submissionDate)}</span>
-      </div>,
-      <span className="capitalize text-on-surface-secondary">{employee?.name || 'Unknown'}</span>,
-      <span className="capitalize text-on-surface-secondary">
-        {report.evaluationScore.toFixed(1)}
-      </span>,
-      <div className="flex items-center">
-        {report.managerOverallScore != null ? (
-          <span className="text-primary font-semibold">
-            {report.managerOverallScore.toFixed(1)}
-          </span>
-        ) : (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-            <Clock size={10} className="text-[#854d0e]" />
-            Pending Review
-          </div>
-        )}
-      </div>,
-      <button
-        onClick={() => setSelectedReport(report)}
-        className="text-primary hover:text-primary-hover hover:underline font-medium text-sm flex items-center gap-1 transition-colors group"
-      >
-        <Eye size={16} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
-        View Details
-      </button>
-    ];
-  });
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
@@ -249,10 +272,10 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
       <div className="flex items-center gap-4">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 text-on-surface-secondary hover:text-primary group/back"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 text-muted-foreground hover:text-primary group/back"
           title="Back to Goals"
         >
-          <div className="p-1 rounded-full bg-surface group-hover/back:bg-primary/10 transition-colors">
+          <div className="p-1 rounded-full bg-muted group-hover/back:bg-primary/10 transition-colors">
             <ArrowLeft size={16} strokeWidth={2.5} />
           </div>
           <span className="text-sm font-medium pr-1">Back</span>
@@ -260,7 +283,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
         <div className="h-6 w-px bg-border mx-1" />
         <div className="flex-1 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-on-surface">
+            <h1 className="text-xl font-bold text-foreground">
               {goal.name}
             </h1>
             {goal.status === 'completed' && (
@@ -275,51 +298,48 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
               <Button
                 onClick={() => updateGoal({ ...goal, status: goal.status === 'completed' ? 'active' : 'completed' })}
                 variant={goal.status === 'completed' ? 'outline' : 'primary'}
-                size="sm"
-                icon={goal.status === 'completed' ? RotateCcw : CheckCircle}
-              >
+                size="sm">
                 {goal.status === 'completed' ? 'Mark as Active' : 'Mark as Completed'}
               </Button>
             )}
           </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Goal Information */}
-          <div className="bg-surface-elevated rounded-lg p-6  border border-border">
-            <h2 className="text-xl font-bold mb-4 text-on-surface">Goal Information</h2>
+          <div className="bg-card rounded-lg p-6  border border-border">
+            <h2 className="text-xl font-bold mb-4 text-foreground">Goal Information</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-on-surface-secondary">Description</label>
-                <p className="mt-1 text-on-surface">
+                <label className="text-sm font-medium text-muted-foreground">Description</label>
+                <p className="mt-1 text-foreground">
                   {goal.description || 'No description provided'}
                 </p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-on-surface-secondary">Project</label>
-                <p className="mt-1 text-on-surface font-medium">{goalProject?.name || 'Unknown Project'}</p>
+                <label className="text-sm font-medium text-muted-foreground">Project</label>
+                <p className="mt-1 text-foreground font-medium">{goalProject?.name || 'Unknown Project'}</p>
               </div>
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
                 <div>
-                  <label className="text-sm font-medium text-on-surface-secondary">Created By</label>
+                  <label className="text-sm font-medium text-muted-foreground">Created By</label>
                   <div className="mt-1 flex items-center gap-2">
                     <User size={16} className="text-primary/70" />
-                    <span className="text-on-surface">
+                    <span className="text-foreground">
                       {employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}
                     </span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-on-surface-secondary">Created Date</label>
+                  <label className="text-sm font-medium text-muted-foreground">Created Date</label>
                   <div className="mt-1 flex items-center gap-2">
                     <Calendar size={16} className="text-primary/70" />
-                    <span className="text-on-surface">
+                    <span className="text-foreground">
                       {goal.createdAt ? formatTableDate(goal.createdAt) : 'Unknown'}
                     </span>
                   </div>
@@ -329,19 +349,19 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
               {/* Knowledge Base */}
               {goal.knowledgeBase && goal.knowledgeBase.length > 0 && (
                 <div>
-                  <label className="text-sm font-medium text-on-surface-secondary mb-2 block">Knowledge Base</label>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Knowledge Base</label>
                   <div className="space-y-2">
                     {goal.knowledgeBase.map((file, index) => (
                       <div
                         key={index}
-                        className="flex items-center gap-3 p-3 bg-surface border border-border rounded-lg"
+                        className="flex items-center gap-3 p-3 bg-muted border border-border rounded-lg"
                       >
                         <File size={18} className="text-primary/70 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-on-surface truncate">
+                          <p className="text-sm font-medium text-foreground truncate">
                             {file.fileName}
                           </p>
-                          <p className="text-xs text-on-surface-tertiary">
+                          <p className="text-xs text-muted-foreground">
                             {formatFileSize(file.fileSize)} • {new Date(file.uploadDate).toLocaleDateString()}
                           </p>
                         </div>
@@ -354,29 +374,23 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
           </div>
 
           {/* Instructions */}
-          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
-            <h2 className="text-xl font-bold mb-4 text-on-surface">Instructions</h2>
-            <div className="bg-surface p-4 rounded-lg text-on-surface secondary border border-border whitespace-pre-line">
+          <div className="bg-card rounded-lg p-6 border border-border">
+            <h2 className="text-xl font-bold mb-4 text-foreground">Instructions</h2>
+            <div className="bg-muted p-4 rounded-lg text-foreground secondary border border-border whitespace-pre-line">
               {goal.instructions}
             </div>
           </div>
 
           {/* Scoring Criteria */}
-          <div className="bg-surface-elevated rounded-lg p-6  border border-border">
+          <div className="bg-card rounded-lg p-6  border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-on-surface">Scoring Criteria</h2>
+              <h2 className="text-xl font-bold text-foreground">Scoring Criteria</h2>
               {!isEditingCriteria && canEdit && (
-                <Button
-                  onClick={() => setIsEditingCriteria(true)}
-                  variant="outline"
-                  size="sm"
-                  icon={Edit2}
-                >
-                  Edit Criteria
+                <Button onClick={() => setIsEditingCriteria(true)} variant="outline" size="sm"><Edit2 className="mr-2 h-4 w-4" />Edit Criteria
                 </Button>
               )}
               {!canEdit && viewMode === 'manager' && (
-                <p className="text-sm text-on-surface-secondary italic">
+                <p className="text-sm text-muted-foreground italic">
                   You can only edit goals you created
                 </p>
               )}
@@ -399,27 +413,21 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                     placeholder="Weight %"
                     className="w-24"
                   />
-                  <Button
-                    onClick={handleAddCriterion}
-                    variant="primary"
-                    size="md"
-                    icon={Plus}
-                    className="h-[38px]"
-                  />
+                  <Button onClick={handleAddCriterion} className="h-[38px]" />
                 </div>
 
                 <div className="space-y-2">
                   {editedCriteria.map((c) => (
                     <div
                       key={c.id}
-                      className="flex justify-between items-center bg-surface p-3 rounded-lg border border-border"
+                      className="flex justify-between items-center bg-muted p-3 rounded-lg border border-border"
                     >
                       <span>
-                        {c.name} - <span className="font-semibold text-on-surface">{c.weight}%</span>
+                        {c.name} - <span className="font-semibold text-foreground">{c.weight}%</span>
                       </span>
                       <button
                         onClick={() => handleRemoveCriterion(c.id)}
-                        className="text-error hover:text-error-hover transition-colors"
+                        className="text-destructive hover:text-destructive/80 transition-colors"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -432,22 +440,9 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                     Total Weight: {totalWeight}%
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      onClick={handleCancelEdit}
-                      variant="outline"
-                      size="sm"
-                      icon={X}
-                    >
-                      Cancel
+                    <Button onClick={handleCancelEdit} variant="outline" size="sm"><X className="mr-2 h-4 w-4" />Cancel
                     </Button>
-                    <Button
-                      onClick={handleSaveCriteria}
-                      disabled={totalWeight !== 100}
-                      variant="primary"
-                      size="sm"
-                      icon={Save}
-                    >
-                      Save Changes
+                    <Button onClick={handleSaveCriteria} disabled={totalWeight !== 100} size="sm"><Save className="mr-2 h-4 w-4" />Save Changes
                     </Button>
                   </div>
                 </div>
@@ -457,12 +452,12 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 {goal.criteria.map((c, index) => (
                   <div
                     key={c.id}
-                    className="flex justify-between items-center bg-surface p-3 rounded-lg border border-border"
+                    className="flex justify-between items-center bg-muted p-3 rounded-lg border border-border"
                   >
-                    <span className="text-on-surface">
+                    <span className="text-foreground">
                       {index + 1}. {c.name}
                     </span>
-                    <span className="font-semibold text-on-surface">{c.weight}%</span>
+                    <span className="font-semibold text-foreground">{c.weight}%</span>
                   </div>
                 ))}
               </div>
@@ -470,20 +465,16 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
           </div>
 
           {/* Recent Reports */}
-          <div className="bg-surface-elevated rounded-lg p-6  border border-border">
-            <h2 className="text-xl font-bold mb-4 text-on-surface">Recent Reports</h2>
+          <div className="bg-card rounded-lg p-6  border border-border">
+            <h2 className="text-xl font-bold mb-4 text-foreground">Recent Reports</h2>
             {goalReports.length > 0 ? (
-              <Table
-                headers={reportTableHeaders}
-                rows={reportTableRows}
-                sortable
-                sortColumn={sortColumn}
-                sortDirection={sortDirection}
-                onSort={handleSort}
-                onRowClick={(index) => setSelectedReport(goalReports[index])}
+              <DataTable
+                columns={columns}
+                data={goalReports}
+                onRowClick={(row) => setSelectedReport(row)}
               />
             ) : (
-              <p className="text-on-surface-secondary text-center py-8">
+              <p className="text-muted-foreground text-center py-8">
                 No reports submitted for this goal yet.
               </p>
             )}
@@ -492,16 +483,16 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
 
         {/* Sidebar Stats */}
         <div className="space-y-6">
-          <div className="bg-surface-elevated rounded-lg p-6  border border-border">
-            <h3 className="text-lg font-semibold mb-4 text-on-surface">Statistics</h3>
+          <div className="bg-card rounded-lg p-6  border border-border">
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Statistics</h3>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-on-surface-secondary">Total Reports</p>
-                <p className="text-lg font-bold text-on-surface">{goalReports.length}</p>
+                <p className="text-sm text-muted-foreground">Total Reports</p>
+                <p className="text-lg font-bold text-foreground">{goalReports.length}</p>
               </div>
               <div>
-                <p className="text-sm text-on-surface-secondary">Average Score</p>
-                <p className="text-lg font-bold text-on-surface">
+                <p className="text-sm text-muted-foreground">Average Score</p>
+                <p className="text-lg font-bold text-foreground">
                   {goalReports.length > 0
                     ? (goalReports.reduce((sum, r) => sum + r.evaluationScore, 0) / goalReports.length).toFixed(1)
                     : '0.0'
@@ -509,23 +500,23 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 </p>
               </div>
               <div>
-                <p className="text-sm text-on-surface-secondary">Criteria Count</p>
-                <p className="text-lg font-bold text-on-surface">{goal.criteria.length}</p>
+                <p className="text-sm text-muted-foreground">Criteria Count</p>
+                <p className="text-lg font-bold text-foreground">{goal.criteria.length}</p>
               </div>
             </div>
           </div>
 
           {/* Goal Assignees */}
-          <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+          <div className="bg-card rounded-lg p-6 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-on-surface flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Users size={20} className="text-primary drop-shadow-sm" />
                 Goal Assignees
               </h3>
               {canEdit && (
                 <button
                   onClick={() => setShowAssigneesModal(true)}
-                  className="text-xs text-primary hover:text-primary-hover font-medium px-2 py-1 rounded hover:bg-primary/5 transition-colors"
+                  className="text-xs text-primary hover:text-primary/80 font-medium px-2 py-1 rounded hover:bg-primary/5 transition-colors"
                 >
                   Manage
                 </button>
@@ -537,19 +528,19 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 goalAssigneeEmployees.map(employee => {
                   const assignment = goal.assignees?.find(a => a.id === employee.id);
                   return (
-                    <div key={employee.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors border border-transparent hover:border-border group">
+                    <div key={employee.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border group">
                       <ProfilePicture name={employee.name} size={32} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 text-sm font-medium text-on-surface truncate group-hover:text-primary transition-colors">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                           <span>{employee.name}</span>
                           {assignment?.assignedAt && (
-                            <span className="text-on-surface-tertiary text-[10px] font-normal">
+                            <span className="text-muted-foreground text-[10px] font-normal">
                               (Assigned {formatTableDate(assignment.assignedAt)})
                             </span>
                           )}
                         </div>
                         {employee.title && (
-                          <div className="text-[10px] text-on-surface-secondary font-medium truncate">
+                          <div className="text-[10px] text-muted-foreground font-medium truncate">
                             {employee.title}
                           </div>
                         )}
@@ -558,7 +549,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                   );
                 })
               ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-on-surface-tertiary bg-surface/50 rounded-lg border border-dashed border-border">
+                <div className="flex flex-col items-center justify-center py-6 text-muted-foreground bg-muted/50 rounded-lg border border-dashed border-border">
                   <User size={24} className="mb-2 opacity-50" />
                   <p className="text-sm">No assignees</p>
                   <p className="text-xs mt-1 text-center px-4">Visible to everyone in {goalProject?.name}</p>
@@ -568,7 +559,6 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
           </div>
         </div>
       </div>
-
       {/* Report Detail Modal */}
       {selectedReport && (
         <Modal
@@ -578,50 +568,50 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
         >
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Employee</h3>
-              <p className="text-on-surface-secondary">
+              <h3 className="text-lg font-semibold text-foreground mb-1">Employee</h3>
+              <p className="text-muted-foreground">
                 {employees.find(e => e.id === selectedReport.employeeId)?.name || 'Unknown'}
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Report Content</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Report Content</h3>
               <div
-                className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none"
+                className="bg-muted p-4 rounded-lg text-muted-foreground border border-border prose prose-invert max-w-none"
                 dangerouslySetInnerHTML={{ __html: selectedReport.reportText }}
               />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-on-surface mb-1">Zevian Analysis</h3>
-              <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border">
+              <h3 className="text-lg font-semibold text-foreground mb-1">Zevian Analysis</h3>
+              <div className="bg-muted p-4 rounded-lg text-muted-foreground italic border border-border">
                 "{selectedReport.evaluationReasoning}"
               </div>
             </div>
             {/* Manager Evaluation & Feedback */}
             <div className="border-t border-border pt-6">
-              <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Evaluation & Feedback</h3>
               <div className="space-y-4">
-                <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
-                  <span className="font-medium text-on-surface">Overall Score</span>
+                <div className="bg-muted p-4 rounded-lg border border-border flex justify-between items-center">
+                  <span className="font-medium text-foreground">Overall Score</span>
                   <div className="text-right">
                     <span className="text-2xl font-bold text-primary">
                       {(selectedReport.managerOverallScore != null ? selectedReport.managerOverallScore : (selectedReport.evaluationScore ?? 0)).toFixed(2)}
                     </span>
                     {selectedReport.managerOverallScore != null && (
-                      <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                      <div className="text-xs text-muted-foreground">Overridden by manager</div>
                     )}
                   </div>
                 </div>
 
                 {selectedReport.managerFeedback && (
                   <div>
-                    <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
-                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Manager Feedback</h4>
+                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-foreground text-sm">
                       {selectedReport.managerFeedback}
                     </div>
                   </div>
                 )}
                 {!selectedReport.managerFeedback && selectedReport.managerOverallScore === undefined && (
-                  <p className="text-xs text-on-surface-tertiary italic text-center">
+                  <p className="text-xs text-muted-foreground italic text-center">
                     Waiting for manager review and feedback.
                   </p>
                 )}
@@ -630,13 +620,13 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
 
             {selectedReport.criterionScores && selectedReport.criterionScores.length > 0 && (
               <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Criteria Analysis</h3>
                 <div className="space-y-2">
                   {selectedReport.criterionScores.map((score, index) => (
-                    <div key={index} className="bg-surface p-3 rounded-lg border border-border">
+                    <div key={index} className="bg-muted p-3 rounded-lg border border-border">
                       <div className="flex justify-between items-center">
-                        <span className="font-medium text-on-surface text-sm">{score.criterionName}</span>
-                        <span className="text-sm font-semibold text-on-surface-secondary">{score.score.toFixed(1)}/10</span>
+                        <span className="font-medium text-foreground text-sm">{score.criterionName}</span>
+                        <span className="text-sm font-semibold text-muted-foreground">{score.score.toFixed(1)}/10</span>
                       </div>
                     </div>
                   ))}
@@ -646,7 +636,6 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
           </div>
         </Modal>
       )}
-
       {/* Manage Assignees Modal */}
       <Modal
         isOpen={showAssigneesModal}
@@ -661,7 +650,7 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
               placeholder="Search employees..."
               value={assigneeSearchTerm}
               onChange={(e) => setAssigneeSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm text-on-surface placeholder-on-surface-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              className="w-full pl-9 pr-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
 
@@ -675,16 +664,16 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                     onClick={() => handleToggleAssignee(employee.id)}
                     className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${isAssigned
                       ? 'bg-primary/5 border-primary/30'
-                      : 'bg-surface border-border hover:bg-surface-hover'
+                      : 'bg-muted border-border hover:bg-accent'
                       }`}
                   >
                     <div className="flex items-center gap-3">
                       <ProfilePicture name={employee.name} size={32} />
                       <div className="text-left">
-                        <div className={`font-medium ${isAssigned ? 'text-primary' : 'text-on-surface'}`}>
+                        <div className={`font-medium ${isAssigned ? 'text-primary' : 'text-foreground'}`}>
                           {employee.name}
                         </div>
-                        <div className="text-xs text-on-surface-secondary">{employee.email}</div>
+                        <div className="text-xs text-muted-foreground">{employee.email}</div>
                       </div>
                     </div>
                     {isAssigned && (
@@ -694,17 +683,14 @@ const GoalDetailPage: React.FC<GoalDetailPageProps> = ({
                 );
               })
             ) : (
-              <div className="text-center py-8 text-on-surface-secondary">
+              <div className="text-center py-8 text-muted-foreground">
                 <p>No employees found.</p>
               </div>
             )}
           </div>
 
           <div className="pt-4 border-t border-border flex justify-end">
-            <Button
-              onClick={() => setShowAssigneesModal(false)}
-              variant="primary"
-            >
+            <Button onClick={() => setShowAssigneesModal(false)}>
               Done
             </Button>
           </div>

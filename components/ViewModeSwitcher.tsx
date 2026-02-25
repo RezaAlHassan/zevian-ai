@@ -93,17 +93,17 @@ const ViewModeSwitcher: React.FC<ViewModeSwitcherProps> = ({
         return (
             <div style={containerStyle}>
                 <div
-                    className="bg-surface-elevated border-2 border-yellow-500/30 rounded-lg p-4 max-w-[280px]"
+                    className="bg-card border-2 border-yellow-500/30 rounded-lg p-4 max-w-[280px]"
                     onMouseDown={handleMouseDown}
                 >
                     <div className="flex items-center gap-2 mb-2 cursor-grab active:cursor-grabbing">
                         <div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-600">
                             <User size={18} />
                         </div>
-                        <p className="text-sm font-bold text-on-surface select-none">Test Mode</p>
+                        <p className="text-sm font-bold text-foreground select-none">Test Mode</p>
                     </div>
-                    <p className="text-xs text-on-surface-secondary">
-                        No employees found. Please run <code className="px-1 py-0.5 bg-surface rounded text-primary font-mono text-xs">schema.sql</code> in Supabase to create sample data.
+                    <p className="text-xs text-muted-foreground">
+                        No employees found. Please run <code className="px-1 py-0.5 bg-muted rounded text-primary font-mono text-xs">schema.sql</code> in Supabase to create sample data.
                     </p>
                 </div>
             </div>
@@ -112,19 +112,19 @@ const ViewModeSwitcher: React.FC<ViewModeSwitcherProps> = ({
 
     return (
         <div style={containerStyle}>
-            <div className="bg-surface-elevated border-2 border-primary/20 rounded-lg p-4 min-w-[280px]">
+            <div className="bg-card border-2 border-primary/20 rounded-lg p-4 min-w-[280px]">
                 <div
                     className="flex items-center gap-2 mb-3 cursor-grab active:cursor-grabbing"
                     onMouseDown={handleMouseDown}
                 >
-                    <div className={`p-1.5 rounded-lg ${viewMode === 'manager' ? 'bg-primary/10 text-primary' : 'bg-surface text-on-surface-secondary'}`}>
+                    <div className={`p-1.5 rounded-lg ${viewMode === 'manager' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                         {viewMode === 'manager' ? <UserCog size={18} /> : <User size={18} />}
                     </div>
                     <div className="flex-grow select-none">
-                        <p className="text-xs font-semibold text-on-surface-tertiary uppercase tracking-wide">Test Mode</p>
-                        <p className="text-sm font-bold text-on-surface capitalize">{viewMode} View</p>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Test Mode</p>
+                        <p className="text-sm font-bold text-foreground capitalize">{viewMode} View</p>
                     </div>
-                    <div className="text-on-surface-tertiary">
+                    <div className="text-muted-foreground">
                         {/* Grip indicator */}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1" /><circle cx="9" cy="5" r="1" /><circle cx="9" cy="19" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="19" r="1" /></svg>
                     </div>
@@ -132,13 +132,13 @@ const ViewModeSwitcher: React.FC<ViewModeSwitcherProps> = ({
 
                 <div className="space-y-2">
                     <div>
-                        <label className="text-xs font-semibold text-on-surface-secondary mb-1 block">
+                        <label className="text-xs font-semibold text-muted-foreground mb-1 block">
                             Switch User:
                         </label>
                         <select
                             value={currentEmployeeId}
                             onChange={(e) => onEmployeeChange(e.target.value)}
-                            className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
+                            className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
                         >
                             {managers.length > 0 && (
                                 <optgroup label="👔 Managers">
@@ -162,11 +162,11 @@ const ViewModeSwitcher: React.FC<ViewModeSwitcherProps> = ({
                     </div>
 
                     <div className="pt-2 border-t border-border">
-                        <p className="text-xs text-on-surface-tertiary">
-                            Current: <span className="font-semibold text-on-surface">{currentEmployee?.name || 'Unknown'}</span>
+                        <p className="text-xs text-muted-foreground">
+                            Current: <span className="font-semibold text-foreground">{currentEmployee?.name || 'Unknown'}</span>
                         </p>
-                        <p className="text-xs text-on-surface-tertiary">
-                            Email: <span className="font-mono text-on-surface-secondary text-[10px]">{currentEmployee?.email || 'N/A'}</span>
+                        <p className="text-xs text-muted-foreground">
+                            Email: <span className="font-mono text-muted-foreground text-[10px]">{currentEmployee?.email || 'N/A'}</span>
                         </p>
                     </div>
                 </div>

@@ -4,8 +4,8 @@ import Modal from './Modal';
 import { TrendingUp, User, Target, Layers } from 'lucide-react';
 import { formatReportDate } from '../utils/dateFormat';
 import Textarea from './Textarea';
-import Input from './Input';
-import Button from './Button';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 
 interface ReportDetailModalProps {
     report: Report | null;
@@ -74,8 +74,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 ...report,
                 managerOverallScore: newScore,
                 managerOverrideReasoning: overrideReasoning.trim(),
-                managerFeedback: feedback.trim(),
-                reviewedBy: currentManagerId
+                managerFeedback: feedback.trim()
             };
 
             await onUpdateReport(updatedReport);
@@ -96,8 +95,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 ...report,
                 managerOverallScore: undefined,
                 managerOverrideReasoning: undefined,
-                managerFeedback: undefined,
-                reviewedBy: undefined
+                managerFeedback: undefined
             };
             await onUpdateReport(updatedReport);
             onClose();
@@ -128,10 +126,10 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         >
             <div className="space-y-6">
                 {/* Header Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-surface-elevated p-4 rounded-lg border border-border">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-card p-4 rounded-lg border border-border">
                     <div>
-                        <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <User size={14} className="text-piccolo" />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                            <User size={14} className="text-primary" />
                             Employee
                         </div>
                         {onSelectEmployee && employee ? (
@@ -145,19 +143,19 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                 {employee.name}
                             </button>
                         ) : (
-                            <span className="font-medium text-on-surface">{employee?.name || 'Unknown'}</span>
+                            <span className="font-medium text-foreground">{employee?.name || 'Unknown'}</span>
                         )}
                     </div>
                     <div>
-                        <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <Target size={14} className="text-piccolo" />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                            <Target size={14} className="text-primary" />
                             Goal
                         </div>
-                        <span className="font-medium text-on-surface">{goal?.name || 'N/A'}</span>
+                        <span className="font-medium text-foreground">{goal?.name || 'N/A'}</span>
                     </div>
                     <div>
-                        <div className="flex items-center gap-2 text-sm text-on-surface-secondary mb-1">
-                            <Layers size={14} className="text-piccolo" />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                            <Layers size={14} className="text-primary" />
                             Project
                         </div>
                         {onSelectProject && project ? (
@@ -171,27 +169,27 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                 {project.name}
                             </button>
                         ) : (
-                            <span className="font-medium text-on-surface">{project?.name || 'N/A'}</span>
+                            <span className="font-medium text-foreground">{project?.name || 'N/A'}</span>
                         )}
                     </div>
                 </div>
 
                 {/* Report Content */}
                 <div>
-                    <h3 className="text-lg font-semibold text-on-surface mb-2">Report Content</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Report Content</h3>
                     <div
-                        className="bg-surface p-4 rounded-lg text-on-surface-secondary border border-border prose prose-invert max-w-none text-sm"
+                        className="bg-muted p-4 rounded-lg text-muted-foreground border border-border prose prose-invert max-w-none text-sm"
                         dangerouslySetInnerHTML={{ __html: report.reportText }}
                     />
                 </div>
 
                 {/* AI Analysis */}
                 <div>
-                    <h3 className="text-lg font-semibold text-on-surface mb-2 flex items-center gap-2">
-                        <TrendingUp size={20} className="text-piccolo" />
+                    <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                        <TrendingUp size={20} className="text-primary" />
                         AI Analysis
                     </h3>
-                    <div className="bg-surface p-4 rounded-lg text-on-surface-secondary italic border border-border text-sm">
+                    <div className="bg-muted p-4 rounded-lg text-muted-foreground italic border border-border text-sm">
                         "{report.evaluationReasoning}"
                     </div>
                 </div>
@@ -199,12 +197,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 {/* Criteria */}
                 {report.criterionScores && report.criterionScores.length > 0 && (
                     <div>
-                        <h3 className="text-lg font-semibold text-on-surface mb-2">Criteria Analysis</h3>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">Criteria Analysis</h3>
                         <div className="space-y-2">
                             {report.criterionScores.map((score, index) => (
-                                <div key={index} className="bg-surface p-3 rounded-lg border border-border flex justify-between items-center">
-                                    <span className="font-medium text-on-surface text-sm">{score.criterionName}</span>
-                                    <span className="text-sm font-semibold text-on-surface-secondary">{score.score.toFixed(1)}/10</span>
+                                <div key={index} className="bg-muted p-3 rounded-lg border border-border flex justify-between items-center">
+                                    <span className="font-medium text-foreground text-sm">{score.criterionName}</span>
+                                    <span className="text-sm font-semibold text-muted-foreground">{score.score.toFixed(1)}/10</span>
                                 </div>
                             ))}
                         </div>
@@ -213,12 +211,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                 {/* Score & Feedback Section */}
                 <div className="border-t border-border pt-6">
-                    <h3 className="text-lg font-semibold text-on-surface mb-4">Evaluation & Feedback</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Evaluation & Feedback</h3>
 
                     {isManagerView ? (
-                        <div className="space-y-4 bg-surface-elevated p-4 rounded-lg border border-border">
+                        <div className="space-y-4 bg-card p-4 rounded-lg border border-border">
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1">
+                                <label className="block text-sm font-medium text-foreground mb-1">
                                     Score (0-10)
                                 </label>
                                 <Input
@@ -230,13 +228,13 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                     step="0.1"
                                     className="w-32"
                                 />
-                                <div className="text-xs text-on-surface-tertiary mt-1">
+                                <div className="text-xs text-muted-foreground mt-1">
                                     Original AI Score: {report.evaluationScore.toFixed(2)}
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1">
+                                <label className="block text-sm font-medium text-foreground mb-1">
                                     Justification {Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && <span className="text-red-500">*</span>}
                                 </label>
                                 <Textarea
@@ -246,14 +244,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                     rows={3}
                                 />
                                 {Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && (
-                                    <p className="text-xs text-on-surface-secondary mt-1">
+                                    <p className="text-xs text-muted-foreground mt-1">
                                         Justification is required when overriding the Zevian score.
                                     </p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1">
+                                <label className="block text-sm font-medium text-foreground mb-1">
                                     Feedback for Employee (Optional)
                                 </label>
                                 <Textarea
@@ -273,17 +271,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                                     <Button
                                         variant="outline"
                                         onClick={handleRemoveOverride}
-                                        isLoading={isSaving}
                                         disabled={isSaving}
-                                        className="text-error border-error/20 hover:bg-error/5"
+                                        className="text-destructive border-destructive/20 hover:bg-destructive/5"
                                     >
                                         Remove Override
                                     </Button>
                                 )}
                                 <Button
-                                    variant="primary"
                                     onClick={handleSave}
-                                    isLoading={isSaving}
                                     disabled={isSaving || (Math.abs(parseFloat(overrideScore || '0') - report.evaluationScore) > 0.1 && !overrideReasoning.trim())}
                                 >
                                     Save Evaluation
@@ -292,20 +287,20 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="bg-surface p-4 rounded-lg border border-border flex justify-between items-center">
-                                <span className="font-medium text-on-surface">Overall Score</span>
+                            <div className="bg-muted p-4 rounded-lg border border-border flex justify-between items-center">
+                                <span className="font-medium text-foreground">Overall Score</span>
                                 <div className="text-right">
                                     <span className="text-2xl font-bold text-primary">{displayScore.toFixed(2)}</span>
                                     {report.managerOverallScore !== undefined && (
-                                        <div className="text-xs text-on-surface-tertiary">Overridden by manager</div>
+                                        <div className="text-xs text-muted-foreground">Overridden by manager</div>
                                     )}
                                 </div>
                             </div>
 
                             {report.managerFeedback && (
                                 <div>
-                                    <h4 className="text-sm font-semibold text-on-surface mb-2">Manager Feedback</h4>
-                                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-on-surface text-sm">
+                                    <h4 className="text-sm font-semibold text-foreground mb-2">Manager Feedback</h4>
+                                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-foreground text-sm">
                                         {report.managerFeedback}
                                     </div>
                                 </div>
@@ -313,20 +308,13 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                             {report.managerOverrideReasoning && (
                                 <div>
-                                    <h4 className="text-sm font-semibold text-on-surface mb-2">Justification</h4>
-                                    <div className="bg-surface p-4 rounded-lg border border-border text-on-surface-secondary italic text-sm">
+                                    <h4 className="text-sm font-semibold text-foreground mb-2">Justification</h4>
+                                    <div className="bg-muted p-4 rounded-lg border border-border text-muted-foreground italic text-sm">
                                         "{report.managerOverrideReasoning}"
                                     </div>
                                 </div>
                             )}
 
-                            {report.reviewedBy && (
-                                <div className="text-right">
-                                    <p className="text-xs text-on-surface-tertiary">
-                                        Reviewed by {employees.find(e => e.id === report.reviewedBy)?.name || 'a manager'}
-                                    </p>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>

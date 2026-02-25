@@ -2,7 +2,9 @@
 import React, { useState, useMemo } from 'react';
 import { Report, Goal, Employee, Project } from '../types';
 import Modal from '../components/Modal';
-import Table from '../components/Table';
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { Badge } from "../components/ui/badge";
 import ReportDetailModal from '../components/ReportDetailModal';
 import { ArrowLeft, Plus, Trash2, Edit2, Save, X, File, Calendar, User, Users, Target, Trophy, Award, Eye, CheckCircle, RotateCcw, Clock, FileText, TrendingUp } from 'lucide-react';
 import { formatReportDate } from '../utils/dateFormat';
@@ -73,75 +75,91 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ reports, goals, employees, pr
     setSortDirection(direction);
   };
 
-  const reportTableHeaders = [
-    { key: 'date', label: 'Date', sortable: true },
-    { key: 'goal', label: 'Goal', sortable: true },
-    { key: 'analysis', label: 'AI Score', sortable: true },
-    { key: 'managerScore', label: 'Manager Score', sortable: true },
-    { key: 'actions', label: 'Actions', sortable: false },
-  ];
-  const reportTableRows = employeeReports.map((report) => {
-    const goal = goals.find(g => g.id === report.goalId);
-    const previewText = report.reportText.replace(/<[^>]*>/g, '').substring(0, 100);
-    return [
-      <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-primary/70" />
-        <span className="capitalize text-on-surface-secondary">{formatReportDate(report.submissionDate)}</span>
-      </div>,
-      <span className="capitalize text-on-surface-secondary">{goal?.name || 'Unknown Goal'}</span>,
-      <div className="flex items-center gap-2">
-        <TrendingUp size={16} className="text-primary/70" />
-        <span className="text-on-surface-secondary font-medium">
-          {(report.evaluationScore ?? 0).toFixed(1)}
-        </span>
-      </div>,
-      <div className="flex items-center">
-        {report.managerOverallScore != null ? (
-          <span className="text-primary font-semibold">
-            {report.managerOverallScore.toFixed(1)}
+  const columns: ColumnDef<Report>[] = [
+    {
+      accessorKey: "date",
+      header: "Date",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-primary/70" />
+          <span className="capitalize text-muted-foreground">{formatReportDate(row.original.submissionDate)}</span>
+        </div>
+      )
+    },
+    {
+      id: "goal",
+      header: "Goal",
+      cell: ({ row }) => {
+        const goal = goals.find(g => g.id === row.original.goalId);
+        return <span className="capitalize text-muted-foreground">{goal?.name || 'Unknown Goal'}</span>;
+      }
+    },
+    {
+      id: "analysis",
+      header: "AI Score",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <TrendingUp size={16} className="text-primary/70" />
+          <span className="text-muted-foreground font-medium">
+            {(row.original.evaluationScore ?? 0).toFixed(1)}
           </span>
-        ) : (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-hit/10 border border-hit/20 text-[#854d0e] text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-            <Clock size={10} className="text-[#854d0e]" />
-            Pending Review
-          </div>
-        )}
-      </div>,
-      <button
-        onClick={() => setSelectedReport(report)}
-        className="p-1.5 text-on-surface-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
-        title="View Details"
-      >
-        <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
-      </button>
-    ];
-  });
+        </div>
+      )
+    },
+    {
+      accessorKey: "managerOverallScore",
+      header: "Manager Score",
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          {row.original.managerOverallScore != null ? (
+            <span className="text-primary font-semibold">
+              {row.original.managerOverallScore.toFixed(1)}
+            </span>
+          ) : (
+            <Badge variant="outline" className="px-1.5 py-0.5 bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold">Pending Review</Badge>
+          )}
+        </div>
+      )
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedReport(row.original);
+          }}
+          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
+          title="View Details"
+        >
+          <Eye size={18} strokeWidth={2} className="text-primary transition-all group-hover:scale-110" />
+        </button>
+      )
+    }
+  ];
 
   return (
     <div className="w-full px-6 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FileText size={28} className="text-primary drop-shadow-sm" />
-          <h2 className="text-xl font-bold text-on-surface">My Reports</h2>
+          <h2 className="text-xl font-bold text-foreground">My Reports</h2>
         </div>
       </div>
 
       {employeeReports.length === 0 ? (
-        <div className="bg-surface-elevated rounded-lg p-12  border border-border text-center">
-          <FileText size={48} className="text-on-surface-tertiary mx-auto mb-4" />
-          <p className="text-lg text-on-surface-secondary mb-2">No reports submitted yet</p>
-          <p className="text-sm text-on-surface-tertiary">Submit your first report to see it here</p>
+        <div className="bg-card rounded-lg p-12  border border-border text-center">
+          <FileText size={48} className="text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg text-muted-foreground mb-2">No reports submitted yet</p>
+          <p className="text-sm text-muted-foreground">Submit your first report to see it here</p>
         </div>
       ) : (
-        <div className="bg-surface-elevated rounded-lg p-6  border border-border">
-          <Table
-            headers={reportTableHeaders}
-            rows={reportTableRows}
-            sortable
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onRowClick={(index) => setSelectedReport(employeeReports[index])}
+        <div className="bg-card rounded-lg p-6  border border-border">
+          <DataTable
+            columns={columns}
+            data={employeeReports}
+            onRowClick={(row) => setSelectedReport(row)}
           />
         </div>
       )}

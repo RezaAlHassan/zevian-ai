@@ -1,7 +1,10 @@
-
 import React from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ModalProps {
   isOpen: boolean;
@@ -24,50 +27,39 @@ const Modal: React.FC<ModalProps> = ({
   closeOnOutsideClick = true,
   scrollable = true
 }) => {
-  if (!isOpen) return null;
-
-  const handleBackdropClick = () => {
-    if (closeOnOutsideClick) {
-      onClose();
-    }
-  };
-
   const maxWidthClasses = {
-    'sm': 'max-w-sm',
-    'md': 'max-w-2xl',
-    'lg': 'max-w-3xl',
-    'xl': 'max-w-4xl',
-    '2xl': 'max-w-5xl',
-    '3xl': 'max-w-6xl',
-    '4xl': 'max-w-7xl',
-    '5xl': 'max-w-[80rem]',
-    '6xl': 'max-w-[90rem]',
-    '7xl': 'max-w-[100rem]',
-    'full': 'max-w-full'
+    'sm': 'sm:max-w-sm',
+    'md': 'sm:max-w-2xl',
+    'lg': 'sm:max-w-3xl',
+    'xl': 'sm:max-w-4xl',
+    '2xl': 'sm:max-w-5xl',
+    '3xl': 'sm:max-w-6xl',
+    '4xl': 'sm:max-w-7xl',
+    '5xl': 'sm:max-w-[80rem]',
+    '6xl': 'sm:max-w-[90rem]',
+    '7xl': 'sm:max-w-[100rem]',
+    'full': 'sm:max-w-full'
   };
 
-  return createPortal(
-    <div
-      className={`fixed inset-0 bg-popo/80 backdrop-blur-sm z-[100] p-4 transition-all flex justify-center ${scrollable ? 'items-center overflow-hidden' : 'items-start overflow-y-auto'}`}
-      onClick={handleBackdropClick}
-    >
-      <div
-        className={`bg-goten rounded-moon-s-lg w-full ${maxWidthClasses[maxWidth]} ${scrollable ? 'overflow-y-auto' : 'overflow-visible'} border border-beerus ${!scrollable ? 'my-8' : ''}`}
-        style={scrollable ? { maxHeight } : {}}
-        onClick={e => e.stopPropagation()}
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className={`${maxWidthClasses[maxWidth]} p-0 gap-0 overflow-hidden ${!scrollable ? 'my-8' : ''}`}
+        onInteractOutside={(e) => {
+          if (!closeOnOutsideClick) e.preventDefault();
+        }}
       >
-        <div className="sticky top-0 bg-goten px-6 py-4 border-b border-beerus flex justify-between items-center z-10">
-          <h2 className="text-moon-24 font-semibold text-bulma">{title}</h2>
-          <button onClick={onClose} className="text-trunks hover:text-bulma transition-colors p-2 rounded-moon-i-sm hover:bg-gohan">
-            <X size={24} />
-          </button>
-        </div>
-        <div className="p-6">
+        <DialogHeader className="px-6 py-4 border-b border-border sticky top-0 bg-background z-10">
+          <DialogTitle className="text-2xl font-semibold text-foreground pr-8 text-left">{title}</DialogTitle>
+        </DialogHeader>
+        <div
+          className={`p-6 ${scrollable ? 'overflow-y-auto' : 'overflow-visible'}`}
+          style={scrollable ? { maxHeight: `calc(${maxHeight} - 73px)` } : {}}
+        >
           {children}
         </div>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 };
 

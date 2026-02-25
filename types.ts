@@ -100,8 +100,6 @@ export interface Report {
   managerFeedback?: string; // Optional feedback from manager
   evaluationReasoning: string;
   criterionScores: ReportCriterionScore[]; // Renamed from evaluationCriteriaScores to match DB
-  reviewedBy?: string; // ID of the manager who reviewed/overrode the report
-  isResolved?: boolean; // Explicitly marked as resolved by a manager
 }
 
 export type Page = 'projects' | 'goals' | 'submit' | 'dashboard' | 'reports' | 'allReports' | 'employees' | 'employeeDetail' | 'goalDetail' | 'projectDetail' | 'settings' | 'organization';

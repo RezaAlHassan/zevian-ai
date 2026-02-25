@@ -248,10 +248,10 @@ export const sampleReports: Report[] = [
     evaluationScore: 8.2,
     evaluationReasoning: 'The work shows a solid understanding of performance optimization and collaborative skills. The mention of delays slightly impacts the timeliness score, but the overall contribution is positive.',
     criterionScores: [
-      { name: 'Code Quality', score: 9 },
-      { name: 'Communication', score: 9 },
-      { name: 'Timeliness', score: 7 },
-      { name: 'Problem Solving', score: 8 },
+      { criterionName: 'Code Quality', score: 9 },
+      { criterionName: 'Communication', score: 9 },
+      { criterionName: 'Timeliness', score: 7 },
+      { criterionName: 'Problem Solving', score: 8 },
     ],
   },
   {
@@ -263,10 +263,10 @@ export const sampleReports: Report[] = [
     evaluationScore: 9.1,
     evaluationReasoning: 'Excellent work in addressing critical issues promptly and taking initiative on future tasks. This demonstrates strong ownership and proactive communication.',
     criterionScores: [
-      { name: 'Code Quality', score: 9 },
-      { name: 'Communication', score: 10 },
-      { name: 'Timeliness', score: 9 },
-      { name: 'Problem Solving', score: 9 },
+      { criterionName: 'Code Quality', score: 9 },
+      { criterionName: 'Communication', score: 10 },
+      { criterionName: 'Timeliness', score: 9 },
+      { criterionName: 'Problem Solving', score: 9 },
     ],
   },
   {
@@ -278,10 +278,10 @@ export const sampleReports: Report[] = [
     evaluationScore: 4.5,
     evaluationReasoning: 'The report indicates incomplete work with failing tests and missing documentation. This suggests the work does not meet the expected quality standards and requires significant improvement.',
     criterionScores: [
-      { name: 'Code Quality', score: 4 },
-      { name: 'Communication', score: 5 },
-      { name: 'Timeliness', score: 5 },
-      { name: 'Problem Solving', score: 4 },
+      { criterionName: 'Code Quality', score: 4 },
+      { criterionName: 'Communication', score: 5 },
+      { criterionName: 'Timeliness', score: 5 },
+      { criterionName: 'Problem Solving', score: 4 },
     ],
   },
   {
@@ -292,9 +292,9 @@ export const sampleReports: Report[] = [
     submissionDate: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(),
     evaluationScore: 5.2,
     evaluationReasoning: 'The work shows limited progress and indicates a need for better understanding of requirements. The quality of initial deliverables was below expectations.',
-    evaluationCriteriaScores: [
-      { name: 'Creativity', score: 5 },
-      { name: 'User Feedback Incorporation', score: 5.5 },
+    criterionScores: [
+      { criterionName: 'Creativity', score: 5 },
+      { criterionName: 'User Feedback Incorporation', score: 5.5 },
     ],
   },
 ];

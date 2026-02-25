@@ -64,21 +64,21 @@ const Dropdown: React.FC<DropdownProps> = ({
   }, [isOpen, align]);
 
   const sizeClasses = {
-    sm: 'py-1.5 px-3 text-moon-14',
-    md: 'py-2 px-4 text-moon-14',
-    lg: 'py-2.5 px-5 text-moon-16',
+    sm: 'py-1.5 px-3 text-sm',
+    md: 'py-2 px-4 text-sm',
+    lg: 'py-2.5 px-5 text-base',
   };
 
   const variantClasses = {
-    default: 'bg-goten text-bulma border border-beerus hover:bg-gohan',
-    outline: 'bg-transparent text-bulma border border-beerus hover:bg-gohan',
-    ghost: 'bg-transparent text-bulma hover:bg-gohan',
+    default: 'bg-background text-foreground border border-border hover:bg-muted',
+    outline: 'bg-transparent text-foreground border border-border hover:bg-muted',
+    ghost: 'bg-transparent text-foreground hover:bg-muted',
   };
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       {label && (
-        <label className="block text-sm font-medium text-on-surface-secondary mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           {label}
         </label>
       )}
@@ -87,8 +87,8 @@ const Dropdown: React.FC<DropdownProps> = ({
         type="button"
         className={`
           inline-flex items-center gap-2 ${sizeClasses[size]} ${variantClasses[variant]}
-          rounded-moon-i-md font-medium transition-all
-          focus:outline-none focus:ring-2 focus:ring-piccolo focus:ring-offset-2
+          rounded-xl font-medium transition-all
+          focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
           ${buttonClassName}
         `}
         onClick={() => setIsOpen(!isOpen)}
@@ -111,7 +111,7 @@ const Dropdown: React.FC<DropdownProps> = ({
           />
           <div
             ref={menuRef}
-            className="fixed z-50 mt-1 min-w-[12rem] bg-goten rounded-moon-s-md border border-beerus py-1"
+            className="fixed z-50 mt-1 min-w-[12rem] bg-popover rounded-xl border border-border py-1 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             {children}
@@ -141,8 +141,8 @@ export const DropdownItem: React.FC<DropdownItemProps> = ({
       onClick={onClick}
       disabled={disabled}
       className={`
-        w-full text-left px-4 py-2 text-moon-14 text-bulma
-        hover:bg-gohan transition-colors
+        w-full text-left px-4 py-2 text-sm text-popover-foreground
+        hover:bg-accent transition-colors
         disabled:opacity-50 disabled:cursor-not-allowed
         ${className}
       `}
@@ -157,7 +157,7 @@ interface DropdownDividerProps {
 }
 
 export const DropdownDivider: React.FC<DropdownDividerProps> = ({ className = '' }) => {
-  return <div className={`my-1 border-t border-beerus ${className}`} />;
+  return <div className={`my-1 border-t border-border ${className}`} />;
 };
 
 export default Dropdown;

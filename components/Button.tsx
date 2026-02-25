@@ -23,20 +23,20 @@ const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-moon-i-md transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 group';
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 group';
 
   const variantStyles = {
-    primary: 'bg-piccolo text-goten hover:bg-piccolo focus:ring-piccolo',
-    secondary: 'bg-transparent text-bulma border border-trunks hover:border-bulma focus:ring-trunks',
-    outline: 'border border-beerus bg-goten text-bulma hover:bg-gohan focus:ring-piccolo',
-    ghost: 'bg-transparent text-trunks hover:bg-heles hover:text-bulma focus:ring-piccolo',
-    danger: 'bg-dodoria text-goten hover:bg-dodoria focus:ring-dodoria',
+    primary: 'bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary',
+    secondary: 'bg-transparent text-foreground border border-border hover:border-foreground focus:ring-muted-foreground',
+    outline: 'border border-border bg-background text-foreground hover:bg-muted focus:ring-primary',
+    ghost: 'bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground focus:ring-primary',
+    danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive',
   };
 
   const sizeStyles = {
-    sm: 'h-8 px-3 text-moon-14 gap-1.5',
-    md: 'h-10 px-4 text-moon-14 gap-2',
-    lg: 'h-12 px-4 text-moon-16 gap-2',
+    sm: 'h-8 px-3 text-sm gap-1.5',
+    md: 'h-10 px-4 text-sm gap-2',
+    lg: 'h-12 px-4 text-base gap-2',
   };
 
   const iconSize = {

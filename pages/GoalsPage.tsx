@@ -2,13 +2,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Goal, Criterion, Project, Employee, Report } from '../types';
 import { Plus, Trash2, AlertTriangle, CheckCircle, Search, Eye, Target, MoreHorizontal, Edit2, Info, Calendar, User, UserPlus, Users } from 'lucide-react';
-import Table from '../components/Table';
+import { DataTable } from '../components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { Badge } from "../components/ui/badge";
 import { StackedAvatars, ProfilePicture } from '../components/Avatar';
-import Input from '../components/Input';
+import { Input } from '../components/ui/input';
 import Select from '../components/Select';
 import MultiSelect from '../components/MultiSelect';
 import Textarea from '../components/Textarea';
-import Button from '../components/Button';
+import { Button } from '../components/ui/button';
 import Modal from '../components/Modal';
 import Dropdown, { DropdownItem, DropdownDivider } from '../components/Dropdown';
 import { filterGoalsByManager } from '../utils/goalFilter';
@@ -266,102 +268,142 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
 
 
 
-  const goalTableHeaders = viewMode === 'manager'
-    ? ['Goal', 'Parent Project', 'Assignees', 'Next Report', 'Created By', 'Created', 'Actions']
-    : ['Goal', 'Parent Project', 'Assignees', 'Next Report', 'Created By', 'Created'];
+  const columns: ColumnDef<Goal>[] = [
+    {
+      id: "goal",
+      header: "Goal",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {row.original.status === 'completed' && <CheckCircle size={14} className="text-success" />}
+          <span className={`capitalize ${row.original.status === 'completed' ? 'text-muted-foreground line-through' : 'text-muted-foreground'}`}>{row.original.name}</span>
+        </div>
+      )
+    },
+    {
+      id: "project",
+      header: "Parent Project",
+      cell: ({ row }) => <span className="capitalize text-muted-foreground">{getProjectName(row.original.projectId)}</span>
+    },
+    {
+      id: "assignees",
+      header: "Assignees",
+      cell: ({ row }) => {
+        const assignedEmployees = row.original.assignees
+          ?.map(a => employees.find(e => e.id === a.id))
+          .filter((e): e is Employee => !!e) || [];
 
-  const goalTableRows = filteredGoals.map(goal => {
-    const assignedEmployees = goal.assignees
-      ?.map(a => employees.find(e => e.id === a.id))
-      .filter((e): e is Employee => !!e) || [];
+        return (
+          <div className="flex items-center">
+            {assignedEmployees.length > 0 ? (
+              <StackedAvatars
+                employees={assignedEmployees}
+                maxVisible={3}
+                size={32}
+                onSeeMore={() => setViewingAssigneesGoal(row.original)}
+              />
+            ) : (
+              <span className="text-muted-foreground text-sm">Unassigned</span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      id: "nextReport",
+      header: "Next Report",
+      cell: ({ row }) => {
+        const project = projects.find(p => p.id === row.original.projectId);
+        const frequency = project?.reportFrequency || 'weekly';
+        const goalReports = reports
+          .filter(r => r.goalId === row.original.id && (viewMode === 'employee' ? String(r.employeeId) === String(currentEmployeeId) : true))
+          .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime());
 
-    const row = [
-      <div className="flex items-center gap-2">
-        {goal.status === 'completed' && <CheckCircle size={14} className="text-success" />}
-        <span className={`capitalize ${goal.status === 'completed' ? 'text-on-surface-tertiary line-through' : 'text-on-surface-secondary'}`}>{goal.name}</span>
-      </div>,
-      <span className="capitalize text-on-surface-secondary">{getProjectName(goal.projectId)}</span>,
-      <div className="flex items-center">
-        {assignedEmployees.length > 0 ? (
-          <StackedAvatars
-            employees={assignedEmployees}
-            maxVisible={3}
-            size={32}
-            onSeeMore={() => setViewingAssigneesGoal(goal)}
-          />
-        ) : (
-          <span className="text-on-surface-tertiary text-sm">Unassigned</span>
-        )}
-      </div>,
-      <span className="text-on-surface-secondary">{employees.find(e => e.id === goal.createdBy)?.name || 'Unknown'}</span>,
-      <span className="text-on-surface-secondary text-sm">
-        {goal.createdAt ? formatTableDate(goal.createdAt) : '—'}
-      </span>
-    ];
+        const lastReport = goalReports[0];
+        const status = getReportStatusLabel(lastReport?.submissionDate || null, frequency);
 
-    // Calculate Next Report for this goal
-    const project = projects.find(p => p.id === goal.projectId);
-    const frequency = project?.reportFrequency || 'weekly';
-    const goalReports = reports
-      .filter(r => r.goalId === goal.id && (viewMode === 'employee' ? String(r.employeeId) === String(currentEmployeeId) : true))
-      .sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime());
-
-    const lastReport = goalReports[0];
-    const status = getReportStatusLabel(lastReport?.submissionDate || null, frequency);
-
-    const nextReportCell = (
-      <div className="flex flex-col">
-        <span className={`text-xs font-bold ${status.isOverdue ? 'text-red-500' : status.isImminent ? 'text-amber-500' : 'text-primary'}`}>
-          {status.label}
+        return (
+          <div className="flex flex-col">
+            <Badge
+              variant={status.isOverdue ? "destructive" : "secondary"}
+              className={status.isOverdue ? "" : status.isImminent ? "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"}
+            >
+              {status.label}
+            </Badge>
+            <span className="text-[10px] text-muted-foreground">
+              Freq: {frequency}
+            </span>
+          </div>
+        );
+      }
+    },
+    {
+      id: "createdBy",
+      header: "Created By",
+      cell: ({ row }) => <span className="text-muted-foreground">{employees.find(e => e.id === row.original.createdBy)?.name || 'Unknown'}</span>
+    },
+    {
+      id: "created",
+      header: "Created",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-sm">
+          {row.original.createdAt ? formatTableDate(row.original.createdAt) : '—'}
         </span>
-        <span className="text-[10px] text-on-surface-tertiary">
-          Freq: {frequency}
-        </span>
-      </div>
-    );
+      )
+    }
+  ];
 
-    // Insert Next Report cell at index 3
-    row.splice(3, 0, nextReportCell);
-
-    if (viewMode === 'manager') {
-      row.push(
+  if (viewMode === 'manager') {
+    columns.push({
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <button
-            onClick={() => onSelectGoal(goal.id)}
-            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-lg transition-all duration-200 group"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectGoal(row.original.id);
+            }}
+            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
             title="View Details"
           >
             <Eye size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
           </button>
           <button
-            onClick={() => handleOpenAssignEmployees(goal)}
-            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-lg transition-all duration-200 group"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenAssignEmployees(row.original);
+            }}
+            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
             title="Assign Members"
           >
             <UserPlus size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
           </button>
           <button
-            onClick={() => handleEditGoal(goal)}
-            className="p-1.5 text-trunks hover:text-piccolo hover:bg-piccolo/10 rounded-lg transition-all duration-200 group"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditGoal(row.original);
+            }}
+            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 group"
             title="Edit Goal"
           >
             <Edit2 size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
           </button>
-          {deleteGoal && canDeleteGoal(goal) && (
+          {deleteGoal && canDeleteGoal(row.original) && (
             <button
-              onClick={() => handleDeleteGoal(goal)}
-              className="p-1.5 text-trunks hover:text-dodoria hover:bg-dodoria/10 rounded-lg transition-all duration-200 group"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteGoal(row.original);
+              }}
+              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all duration-200 group"
               title="Delete Goal"
             >
               <Trash2 size={18} strokeWidth={2} className="transition-transform group-hover:scale-110" />
             </button>
           )}
         </div>
-      );
-    }
-
-    return row;
-  });
+      )
+    });
+  }
 
   return (
     <>
@@ -369,11 +411,11 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         {/* Header with Search and Create Button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-on-surface">Goals</h2>
+            <h2 className="text-xl font-bold text-foreground">Goals</h2>
             {viewMode === 'manager' && (
               <button
                 onClick={() => setShowInfoModal(true)}
-                className="text-on-surface-secondary hover:text-primary transition-colors p-1 rounded hover:bg-surface-hover"
+                className="text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-accent"
                 title="Learn more about Goals"
               >
                 <Info size={20} />
@@ -381,12 +423,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             )}
           </div>
           {viewMode === 'manager' && (
-            <Button
-              onClick={() => setShowCreateModal(true)}
-              variant="primary"
-              icon={Plus}
-            >
-              Create New Goal
+            <Button onClick={() => setShowCreateModal(true)}><Plus className="mr-2 h-4 w-4" />Create New Goal
             </Button>
           )}
         </div>
@@ -394,34 +431,27 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         {/* Search - Removed local search, now global */}
 
         {/* Goals Table */}
-        <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+        <div className="bg-card rounded-lg p-6 border border-border">
           {filteredGoals.length > 0 ? (
-            <Table
-              headers={goalTableHeaders}
-              rows={goalTableRows}
-              onRowClick={(index) => onSelectGoal(filteredGoals[index].id)}
+            <DataTable
+              columns={columns}
+              data={filteredGoals}
+              onRowClick={(row) => onSelectGoal(row.id)}
             />
           ) : (
             <div className="text-center py-12">
-              <Target size={48} className="text-on-surface-tertiary mx-auto mb-4" />
-              <p className="text-lg text-on-surface-secondary mb-2">
+              <Target size={48} className="text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg text-muted-foreground mb-2">
                 {searchQuery ? 'No goals found matching your search' : 'No goals created yet'}
               </p>
               {viewMode === 'manager' && !searchQuery && (
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  variant="primary"
-                  className="mt-4"
-                  icon={Plus}
-                >
-                  Create Your First Goal
+                <Button onClick={() => setShowCreateModal(true)} className="mt-4"><Plus className="mr-2 h-4 w-4" />Create Your First Goal
                 </Button>
               )}
             </div>
           )}
         </div>
       </div>
-
       {/* Create/Edit Goal Modal */}
       <Modal
         isOpen={showCreateModal}
@@ -453,13 +483,13 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           />
 
           <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">
-              Parent Project <span className="text-error">*</span>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Parent Project <span className="text-destructive">*</span>
             </label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="w-full py-2 px-3 border border-border rounded-lg text-sm bg-white text-on-surface focus:border-primary focus:ring-primary focus:ring-1"
+              className="w-full py-2 px-3 border border-border rounded-lg text-sm bg-background text-foreground focus:border-primary focus:ring-primary focus:ring-1"
             >
               <option value="">-- Select Project --</option>
               {projects.map(project => (
@@ -467,7 +497,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
               ))}
             </select>
             {selectedProject && (
-              <p className="mt-1 text-sm text-on-surface-secondary">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Project: {selectedProject.name} | Frequency: {selectedProject.reportFrequency}
               </p>
             )}
@@ -483,7 +513,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           />
 
           <div className="border-t border-border pt-4">
-            <h3 className="text-lg font-semibold mb-2 text-on-surface">Scoring Criteria</h3>
+            <h3 className="text-lg font-semibold mb-2 text-foreground">Scoring Criteria</h3>
             <div className="flex gap-2 items-start">
               <Input
                 type="text"
@@ -501,21 +531,15 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
                 min="1"
                 max="100"
               />
-              <Button
-                onClick={handleAddCriterion}
-                variant="primary"
-                size="md"
-                icon={Plus}
-                className="h-[38px]"
-              />
+              <Button onClick={handleAddCriterion} className="h-[38px]" />
             </div>
           </div>
 
           <ul className="space-y-2 mt-2">
             {criteria.map((c) => (
-              <li key={c.id} className="flex justify-between items-center bg-surface p-2 rounded-lg border border-border">
+              <li key={c.id} className="flex justify-between items-center bg-muted p-2 rounded-lg border border-border">
                 <span>{c.name} - <span className="font-semibold text-primary">{c.weight}%</span></span>
-                <button onClick={() => handleRemoveCriterion(c.id)} className="text-error hover:text-error-hover">
+                <button onClick={() => handleRemoveCriterion(c.id)} className="text-destructive hover:text-destructive/80">
                   <Trash2 size={18} />
                 </button>
               </li>
@@ -530,8 +554,8 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           )}
 
           <div className="border-t border-border pt-4">
-            <h3 className="text-lg font-semibold mb-2 text-on-surface">Instructions</h3>
-            <p className="text-sm text-on-surface-secondary mb-3">
+            <h3 className="text-lg font-semibold mb-2 text-foreground">Instructions</h3>
+            <p className="text-sm text-muted-foreground mb-3">
               Specific, objective instructions for Zevian to follow during evaluation.
             </p>
             <Textarea
@@ -565,15 +589,12 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
                 criteria.length === 0 ||
                 totalWeight !== 100 ||
                 instructions.trim().length < 10
-              }
-              variant="primary"
-            >
+              }>
               {editingGoal ? 'Update Goal' : 'Save Goal'}
             </Button>
           </div>
         </div>
       </Modal>
-
       {/* Assign Project Modal */}
       <Modal
         isOpen={assignProjectModal.isOpen}
@@ -582,13 +603,13 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-on-surface mb-2">
-              Select Project <span className="text-error">*</span>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Select Project <span className="text-destructive">*</span>
             </label>
             <select
               value={selectedProjectForAssign}
               onChange={(e) => setSelectedProjectForAssign(e.target.value)}
-              className="w-full py-2 px-3 border border-border rounded-lg text-sm bg-white text-on-surface focus:border-primary focus:ring-primary focus:ring-1"
+              className="w-full py-2 px-3 border border-border rounded-lg text-sm bg-background text-foreground focus:border-primary focus:ring-primary focus:ring-1"
             >
               <option value="">-- Select Project --</option>
               {projects.map(project => (
@@ -596,7 +617,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
               ))}
             </select>
             {selectedProjectForAssign && (
-              <p className="mt-1 text-sm text-on-surface-secondary">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Project: {projects.find(p => p.id === selectedProjectForAssign)?.name} | Frequency: {projects.find(p => p.id === selectedProjectForAssign)?.reportFrequency}
               </p>
             )}
@@ -608,17 +629,12 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleSaveAssignProject}
-              disabled={!selectedProjectForAssign}
-              variant="primary"
-            >
+            <Button onClick={handleSaveAssignProject} disabled={!selectedProjectForAssign}>
               Save
             </Button>
           </div>
         </div>
       </Modal>
-
       {/* Assign Employees to Goal Modal */}
       <Modal
         isOpen={assignEmployeeModal.isOpen}
@@ -627,7 +643,7 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
         scrollable={false}
       >
         <div className="space-y-6">
-          <p className="text-sm text-on-surface-secondary">
+          <p className="text-sm text-muted-foreground">
             Select members to assign to this goal. Only assigned members (and managers) will see this goal during reporting.
           </p>
 
@@ -653,16 +669,12 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
             >
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              onClick={handleSaveAssignEmployees}
-            >
+            <Button onClick={handleSaveAssignEmployees}>
               Save Assignments
             </Button>
           </div>
         </div>
       </Modal>
-
       {/* View Assignees Modal */}
       <Modal
         isOpen={!!viewingAssigneesGoal}
@@ -676,18 +688,18 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
                 .map(a => employees.find(e => e.id === a.id))
                 .filter((e): e is Employee => !!e)
                 .map(employee => (
-                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-surface-hover rounded-lg border border-transparent hover:border-border transition-colors">
+                  <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-accent rounded-lg border border-transparent hover:border-border transition-colors">
                     <ProfilePicture name={employee.name} size={40} />
                     <div>
-                      <div className="font-medium text-on-surface">{employee.name}</div>
-                      <div className="text-xs text-on-surface-secondary capitalize">{employee.role}</div>
+                      <div className="font-medium text-foreground">{employee.name}</div>
+                      <div className="text-xs text-muted-foreground capitalize">{employee.role}</div>
                     </div>
                   </div>
                 ))
               }
             </div>
           ) : (
-            <p className="text-on-surface-secondary text-center py-4">No members assigned.</p>
+            <p className="text-muted-foreground text-center py-4">No members assigned.</p>
           )}
           <div className="flex justify-end pt-4 border-t border-border">
             <Button
@@ -699,7 +711,6 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
           </div>
         </div>
       </Modal>
-
       {/* Info Modal */}
       <Modal
         isOpen={showInfoModal}
@@ -708,22 +719,22 @@ const GoalsPage: React.FC<GoalsPageProps> = ({
       >
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-on-surface mb-2">What are Goals?</h4>
-            <p className="text-on-surface-secondary text-sm mb-3">
+            <h4 className="font-semibold text-foreground mb-2">What are Goals?</h4>
+            <p className="text-muted-foreground text-sm mb-3">
               Goals are tied to projects and are used to submit reports against. Each goal has specific criteria and instructions that help evaluate performance.
             </p>
           </div>
           <div className="border-t border-border pt-4">
-            <h4 className="font-semibold text-on-surface mb-2">Instructions vs Criteria</h4>
-            <p className="text-on-surface-secondary text-sm mb-3">
-              <strong className="text-on-surface">Instructions</strong> are specific, objective rules that Zevian follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
+            <h4 className="font-semibold text-foreground mb-2">Instructions vs Criteria</h4>
+            <p className="text-muted-foreground text-sm mb-3">
+              <strong className="text-foreground">Instructions</strong> are specific, objective rules that Zevian follows to evaluate the report (e.g., "Code must be commented", "Designs must use the design system").
             </p>
-            <p className="text-on-surface-secondary text-sm">
-              <strong className="text-on-surface">Criteria</strong> are the broad categories on which performance is scored (e.g., "Code Quality", "Creativity", "Speed") and given a weight.
+            <p className="text-muted-foreground text-sm">
+              <strong className="text-foreground">Criteria</strong> are the broad categories on which performance is scored (e.g., "Code Quality", "Creativity", "Speed") and given a weight.
             </p>
           </div>
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mt-4">
-            <p className="text-sm text-on-surface">
+            <p className="text-sm text-foreground">
               <strong>Tip:</strong> Use simple and clear instructions to get the best evaluation from Zevian.
             </p>
           </div>

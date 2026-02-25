@@ -13,7 +13,9 @@ An intelligent performance tracking platform that leverages AI to provide object
 ## 🌟 Key Features
 
 - 🤖 **AI-Powered Evaluations** - Automated report scoring with Google Gemini AI
+- 🧠 **Project Knowledge Base** - Ground evaluations in specific project context
 - 📊 **Advanced Analytics** - Comprehensive dashboards with performance trends
+- 📈 **Skill Analysis** - Holistic proficiency assessment across historical reports
 - 👥 **Hierarchical Management** - Multi-level organizational structure support
 - 🎯 **Flexible Goals** - Customizable criteria with weighted scoring
 - ⚙️ **Smart Reporting** - Real-time feedback and automated evaluation
@@ -74,7 +76,7 @@ An intelligent performance tracking platform that leverages AI to provide object
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 19.2, TypeScript 5.8, Vite 6.2
-- **Backend**: Supabase (PostgreSQL), Google Gemini AI
+- **Backend**: Supabase (PostgreSQL), Google Gemini AI (2.5-flash/pro)
 - **UI Libraries**: Lucide React, Recharts, Preline
 
 ---

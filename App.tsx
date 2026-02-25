@@ -623,10 +623,10 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-goten">
+      <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-on-surface-secondary">Loading data...</p>
+          <p className="text-muted-foreground">Loading data...</p>
         </div>
       </div>
     );
@@ -638,23 +638,23 @@ const AppContent: React.FC = () => {
   // Fallback: If logged in but no employee record (and not onboarding), show Setup screen
   if (!authLoading && user && !employee && !showOnboarding) {
     return (
-      <div className="flex h-screen items-center justify-center bg-goten p-6">
+      <div className="flex h-screen items-center justify-center bg-background p-6">
         <div className="text-center max-w-md space-y-6">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
             <span className="text-3xl">🚀</span>
           </div>
-          <h2 className="text-2xl font-bold text-on-surface">Almost There!</h2>
-          <p className="text-on-surface-secondary">
+          <h2 className="text-2xl font-bold text-foreground">Almost There!</h2>
+          <p className="text-muted-foreground">
             You have created your account, but we need to set up your organization or verify your profile.
           </p>
           <div className="flex flex-col gap-3">
             <button
               onClick={() => setShowOnboarding(true)}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover transition-colors"
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
             >
               Set Up Organization
             </button>
-            <p className="text-sm text-on-surface-secondary">
+            <p className="text-sm text-muted-foreground">
               Or ask your manager to send you an invite if you are joining an existing team.
             </p>
             <button
@@ -671,7 +671,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      <div className="flex h-screen bg-goten text-on-surface font-sans">
+      <div className="flex min-h-screen bg-background text-foreground font-sans overflow-hidden">
         {!isAuthPage && (
           <Sidebar
             currentPage={currentPage}
@@ -684,7 +684,7 @@ const AppContent: React.FC = () => {
             employees={memoizedEmployees}
           />
         )}
-        <div className={`flex-1 flex flex-col ${!isAuthPage ? 'ml-64' : ''}`}>
+        <div style={{ paddingLeft: !isAuthPage ? '16rem' : '0' }} className="flex-1 flex flex-col min-w-0">
           {!isAuthPage && (
             <Header
               viewMode={viewMode}
@@ -707,7 +707,7 @@ const AppContent: React.FC = () => {
               reports={memoizedReports}
             />
           )}
-          <main className="flex-1 overflow-y-auto bg-goten w-full">
+          <main className="flex-1 overflow-y-auto bg-background w-full">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />

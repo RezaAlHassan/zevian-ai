@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Page, ViewMode, EmployeeRole, Invitation, Project, Employee, Goal } from '../types';
 import { Target, FileText, Users, User, LayoutDashboard, List, Search, FolderKanban, UserPlus, Building2 } from 'lucide-react';
 import InviteUserModal from './InviteUserModal';
+import { Badge } from "./ui/badge";
 
 interface SidebarProps {
   currentPage: Page;
@@ -31,21 +32,21 @@ const NavButton: React.FC<{
   return (
     <Link
       to={to}
-      className={`flex items-center justify-between w-full gap-3 px-3 py-2.5 rounded-moon-i-sm text-moon-14 font-medium transition-all duration-150 group ${isActive
-        ? 'bg-piccolo/10 text-piccolo font-semibold'
-        : 'text-trunks hover:bg-gohan hover:text-bulma'
+      className={`flex items-center justify-between w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${isActive
+        ? 'bg-primary/10 text-primary font-semibold'
+        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
     >
       <div className="flex items-center gap-3">
-        <span className={`${isActive ? 'text-piccolo scale-110' : 'text-trunks group-hover:text-piccolo group-hover:scale-110'} transition-all duration-200`}>
+        <span className={`${isActive ? 'text-primary scale-110' : 'text-muted-foreground group-hover:text-primary group-hover:scale-110'} transition-all duration-200`}>
           {icon}
         </span>
         <span className={isActive ? 'font-bold' : ''}>{label}</span>
       </div>
       {badge && (
-        <span className="px-2 py-0.5 text-moon-12 font-semibold bg-piccolo/20 text-piccolo rounded-full">
+        <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/20 font-bold">
           {badge}
-        </span>
+        </Badge>
       )}
     </Link>
   );
@@ -69,9 +70,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [employees]);
 
   return (
-    <aside className="w-64 bg-goten border-r border-beerus flex flex-col fixed top-0 left-0 h-full text-bulma z-20">
+    <aside className="w-64 bg-background border-r border-border flex flex-col fixed top-0 left-0 h-full text-foreground z-50">
       {/* Logo */}
-      <div className="px-6 h-16 flex items-center border-b border-beerus">
+      <div className="px-6 h-16 flex items-center border-b border-border">
         <img src="/logo-full.png" alt="Zevian Logo" className="h-8 object-contain" />
       </div>
 
@@ -139,10 +140,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Invite User Button (Manager Only) */}
       {viewMode === 'manager' && onInvite && (
-        <div className="p-4 border-t border-beerus mt-auto">
+        <div className="p-4 border-t border-border mt-auto">
           <button
             onClick={() => setShowInviteModal(true)}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-piccolo text-goten rounded-moon-i-sm font-medium hover:bg-piccolo/90 transition-all active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-all active:scale-[0.98]"
           >
             <UserPlus size={18} />
             <span>Invite User</span>

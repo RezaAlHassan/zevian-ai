@@ -446,8 +446,7 @@ function dbReportToReport(dbReport: any): Report {
         criterionScores: dbReport.report_criterion_scores ? dbReport.report_criterion_scores.map((s: any) => ({
             criterionName: s.criterion_name,
             score: s.score
-        })) : [],
-        reviewedBy: dbReport.reviewed_by
+        })) : []
     };
 }
 
@@ -591,7 +590,8 @@ export const reportService = {
         if (updates.managerOverrideReasoning !== undefined) dbUpdates.manager_override_reasoning = updates.managerOverrideReasoning;
         if (updates.managerFeedback !== undefined) dbUpdates.manager_feedback = updates.managerFeedback;
         if (updates.evaluationReasoning !== undefined) dbUpdates.evaluation_reasoning = updates.evaluationReasoning;
-        if (updates.reviewedBy !== undefined) dbUpdates.reviewed_by = updates.reviewedBy;
+
+        console.log('[Database] Updating report:', id, dbUpdates);
 
         const { data, error } = await supabase
             .from('reports')
@@ -600,8 +600,19 @@ export const reportService = {
             .select()
             .maybeSingle();
 
-        if (error) throw error;
-        if (!data) throw new Error(`Report with ID ${id} not found or you don't have permission to update it.`);
+        if (error) {
+            console.error('[Database] Failed to update report:', {
+                error,
+                id,
+                dbUpdates
+            });
+            throw error;
+        }
+
+        if (!data) {
+            console.warn('[Database] Report update returned no data (possibly RLS or ID mismatch):', { id, dbUpdates });
+            throw new Error(`Report with ID ${id} not found or you don't have permission to update it.`);
+        }
 
         return dbReportToReport(data);
     },

@@ -11,7 +11,7 @@ const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, className
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={props.id} className="block text-sm font-medium text-on-surface mb-2">
+        <label htmlFor={props.id} className="block text-sm font-medium text-foreground mb-2">
           {label}
         </label>
       )}
@@ -19,19 +19,19 @@ const Textarea: React.FC<TextareaProps> = ({ label, error, helperText, className
         {...props}
         className={`
           py-2 px-3 block w-full border rounded-lg text-sm
-          bg-white text-on-surface placeholder-on-surface-tertiary
+          bg-background text-foreground placeholder-muted-foreground
           focus:border-primary focus:ring-primary focus:ring-1
-          disabled:bg-gray-50 disabled:text-on-surface-tertiary disabled:cursor-not-allowed
+          disabled:bg-gray-50 disabled:text-muted-foreground disabled:cursor-not-allowed
           transition-all resize-y
-          ${error ? 'border-error focus:border-error focus:ring-error' : 'border-border'}
+          ${error ? 'border-destructive focus:border-destructive focus:ring-destructive' : 'border-border'}
           ${className}
         `}
       />
       {error && (
-        <p className="mt-2 text-sm text-error">{error}</p>
+        <p className="mt-2 text-sm text-destructive">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-2 text-sm text-on-surface-secondary">{helperText}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{helperText}</p>
       )}
     </div>
   );

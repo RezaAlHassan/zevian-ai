@@ -3,8 +3,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Invitation, Employee, EmployeeRole } from '../types';
 import { CheckCircle, XCircle, Loader2, Mail, Shield, User } from 'lucide-react';
-import Button from '../components/Button';
-import Input from '../components/Input';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import Modal from '../components/Modal';
 import { authService } from '../services/authService';
 import { invitationService } from '../services/invitationService';
@@ -83,10 +83,10 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-goten">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="animate-spin mx-auto mb-4 text-primary" size={48} />
-          <p className="text-on-surface-secondary">Loading invitation...</p>
+          <p className="text-muted-foreground">Loading invitation...</p>
         </div>
       </div>
     );
@@ -94,12 +94,12 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-goten">
-        <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border text-center">
-          <XCircle size={48} className="text-error mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-on-surface mb-2">Invitation Error</h2>
-          <p className="text-on-surface-secondary mb-6">{error}</p>
-          <Button variant="primary" onClick={() => navigate('/')}>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="max-w-md w-full bg-card rounded-lg p-8 border border-border text-center">
+          <XCircle size={48} className="text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Invitation Error</h2>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <Button onClick={() => navigate('/')}>
             Go to Dashboard
           </Button>
         </div>
@@ -110,8 +110,8 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
   const orgName = localStorage.getItem('organizationName') || 'the organization';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-goten p-4">
-      <div className="max-w-md w-full bg-surface-elevated rounded-lg p-8 border border-border">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="max-w-md w-full bg-card rounded-lg p-8 border border-border">
         <div className="text-center mb-6">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             {invitation?.role === 'manager' ? (
@@ -120,31 +120,31 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
               <User size={32} className="text-primary" />
             )}
           </div>
-          <h2 className="text-2xl font-bold text-on-surface mb-2">You're Invited!</h2>
-          <p className="text-on-surface-secondary">
+          <h2 className="text-2xl font-bold text-foreground mb-2">You're Invited!</h2>
+          <p className="text-muted-foreground">
             Join <strong>{orgName}</strong> as a{' '}
             <strong className="capitalize">{invitation?.role}</strong>
           </p>
         </div>
 
         <div className="space-y-4 mb-6">
-          <div className="bg-surface rounded-lg p-4 border border-border">
+          <div className="bg-muted rounded-lg p-4 border border-border">
             <div className="flex items-center gap-3 mb-3">
-              <Mail size={20} className="text-on-surface-secondary" />
+              <Mail size={20} className="text-muted-foreground" />
               <div>
-                <p className="text-sm text-on-surface-secondary">Invited Email</p>
-                <p className="font-medium text-on-surface">{invitation?.email}</p>
+                <p className="text-sm text-muted-foreground">Invited Email</p>
+                <p className="font-medium text-foreground">{invitation?.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               {invitation?.role === 'manager' ? (
-                <Shield size={20} className="text-on-surface-secondary" />
+                <Shield size={20} className="text-muted-foreground" />
               ) : (
-                <User size={20} className="text-on-surface-secondary" />
+                <User size={20} className="text-muted-foreground" />
               )}
               <div>
-                <p className="text-sm text-on-surface-secondary">Role</p>
-                <p className="font-medium text-on-surface capitalize">
+                <p className="text-sm text-muted-foreground">Role</p>
+                <p className="font-medium text-foreground capitalize">
                   {invitation?.role === 'manager' ? 'Manager (Reads Reports)' : 'Employee (Sends Reports)'}
                 </p>
               </div>
@@ -153,11 +153,7 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
         </div>
 
         <div className="space-y-3">
-          <Button
-            variant="primary"
-            onClick={handleAccept}
-            className="w-full"
-          >
+          <Button onClick={handleAccept} className="w-full">
             Continue to Setup
           </Button>
           <Button
@@ -169,7 +165,7 @@ const InviteAcceptPage: React.FC<InviteAcceptPageProps> = () => {
           </Button>
         </div>
 
-        <p className="text-xs text-on-surface-tertiary text-center mt-4">
+        <p className="text-xs text-muted-foreground text-center mt-4">
           Token: <code className="font-mono">{token}</code>
           <br />
           This token is saved and will recognize which dashboard and organization to join.

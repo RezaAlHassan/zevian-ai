@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Project, Report, Employee, Goal, ProjectDocument, KnowledgePin, KnowledgeBaseData } from '../types';
 import { ArrowLeft, Save, X, Bot, RefreshCw, FileText, Info, Paperclip, File, Trash2, Loader2, Download, Upload, Plus, Pin, AlertTriangle } from 'lucide-react';
-import Button from '../components/Button';
+import { Button } from '../components/ui/button';
 import { generateKnowledgeBase } from '../services/geminiService';
 import { storageService } from '../services/storageService';
 import { knowledgeBaseService } from '../services/knowledgeBaseService';
@@ -261,11 +261,11 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
         const sectionPins = pins.filter(p => p.section === sectionKey);
 
         return (
-            <div className="bg-surface rounded-lg p-5 border border-border space-y-4">
+            <div className="bg-muted rounded-lg p-5 border border-border space-y-4">
                 <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-on-surface flex items-center gap-2">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
                         {title}
-                        <span className="text-xs font-normal text-on-surface-tertiary bg-surface-hover px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-normal text-muted-foreground bg-accent px-2 py-0.5 rounded-full">
                             {sectionPins.length + (items?.length || 0)}
                         </span>
                     </h4>
@@ -273,17 +273,13 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                         <Button
                             onClick={() => { setActiveSectionForPin(sectionKey); setNewPinContent(''); }}
                             variant="ghost"
-                            size="sm"
-                            icon={Plus}
-                        >
-                            Add Pin
-                        </Button>
+                            size="sm"><Plus className="mr-2 h-4 w-4" />Add Pin
+                                                    </Button>
                     )}
                 </div>
-
                 {/* Add Pin Input */}
                 {activeSectionForPin === sectionKey && (
-                    <div className="flex gap-2 p-3 bg-surface-hover rounded-lg animate-in fade-in slide-in-from-top-2">
+                    <div className="flex gap-2 p-3 bg-accent rounded-lg animate-in fade-in slide-in-from-top-2">
                         <div className="flex-shrink-0 pt-2">
                             <Pin size={16} className="text-primary" />
                         </div>
@@ -292,17 +288,16 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                                 value={newPinContent}
                                 onChange={e => setNewPinContent(e.target.value)}
                                 placeholder={`Enter mandatory rule for ${title}...`}
-                                className="w-full bg-surface border border-border rounded-md p-2 text-sm focus:ring-1 focus:ring-primary outline-none min-h-[60px]"
+                                className="w-full bg-muted border border-border rounded-md p-2 text-sm focus:ring-1 focus:ring-primary outline-none min-h-[60px]"
                                 autoFocus
                             />
                             <div className="flex justify-end gap-2">
                                 <Button size="sm" variant="ghost" onClick={() => setActiveSectionForPin(null)}>Cancel</Button>
-                                <Button size="sm" variant="primary" onClick={() => handleAddPin(sectionKey)}>Pin Rule</Button>
+                                <Button size="sm" onClick={() => handleAddPin(sectionKey)}>Pin Rule</Button>
                             </div>
                         </div>
                     </div>
                 )}
-
                 <div className="space-y-2">
                     {/* Pinned Items */}
                     {sectionPins.map(pin => (
@@ -310,14 +305,14 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                             <div className="flex gap-3">
                                 <Pin size={16} className="text-secondary flex-shrink-0 mt-1" />
                                 <div>
-                                    <p className="text-sm text-on-surface font-medium">{pin.content}</p>
+                                    <p className="text-sm text-foreground font-medium">{pin.content}</p>
                                     <p className="text-[10px] text-secondary mt-1 uppercase tracking-wider font-bold">Pinned &bull; Hard Constraint</p>
                                 </div>
                             </div>
                             {isManager && (
                                 <button
                                     onClick={() => handleDeletePin(pin.id)}
-                                    className="text-on-surface-tertiary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <Trash2 size={14} />
                                 </button>
@@ -330,7 +325,7 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                         items.map((item, idx) => {
                             const text = typeof item === 'string' ? item : `${item.term}: ${item.definition}`;
                             return (
-                                <div key={idx} className="flex items-start gap-3 p-3 rounded-md bg-surface border border-border/50 text-sm text-on-surface-secondary">
+                                <div key={idx} className="flex items-start gap-3 p-3 rounded-md bg-muted border border-border/50 text-sm text-muted-foreground">
                                     <div className="w-1.5 h-1.5 rounded-full bg-primary/40 mt-1.5 flex-shrink-0" />
                                     <p>{text}</p>
                                 </div>
@@ -338,7 +333,7 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                         })
                     ) : (
                         sectionPins.length === 0 && (
-                            <div className="text-sm text-on-surface-tertiary italic p-2">{emptyText}</div>
+                            <div className="text-sm text-muted-foreground italic p-2">{emptyText}</div>
                         )
                     )}
                 </div>
@@ -351,80 +346,75 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button onClick={onBack} variant="ghost" size="sm" icon={ArrowLeft}>Back to Project</Button>
+                    <Button onClick={onBack} variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" />Back to Project</Button>
                     <div>
-                        <h2 className="text-2xl font-bold text-on-surface">Knowledge Base</h2>
-                        <p className="text-sm text-on-surface-tertiary">{project.name}</p>
+                        <h2 className="text-2xl font-bold text-foreground">Knowledge Base</h2>
+                        <p className="text-sm text-muted-foreground">{project.name}</p>
                     </div>
                 </div>
 
                 {isManager && (
                     <Button
                         onClick={handleRegenerate}
-                        variant="primary"
-                        icon={isGenerating ? Loader2 : RefreshCw}
                         disabled={isGenerating}
-                        className={isGenerating ? 'animate-pulse' : ''}
-                    >
+                        className={isGenerating ? 'animate-pulse' : ''}>
                         {isGenerating ? (isLegacyMode ? 'Converting...' : 'Regenerating...') : (isLegacyMode ? 'Analyze & Enable Pinned Rules' : 'Regenerate Suggestions')}
                     </Button>
                 )}
             </div>
-
             {/* Legacy Warning */}
             {isLegacyMode && !isGenerating && (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-start gap-3">
                     <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
                     <div>
                         <h3 className="text-sm font-semibold text-amber-500 mb-1">Legacy Format Detected</h3>
-                        <p className="text-sm text-on-surface-secondary mb-3">
+                        <p className="text-sm text-muted-foreground mb-3">
                             This Knowledge Base is stored in a legacy text format. To use <strong>Pinned Rules</strong> (Human Overrides) and granular editing, please regenerate the Knowledge Base. This will structure the data and allow you to lock in specific rules.
                         </p>
                     </div>
                 </div>
             )}
-
             {/* Main Content */}
             {isGenerating ? (
-                <div className="bg-surface-elevated rounded-lg p-12 flex flex-col items-center justify-center text-center border border-border min-h-[400px]">
+                <div className="bg-card rounded-lg p-12 flex flex-col items-center justify-center text-center border border-border min-h-[400px]">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6 relative">
                         <Bot size={32} className="text-primary animate-pulse" />
                         <div className="absolute inset-0 border-2 border-primary/20 rounded-full animate-spin-slow" />
                     </div>
-                    <h3 className="text-lg font-bold text-on-surface mb-2">
+                    <h3 className="text-lg font-bold text-foreground mb-2">
                         {isLegacyMode ? "Structuring Knowledge Base..." : "Synthesizing Project Context..."}
                     </h3>
-                    <p className="text-on-surface-secondary max-w-md">
+                    <p className="text-muted-foreground max-w-md">
                         Zevian is analyzing your reports, goals, and documents to build a structured set of rules and benchmarks.
                         {pins.length > 0 && <span className="block mt-2 font-medium text-secondary">Applying {pins.length} pinned rules as hard constraints.</span>}
                     </p>
                 </div>
             ) : isLegacyMode ? (
                 /* Legacy View */
-                <div className="bg-surface-elevated rounded-lg p-6 border border-border">
+                (<div className="bg-card rounded-lg p-6 border border-border">
                     <div className="prose prose-slate max-w-none prose-sm">
-                        <div className="whitespace-pre-wrap font-mono text-sm text-on-surface-secondary">
+                        <div className="whitespace-pre-wrap font-mono text-sm text-muted-foreground">
                             {project.aiContext}
                         </div>
                     </div>
-                </div>
+                </div>)
             ) : kbData ? (
                 /* Structured View */
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                (<div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {/* Left Column: Description & Metadata */}
                     <div className="space-y-6">
-                        <div className="bg-surface-elevated rounded-lg p-5 border border-border">
-                            <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider mb-4 pb-2 border-b border-border">Project Overview</h3>
-                            <p className="text-sm text-on-surface-secondary leading-relaxed mb-4">
+                        <div className="bg-card rounded-lg p-5 border border-border">
+                            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider mb-4 pb-2 border-b border-border">Project Overview</h3>
+                            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                                 {kbData.projectDescription}
                             </p>
 
                             {/* Roadmaps */}
                             <div className="space-y-2">
-                                <h4 className="text-xs font-semibold text-on-surface-tertiary uppercase">Roadmap & KPIs</h4>
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase">Roadmap & KPIs</h4>
                                 <ul className="space-y-1">
                                     {kbData.roadmapsAndKPIs.map((k, i) => (
-                                        <li key={i} className="text-sm text-on-surface-secondary flex gap-2">
+                                        <li key={i} className="text-sm text-muted-foreground flex gap-2">
                                             <span className="text-primary font-bold">{i + 1}.</span> {k}
                                         </li>
                                     ))}
@@ -433,11 +423,15 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                         </div>
 
                         {/* File Uploads (Moved to sidebar) */}
-                        <div className="bg-surface-elevated rounded-lg p-5 border border-border">
+                        <div className="bg-card rounded-lg p-5 border border-border">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Documents</h3>
+                                <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Documents</h3>
                                 {isManager && (
-                                    <Button onClick={() => fileInputRef.current?.click()} variant="outline" size="sm" icon={Upload} disabled={isUploading}>
+                                    <Button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isUploading}><Upload className="mr-2 h-4 w-4" />
                                         {isUploading ? 'Wait...' : 'Add'}
                                     </Button>
                                 )}
@@ -445,20 +439,19 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                             <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileUpload} />
 
                             <div className="space-y-2">
-                                {uploadedDocuments.length === 0 && <p className="text-xs text-on-surface-tertiary italic">No documents.</p>}
+                                {uploadedDocuments.length === 0 && <p className="text-xs text-muted-foreground italic">No documents.</p>}
                                 {uploadedDocuments.map(doc => (
-                                    <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-surface border border-border text-sm">
+                                    <div key={doc.id} className="flex items-center justify-between p-2 rounded bg-muted border border-border text-sm">
                                         <div className="flex items-center gap-2 overflow-hidden">
                                             <FileText size={14} className="text-primary flex-shrink-0" />
                                             <span className="truncate">{doc.fileName}</span>
                                         </div>
-                                        {isManager && <button onClick={() => handleRemoveFile(doc.id)} className="text-on-surface-tertiary hover:text-red-500"><X size={14} /></button>}
+                                        {isManager && <button onClick={() => handleRemoveFile(doc.id)} className="text-muted-foreground hover:text-red-500"><X size={14} /></button>}
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </div>
-
                     {/* Right Column (Wide): Rules & Lexicon */}
                     <div className="xl:col-span-2 space-y-6">
                         {renderSection("Project Lexicon", "lexicon", kbData.projectLexicon)}
@@ -466,17 +459,17 @@ const KnowledgeBasePage: React.FC<KnowledgeBasePageProps> = ({
                         {renderSection("Style & Quality Benchmarks", "benchmarks", [kbData.styleAndQualityBenchmarks])}
                         {renderSection("Implicit Constraints", "constraints", kbData.implicitConstraints)}
                     </div>
-                </div>
+                </div>)
             ) : (
                 /* Empty / Error State */
-                <div className="bg-surface-elevated rounded-lg p-12 text-center border border-border">
-                    <Bot size={48} className="text-on-surface-tertiary mx-auto mb-4" />
-                    <h3 className="text-lg font-bold text-on-surface">Knowledge Base Not Initialized</h3>
-                    <p className="text-on-surface-secondary mb-6">Create a knowledge base to guide the AI with specific rules and context.</p>
+                (<div className="bg-card rounded-lg p-12 text-center border border-border">
+                    <Bot size={48} className="text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-foreground">Knowledge Base Not Initialized</h3>
+                    <p className="text-muted-foreground mb-6">Create a knowledge base to guide the AI with specific rules and context.</p>
                     {isManager && (
-                        <Button onClick={handleRegenerate} variant="primary">Initialize Knowledge Base</Button>
+                        <Button onClick={handleRegenerate}>Initialize Knowledge Base</Button>
                     )}
-                </div>
+                </div>)
             )}
         </div>
     );
