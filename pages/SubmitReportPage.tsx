@@ -329,11 +329,20 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
                   </div>
 
                   <div className="flex gap-3">
-                    <Button onClick={handleEvaluateReport} variant="outline" disabled={true} className="opacity-50 cursor-not-allowed h-11 px-6 rounded-xl font-bold text-xs">Analyze Draft</Button>
                     <Button
-                      onClick={handleFinalSubmit}
-                      disabled={true}
-                      className="opacity-50 cursor-not-allowed h-11 px-6 rounded-xl font-bold text-xs">Submit Final</Button>
+                      onClick={handleEvaluateReport}
+                      disabled={isEvaluating || selectedGoalIds.length === 0 || textLength < 50}
+                      className="h-11 px-6 rounded-xl font-bold text-xs"
+                    >
+                      {isEvaluating ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin mr-2 inline" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        'Submit Report'
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -426,11 +435,21 @@ const SubmitReportPage: React.FC<SubmitReportPageProps> = ({ goals, projects, ad
             );
           })}
           <div className="flex gap-4 pt-6 border-t border-border sticky bottom-1 bg-background">
-            <Button onClick={() => setIsPreviewModalOpen(false)} variant="outline" className="flex-1 h-14 rounded-2xl font-bold">Revise</Button>
+            <Button onClick={() => setIsPreviewModalOpen(false)} variant="outline" className="flex-1 h-14 rounded-2xl font-bold">Revise Draft</Button>
             <Button
               onClick={handleFinalSubmit}
-              disabled={true}
-              className="opacity-50 cursor-not-allowed flex-1 h-14 rounded-2xl font-bold">Finalize Submission</Button>
+              disabled={isSubmitting}
+              className="flex-1 h-14 rounded-2xl font-bold"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin mr-2 inline" />
+                  Submitting...
+                </>
+              ) : (
+                'Confirm Submission'
+              )}
+            </Button>
           </div>
         </div>
       </Modal>
